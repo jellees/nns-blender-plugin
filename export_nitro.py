@@ -3,7 +3,6 @@ import xml.etree.ElementTree as ET
 from xml.dom import minidom
 
 
-
 def generate_header(imd):
 
     head = ET.SubElement(imd, 'head')
@@ -16,13 +15,21 @@ def generate_header(imd):
     generator.set('version','0.0.1')
 
 
-def save(context, filepath):
+def generate_imd(filepath):
+    
+    from . import export_imd
     
     imd = ET.Element('imd')
-
     generate_header(imd)
+    body = ET.SubElement(imd, 'body')
+    export_imd.generate_body(body)
 
     pretty_imd = minidom.parseString(ET.tostring(imd)).toprettyxml(indent="   ")
 
     with open(filepath, "w") as f:
         f.write(pretty_imd)
+
+
+def save(context, filepath):
+    
+    generate_imd(filepath)
