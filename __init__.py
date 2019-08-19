@@ -1,4 +1,5 @@
 import bpy
+from bpy.props import BoolProperty, FloatProperty, StringProperty, EnumProperty
 
 
 bl_info = {
@@ -16,9 +17,9 @@ class ExportNitro(bpy.types.Operator):
     bl_idname = "export.nitro"
     bl_label = "Export Nitro"
 
-    filepath = bpy.props.StringProperty(subtype="FILE_PATH")
+    filepath = StringProperty(subtype="FILE_PATH")
 
-    filename_ext = ".imd"
+    pretty_print = BoolProperty(name="Pretty print", default=True)
 
     def execute(self, context):
         from . import export_nitro
