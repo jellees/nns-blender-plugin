@@ -1,3 +1,5 @@
+import bpy
+
 
 bl_info = {
     "name": "Nitro IMD (.imd)",
@@ -9,15 +11,13 @@ bl_info = {
     "category": "Import-Export"
 }
 
-import bpy
-
 
 class ExportNitro(bpy.types.Operator):
     bl_idname = "export.nitro"
     bl_label = "Export Nitro"
 
     filepath = bpy.props.StringProperty(subtype="FILE_PATH")
-    
+
     filename_ext = ".imd"
 
     def execute(self, context):

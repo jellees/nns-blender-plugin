@@ -2,8 +2,7 @@ import bpy
 import xml.etree.ElementTree as ET
 
 
-def generate_materials(imd):
-
+def write_materials(imd):
     material_array = ET.SubElement(imd, 'material_array')
     material_array.set('size', str(len(bpy.data.materials)))
 
@@ -13,49 +12,44 @@ def generate_materials(imd):
 
 
 def get_material_index(obj, index):
-
     name = obj.material_slots[index].material.name
     return bpy.data.materials.find(name)
 
 
 class Batch():
-    """ 
-    A Batch represents a bunch of triangles with material 
-    information that gets passed on to the gpu. 
     """
-
+    A Batch represents a bunch of triangles with material information
+    that gets passed on to the gpu.
+    """
     def __init__(self, material_index):
-        
         self.material_index = material_index
         self.primitives = {'triangles': [], 'quads': []}
 
     def process(self, polygon, obj):
-
         verts_local = [v.co for v in obj.data.vertices.values()]
         verts_world = [obj.matrix_world @ v_local for v_local in verts_local]
-
         if len(polygon.vertices) == 3:
-            self.primitives['triangles'].append([verts_world[i] for i in polygon.vertices])
+            self.primitives['triangles'].append(
+                [verts_world[i] for i in polygon.vertices]
+            )
         elif len(polygon.vertices) == 4:
-            self.primitives['quads'].append([verts_world[i] for i in polygon.vertices])
+            self.primitives['quads'].append(
+                [verts_world[i] for i in polygon.vertices]
+            )
 
 
 def generate_batches():
-
     batches = [Batch(i) for i in range(len(bpy.data.materials))]
-
     for obj in bpy.data.objects:
         if obj.type != 'MESH':
             continue
         for polygon in obj.data.polygons:
             index = get_material_index(obj, polygon.material_index)
             batches[index].process(polygon, obj)
-    
     return batches
 
 
-def generate_polygons(imd):
-
+def write_polygons(imd):
     polygons = ET.SubElement(imd, 'polygons')
     batches = generate_batches()
 
@@ -78,7 +72,7 @@ def generate_polygons(imd):
         primitive.set('index', '0')
         primitive.set('type', 'quads')
         primitive.set('vertex_size', '0')
-        
+
         for quad in batch.primitives['quads']:
             for vector in quad:
                 pos_xyz = ET.SubElement(primitive, 'pos_xyz')
@@ -86,6 +80,5 @@ def generate_polygons(imd):
 
 
 def generate_body(imd):
-
-    generate_materials(imd)
-    generate_polygons(imd)
+    write_materials(imd)
+    write_polygons(imd)
