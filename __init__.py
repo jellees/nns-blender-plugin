@@ -23,8 +23,8 @@ class ExportNitro(bpy.types.Operator):
 
     def execute(self, context):
         from . import export_nitro
-        keywords = self.as_keywords()
-        export_nitro.save(context, **keywords)
+        settings = self.as_keywords()
+        export_nitro.save(context, settings)
         return {'FINISHED'}
 
     def invoke(self, context, event):
