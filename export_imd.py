@@ -16,7 +16,7 @@ model_data = {
         quad_size: 0,
         vertex_size: 0
     },
-    display_lists: [
+    polygons: [
         {
             material: 0,
             primitives: [
@@ -88,7 +88,7 @@ def polygon_to_primitive(dl, obj, polygon):
         )
 
 
-def get_model_data():
+def prepare_model_data():
     global model_data
     model_data = {
         'output': {
@@ -97,18 +97,18 @@ def get_model_data():
             'quad_size': 0,
             'vertex_size': 0
         },
-        'display_lists': []
+        'polygons': []
     }
 
     for i in range(len(bpy.data.materials)):
-        model_data['display_lists'].append({'material': i, 'primitives': []})
+        model_data['polygons'].append({'material': i, 'primitives': []})
 
     for obj in bpy.data.objects:
         if obj.type != 'MESH':
             continue
         for polygon in obj.data.polygons:
             index = get_material_index(obj, polygon.material_index)
-            dl = model_data['display_lists'][index]
+            dl = model_data['polygons'][index]
             polygon_to_primitive(dl, obj, polygon)
 
     with open(settings['filepath'] + '.json', 'w') as f:
@@ -188,7 +188,7 @@ def generate_matrices(imd):
 def generate_polygons(imd):
     polygons = ET.SubElement(imd, 'polygons')
 
-    for index, dl in enumerate(model_data['display_lists']):
+    for index, dl in enumerate(model_data['polygons']):
         polygon = ET.SubElement(polygons, 'polygon')
         polygon.set('index', str(index))
         polygon.set('name', f'polygon{index}')
@@ -217,7 +217,7 @@ def generate_body(imd, export_settings):
     global settings
     settings = export_settings
 
-    get_model_data()
+    prepare_model_data()
 
     generate_model_info(imd)
     generate_box_test(imd)
