@@ -17,7 +17,7 @@ def get_material_index(obj, index):
 Display list collection.
 
 model_data = {
-    info: {
+    output: {
         polygon_size: 0,
         triangle_size: 0,
         quad_size: 0,
@@ -32,10 +32,12 @@ model_data = {
                     commands: [
                         {
                             type: "mtx",
+                            tag: "idx",
                             data: "0"
                         },
                         {
                             type: "pos_xyz",
+                            tag: "xyz",
                             data: "0.141357 0.119873 -0.139404"
                         }
                     ]
@@ -66,12 +68,12 @@ def polygon_to_primitive(dl, obj, polygon):
 
     if len(polygon.vertices) == 3:
         primitive = get_primitive(dl['primitives'], 'triangles')
-        model_data['info']['vertex_size'] += 3
-        model_data['info']['triangle_size'] += 1
+        model_data['output']['vertex_size'] += 3
+        model_data['output']['triangle_size'] += 1
     elif len(polygon.vertices) == 4:
         primitive = get_primitive(dl['primitives'], 'quads')
-        model_data['info']['vertex_size'] += 4
-        model_data['info']['quad_size'] += 1
+        model_data['output']['vertex_size'] += 4
+        model_data['output']['quad_size'] += 1
 
     for i in polygon.vertices:
         primitive['commands'].append(
@@ -86,7 +88,7 @@ def polygon_to_primitive(dl, obj, polygon):
 def get_model_data():
     global model_data
     model_data = {
-        'info': {
+        'output': {
             'polygon_size': len(bpy.data.materials),
             'triangle_size': 0,
             'quad_size': 0,
