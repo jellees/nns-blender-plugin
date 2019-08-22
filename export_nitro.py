@@ -29,7 +29,7 @@ def generate_imd(settings):
     else:
         output = ET.tostring(imd, encoding='unicode')
 
-    with open(settings['filepath'], 'w') as f:
+    with open(settings['filepath'] + '.imd', 'w') as f:
         f.write(output)
 
 

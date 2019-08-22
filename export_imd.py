@@ -1,8 +1,113 @@
 import bpy
 import xml.etree.ElementTree as ET
+import json
 
 
 settings = None
+
+model_data = {}
+
+
+def get_material_index(obj, index):
+    name = obj.material_slots[index].material.name
+    return bpy.data.materials.find(name)
+
+
+"""
+Display list collection.
+
+model_data = {
+    info: {
+        polygon_size: 0,
+        triangle_size: 0,
+        quad_size: 0,
+        vertex_size: 0
+    },
+    display_lists: [
+        {
+            material: 0,
+            primitives: [
+                {
+                    type: triangles,
+                    commands: [
+                        {
+                            type: "mtx",
+                            data: "0"
+                        },
+                        {
+                            type: "pos_xyz",
+                            data: "0.141357 0.119873 -0.139404"
+                        }
+                    ]
+                }
+            ]
+        }
+    ]
+}
+"""
+
+
+def get_primitive(primitives, tp):
+    for primitive in primitives:
+        if primitive['type'] == tp:
+            return primitive
+    primitives.append(
+        {
+            'type': tp,
+            'commands': []
+        }
+    )
+    return primitives[-1]
+
+
+def polygon_to_primitive(dl, obj, polygon):
+    verts_local = [v.co for v in obj.data.vertices.values()]
+    verts_world = [obj.matrix_world @ v_local for v_local in verts_local]
+
+    if len(polygon.vertices) == 3:
+        primitive = get_primitive(dl['primitives'], 'triangles')
+        model_data['info']['vertex_size'] += 3
+        model_data['info']['triangle_size'] += 1
+    elif len(polygon.vertices) == 4:
+        primitive = get_primitive(dl['primitives'], 'quads')
+        model_data['info']['vertex_size'] += 4
+        model_data['info']['quad_size'] += 1
+
+    for i in polygon.vertices:
+        primitive['commands'].append(
+            {
+                'type': 'pos_xyz',
+                'tag': 'xyz',
+                'data': ' '.join([str(v) for v in verts_world[i]])
+            }
+        )
+
+
+def get_model_data():
+    global model_data
+    model_data = {
+        'info': {
+            'polygon_size': len(bpy.data.materials),
+            'triangle_size': 0,
+            'quad_size': 0,
+            'vertex_size': 0
+        },
+        'display_lists': []
+    }
+
+    for i in range(len(bpy.data.materials)):
+        model_data['display_lists'].append({'material': i, 'primitives': []})
+
+    for obj in bpy.data.objects:
+        if obj.type != 'MESH':
+            continue
+        for polygon in obj.data.polygons:
+            index = get_material_index(obj, polygon.material_index)
+            dl = model_data['display_lists'][index]
+            polygon_to_primitive(dl, obj, polygon)
+
+    with open(settings['filepath'] + '.json', 'w') as f:
+        f.write(json.dumps(model_data, indent=4))
 
 
 def generate_model_info(imd):
@@ -75,49 +180,10 @@ def generate_matrices(imd):
     matrix.set('node_idx', '0')
 
 
-def get_material_index(obj, index):
-    name = obj.material_slots[index].material.name
-    return bpy.data.materials.find(name)
-
-
-class Batch():
-    """
-    A Batch represents a bunch of triangles with material information
-    that gets passed on to the gpu.
-    """
-    def __init__(self, material_index):
-        self.material_index = material_index
-        self.primitives = {'triangles': [], 'quads': []}
-
-    def process(self, polygon, obj):
-        verts_local = [v.co for v in obj.data.vertices.values()]
-        verts_world = [obj.matrix_world @ v_local for v_local in verts_local]
-        if len(polygon.vertices) == 3:
-            self.primitives['triangles'].append(
-                [verts_world[i] for i in polygon.vertices]
-            )
-        elif len(polygon.vertices) == 4:
-            self.primitives['quads'].append(
-                [verts_world[i] for i in polygon.vertices]
-            )
-
-
-def get_batches():
-    batches = [Batch(i) for i in range(len(bpy.data.materials))]
-    for obj in bpy.data.objects:
-        if obj.type != 'MESH':
-            continue
-        for polygon in obj.data.polygons:
-            index = get_material_index(obj, polygon.material_index)
-            batches[index].process(polygon, obj)
-    return batches
-
-
 def generate_polygons(imd):
     polygons = ET.SubElement(imd, 'polygons')
-    batches = get_batches()
 
-    for index, batch in enumerate(batches):
+    for index, dl in enumerate(model_data['display_lists']):
         polygon = ET.SubElement(polygons, 'polygon')
         polygon.set('index', str(index))
         polygon.set('name', f'polygon{index}')
@@ -130,21 +196,23 @@ def generate_polygons(imd):
         mtx_list.text = '0'
 
         primitive_array = ET.SubElement(mtx_prim, 'primitive_array')
-        primitive_array.set('size', '1')
+        primitive_array.set('size', str(len(dl['primitives'])))
 
-        primitive = ET.SubElement(primitive_array, 'primitive')
-        primitive.set('index', '0')
-        primitive.set('type', 'quads')
-        primitive.set('vertex_size', '0')
-
-        for quad in batch.primitives['quads']:
-            for vector in quad:
-                pos_xyz = ET.SubElement(primitive, 'pos_xyz')
-                pos_xyz.set('xyz', ' '.join([str(v) for v in vector]))
+        for pr in dl['primitives']:
+            primitive = ET.SubElement(primitive_array, 'primitive')
+            primitive.set('index', '0')
+            primitive.set('type', pr['type'])
+            primitive.set('vertex_size', '0')
+            for cmd in pr['commands']:
+                command = ET.SubElement(primitive, cmd['type'])
+                command.set(cmd['tag'], cmd['data'])
 
 
 def generate_body(imd, export_settings):
+    global settings
     settings = export_settings
+
+    get_model_data()
 
     generate_model_info(imd)
     generate_box_test(imd)
