@@ -29,6 +29,7 @@ model_data = {
             primitives: [
                 {
                     type: triangles,
+                    vertex_size: 0,
                     commands: [
                         {
                             type: "mtx",
@@ -56,6 +57,7 @@ def get_primitive(primitives, tp):
     primitives.append(
         {
             'type': tp,
+            'vertex_size': 0,
             'commands': []
         }
     )
@@ -68,10 +70,12 @@ def polygon_to_primitive(dl, obj, polygon):
 
     if len(polygon.vertices) == 3:
         primitive = get_primitive(dl['primitives'], 'triangles')
+        primitive['vertex_size'] += 3
         model_data['output']['vertex_size'] += 3
         model_data['output']['triangle_size'] += 1
     elif len(polygon.vertices) == 4:
         primitive = get_primitive(dl['primitives'], 'quads')
+        primitive['vertex_size'] += 4
         model_data['output']['vertex_size'] += 4
         model_data['output']['quad_size'] += 1
 
@@ -204,7 +208,7 @@ def generate_polygons(imd):
             primitive = ET.SubElement(primitive_array, 'primitive')
             primitive.set('index', '0')
             primitive.set('type', pr['type'])
-            primitive.set('vertex_size', '0')
+            primitive.set('vertex_size', str(pr['vertex_size']))
             for cmd in pr['commands']:
                 command = ET.SubElement(primitive, cmd['type'])
                 command.set(cmd['tag'], cmd['data'])
