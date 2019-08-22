@@ -1,4 +1,5 @@
 import bpy
+from mathutils import Vector
 import xml.etree.ElementTree as ET
 import json
 
@@ -42,6 +43,63 @@ model_data = {
 }
 """
 model_data = {}
+
+
+# FX32 Conversion Functions
+def float_to_fx32(value):
+    return int(round(value * 4096))
+
+
+def fx32_to_float(value):
+    return float(value) / 4096
+
+
+# Bound Functions
+def get_object_max_min(obj):
+    bounds = [obj.matrix_world @ Vector(v) for v in obj.bound_box]
+    return {
+        'min': bounds[0],
+        'max': bounds[6]
+    }
+
+
+def get_all_max_min():
+    min_p = Vector([float("inf"), float("inf"), float("inf")])
+    max_p = Vector([-float("inf"), -float("inf"), -float("inf")])
+    for obj in bpy.data.objects:
+        if obj.type != 'MESH':
+            continue
+        max_min = get_object_max_min(obj)
+        # Max
+        max_p.x = max(max_p.x, max_min["max"].x)
+        max_p.y = max(max_p.y, max_min["max"].y)
+        max_p.z = max(max_p.z, max_min["max"].z)
+        # Min
+        min_p.x = min(min_p.x, max_min["min"].x)
+        min_p.y = min(min_p.y, max_min["min"].y)
+        min_p.z = min(min_p.z, max_min["min"].z)
+    return {
+        'min': min_p,
+        'max': max_p
+    }
+
+
+# Pos Scale Functions
+def calculate_pos_scale(max_coord):
+    m = float_to_fx32(max_coord)
+    pos_scale = 0
+    while m >= 0x8000:
+        pos_scale += 1
+        m >>= 1
+    return pos_scale
+
+
+def get_pos_scale():
+    max_min = get_all_max_min()
+    max_max = abs(max(max_min["max"].x, max_min["max"].y, max_min["max"].z))
+    min_min = abs(min(max_min["min"].x, max_min["min"].y, max_min["min"].z))
+    max_coord = max(max_max, min_min)
+    return calculate_pos_scale(max_coord)
 
 
 def get_material_index(obj, index):
@@ -117,7 +175,7 @@ def prepare_model_data():
 
 def generate_model_info(imd):
     model_info = ET.SubElement(imd, 'model_info')
-    model_info.set('pos_scale', '0')
+    model_info.set('pos_scale', str(get_pos_scale()))
     model_info.set('scaling_rule', 'standard')
     model_info.set('vertex_style', 'direct')
     model_info.set('magnify', '1.000000')
@@ -134,7 +192,7 @@ def generate_model_info(imd):
 
 def generate_box_test(imd):
     box_test = ET.SubElement(imd, 'box_test')
-    box_test.set('post_scale', '0')
+    box_test.set('pos_scale', '0')
     box_test.set('xyz', '0 0 0')
     box_test.set('whd', '0 0 0')
 
