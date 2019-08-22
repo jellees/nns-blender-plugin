@@ -271,6 +271,15 @@ def generate_polygons(imd):
                 command.set(cmd['tag'], cmd['data'])
 
 
+def generate_output_info(imd):
+    output = model_data['output']
+    output_info = ET.SubElement(imd, 'output_info')
+    output_info.set('vertex_size', str(output['vertex_size']))
+    output_info.set('polygon_size', str(output['polygon_size']))
+    output_info.set('triangle_size', str(output['triangle_size']))
+    output_info.set('quad_size', str(output['quad_size']))
+
+
 def generate_body(imd, export_settings):
     global settings
     settings = export_settings
@@ -282,3 +291,4 @@ def generate_body(imd, export_settings):
     generate_materials(imd)
     generate_matrices(imd)
     generate_polygons(imd)
+    generate_output_info(imd)
