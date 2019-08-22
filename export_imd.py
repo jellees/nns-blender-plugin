@@ -5,13 +5,6 @@ import json
 
 settings = None
 
-model_data = {}
-
-
-def get_material_index(obj, index):
-    name = obj.material_slots[index].material.name
-    return bpy.data.materials.find(name)
-
 
 """
 Display list collection.
@@ -48,6 +41,12 @@ model_data = {
     ]
 }
 """
+model_data = {}
+
+
+def get_material_index(obj, index):
+    name = obj.material_slots[index].material.name
+    return bpy.data.materials.find(name)
 
 
 def get_primitive(primitives, tp):
