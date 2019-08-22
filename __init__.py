@@ -4,7 +4,7 @@ from bpy.props import BoolProperty, FloatProperty, StringProperty, EnumProperty
 
 bl_info = {
     "name": "Nitro IMD (.imd)",
-    "author": "Jelle Streekstra",
+    "author": "Jelle Streekstra, Gabriele Mercurio",
     "version": (0, 0, 0),
     "blender": (2, 80, 0),
     "location": "File > Import-Export",
