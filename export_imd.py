@@ -95,7 +95,8 @@ def calculate_pos_scale(max_coord):
 
 
 def get_pos_scale():
-    max_min = get_all_max_min() # It's done twice, maybe we can call this once and save it somewhere
+    # It's done twice, maybe we can call this once and save it somewhere.
+    max_min = get_all_max_min()
     max_max = abs(max(max_min['max'].x, max_min['max'].y, max_min['max'].z))
     min_min = abs(min(max_min['min'].x, max_min['min'].y, max_min['min'].z))
     max_coord = max(max_max, min_min)
@@ -103,7 +104,8 @@ def get_pos_scale():
 
 
 def get_box_test():
-    max_min = get_all_max_min() # It's done twice, maybe we can call this once and save it somewhere
+    # It's done twice, maybe we can call this once and save it somewhere.
+    max_min = get_all_max_min()
     return {
         'xyz': max_min['min'],
         'whd': max_min['max'] - max_min['min']
@@ -162,11 +164,13 @@ def polygon_to_primitive(dl, obj, polygon):
     for i in polygon.vertices:
         vertex = verts_world[i]
 
+        floats = [str(v) for v in apply_pos_scale(Vector(vertex), pos_scale)]
+
         primitive['commands'].append(
             {
                 'type': 'pos_xyz',
                 'tag': 'xyz',
-                'data': ' '.join([str(v) for v in apply_pos_scale(Vector(vertex), pos_scale)])
+                'data': ' '.join(floats)
             }
         )
 
@@ -199,7 +203,7 @@ def prepare_model_data():
 
 
 def generate_model_info(imd):
-    global pos_scale             
+    global pos_scale
     pos_scale = get_pos_scale()
 
     model_info = ET.SubElement(imd, 'model_info')
@@ -223,8 +227,10 @@ def generate_box_test(imd):
     pos_scale = get_box_test_pos_scale(box)
     box_test = ET.SubElement(imd, 'box_test')
     box_test.set('pos_scale', str(pos_scale))
-    box_test.set('xyz', ' '.join([str(v) for v in apply_pos_scale(box['xyz'], pos_scale)]))
-    box_test.set('whd', ' '.join([str(v) for v in apply_pos_scale(box['whd'], pos_scale)]))
+    floats = [str(v) for v in apply_pos_scale(box['xyz'], pos_scale)]
+    box_test.set('xyz', ' '.join(floats))
+    floats = [str(v) for v in apply_pos_scale(box['whd'], pos_scale)]
+    box_test.set('whd', ' '.join(floats))
 
 
 def generate_materials(imd):
@@ -317,7 +323,7 @@ def generate_body(imd, export_settings):
     generate_model_info(imd)
 
     prepare_model_data()
-    
+
     generate_box_test(imd)
     generate_materials(imd)
     generate_matrices(imd)
