@@ -160,11 +160,13 @@ def polygon_to_primitive(dl, obj, polygon):
         model_data['output']['quad_size'] += 1
 
     for i in polygon.vertices:
+        vertex = verts_world[i]
+
         primitive['commands'].append(
             {
                 'type': 'pos_xyz',
                 'tag': 'xyz',
-                'data': ' '.join([str(v) for v in verts_world[i]])
+                'data': ' '.join([str(v) for v in apply_pos_scale(Vector(vertex), pos_scale)])
             }
         )
 
@@ -197,8 +199,11 @@ def prepare_model_data():
 
 
 def generate_model_info(imd):
+    global pos_scale             
+    pos_scale = get_pos_scale()
+
     model_info = ET.SubElement(imd, 'model_info')
-    model_info.set('pos_scale', str(get_pos_scale()))
+    model_info.set('pos_scale', str(pos_scale))
     model_info.set('scaling_rule', 'standard')
     model_info.set('vertex_style', 'direct')
     model_info.set('magnify', '1.000000')
@@ -309,9 +314,10 @@ def generate_body(imd, export_settings):
     global settings
     settings = export_settings
 
-    prepare_model_data()
-
     generate_model_info(imd)
+
+    prepare_model_data()
+    
     generate_box_test(imd)
     generate_materials(imd)
     generate_matrices(imd)
