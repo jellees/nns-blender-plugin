@@ -32,7 +32,7 @@ model_data = {
                         },
                         {
                             type: "pos_xyz",
-                            tag: "xyz",
+                            tag: 'xyz',
                             data: "0.141357 0.119873 -0.139404"
                         }
                     ]
@@ -64,20 +64,20 @@ def get_object_max_min(obj):
 
 
 def get_all_max_min():
-    min_p = Vector([float("inf"), float("inf"), float("inf")])
-    max_p = Vector([-float("inf"), -float("inf"), -float("inf")])
+    min_p = Vector([float('inf'), float('inf'), float('inf')])
+    max_p = Vector([-float('inf'), -float('inf'), -float('inf')])
     for obj in bpy.data.objects:
         if obj.type != 'MESH':
             continue
         max_min = get_object_max_min(obj)
         # Max
-        max_p.x = max(max_p.x, max_min["max"].x)
-        max_p.y = max(max_p.y, max_min["max"].y)
-        max_p.z = max(max_p.z, max_min["max"].z)
+        max_p.x = max(max_p.x, max_min['max'].x)
+        max_p.y = max(max_p.y, max_min['max'].y)
+        max_p.z = max(max_p.z, max_min['max'].z)
         # Min
-        min_p.x = min(min_p.x, max_min["min"].x)
-        min_p.y = min(min_p.y, max_min["min"].y)
-        min_p.z = min(min_p.z, max_min["min"].z)
+        min_p.x = min(min_p.x, max_min['min'].x)
+        min_p.y = min(min_p.y, max_min['min'].y)
+        min_p.z = min(min_p.z, max_min['min'].z)
     return {
         'min': min_p,
         'max': max_p
@@ -95,11 +95,34 @@ def calculate_pos_scale(max_coord):
 
 
 def get_pos_scale():
-    max_min = get_all_max_min()
-    max_max = abs(max(max_min["max"].x, max_min["max"].y, max_min["max"].z))
-    min_min = abs(min(max_min["min"].x, max_min["min"].y, max_min["min"].z))
+    max_min = get_all_max_min() # It's done twice, maybe we can call this once and save it somewhere
+    max_max = abs(max(max_min['max'].x, max_min['max'].y, max_min['max'].z))
+    min_min = abs(min(max_min['min'].x, max_min['min'].y, max_min['min'].z))
     max_coord = max(max_max, min_min)
     return calculate_pos_scale(max_coord)
+
+
+def get_box_test():
+    max_min = get_all_max_min() # It's done twice, maybe we can call this once and save it somewhere
+    return {
+        'xyz': max_min['min'],
+        'whd': max_min['max'] - max_min['min']
+    }
+
+
+def get_box_test_pos_scale(box):
+    max_whd = abs(max(box['whd'].x, box['whd'].y, box['whd'].z))
+    min_xyz = abs(min(box['xyz'].x, box['xyz'].y, box['xyz'].z))
+    max_coord = max(max_whd, min_xyz)
+    return calculate_pos_scale(max_coord)
+
+
+def apply_pos_scale(vec, pos_scale):
+    return Vector([
+        fx32_to_float(float_to_fx32(vec.x) >> pos_scale),
+        fx32_to_float(float_to_fx32(vec.y) >> pos_scale),
+        fx32_to_float(float_to_fx32(vec.z) >> pos_scale),
+    ])
 
 
 def get_material_index(obj, index):
@@ -191,10 +214,12 @@ def generate_model_info(imd):
 
 
 def generate_box_test(imd):
+    box = get_box_test()
+    pos_scale = get_box_test_pos_scale(box)
     box_test = ET.SubElement(imd, 'box_test')
-    box_test.set('pos_scale', '0')
-    box_test.set('xyz', '0 0 0')
-    box_test.set('whd', '0 0 0')
+    box_test.set('pos_scale', str(pos_scale))
+    box_test.set('xyz', ' '.join([str(v) for v in apply_pos_scale(box['xyz'], pos_scale)]))
+    box_test.set('whd', ' '.join([str(v) for v in apply_pos_scale(box['whd'], pos_scale)]))
 
 
 def generate_materials(imd):
