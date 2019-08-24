@@ -3,6 +3,7 @@ from mathutils import Vector
 import xml.etree.ElementTree as ET
 import json
 from . import nitro_model
+from .util import VecFx32
 
 
 settings = None
@@ -34,9 +35,11 @@ def generate_box_test(imd):
     pos_scale = model.boundry_box.get_box_test_pos_scale()
     box_test = ET.SubElement(imd, 'box_test')
     box_test.set('pos_scale', str(pos_scale))
-    floats = [str(v) for v in nitro_model.apply_pos_scale_on_vector(box['xyz'], pos_scale)]
+    vector = (VecFx32().from_vector(box['xyz']) >> pos_scale).to_vector()
+    floats = [str(v) for v in vector]
     box_test.set('xyz', ' '.join(floats))
-    floats = [str(v) for v in nitro_model.apply_pos_scale_on_vector(box['whd'], pos_scale)]
+    vector = (VecFx32().from_vector(box['whd']) >> pos_scale).to_vector()
+    floats = [str(v) for v in vector]
     box_test.set('whd', ' '.join(floats))
 
 

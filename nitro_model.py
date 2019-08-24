@@ -1,61 +1,12 @@
 import bpy
 from mathutils import Vector
-from .util import VecFx32
+from .util import VecFx32, float_to_fx32
 
 
 output_info = None
 
 
 boundry_box = None
-
-
-# FX32 Conversion Functions
-def float_to_fx32(value):
-    return int(round(value * 4096))
-
-
-def fx32_to_float(value):
-    return float(value) / 4096
-
-
-def vector_to_vecfx32(vec):
-    return [
-        float_to_fx32(vec.x),
-        float_to_fx32(vec.y),
-        float_to_fx32(vec.z)
-    ]
-
-
-def vecfx32_to_vector(values):
-    return Vector([
-        fx32_to_float(values[0]),
-        fx32_to_float(values[1]),
-        fx32_to_float(values[2]),
-    ])
-
-
-def calculate_diff(vec1, vec2):
-    return [
-        vec1[0] - vec2[0],
-        vec1[1] - vec2[1],
-        vec1[2] - vec2[2],
-    ]
-
-
-def apply_pos_scale_on_vector(vec, pos_scale):
-    return Vector([
-        fx32_to_float(float_to_fx32(vec.x) >> pos_scale),
-        fx32_to_float(float_to_fx32(vec.y) >> pos_scale),
-        fx32_to_float(float_to_fx32(vec.z) >> pos_scale),
-    ])
-
-
-def apply_pos_scale_on_vecfx32(vecfx32, pos_scale):
-    return [
-        vecfx32[0] >> pos_scale,
-        vecfx32[1] >> pos_scale,
-        vecfx32[2] >> pos_scale
-    ]
 
 
 # Vertex command check functions
