@@ -2,6 +2,7 @@ import bpy
 from mathutils import Vector
 import xml.etree.ElementTree as ET
 import json
+from . import nitro_model
 
 
 settings = None
@@ -475,6 +476,7 @@ def generate_output_info(imd):
 def generate_body(imd, export_settings):
     global settings
     settings = export_settings
+    model = nitro_model.get_nitro_model()
 
     prepare_model_data()
 
