@@ -1,5 +1,6 @@
 import bpy
 from mathutils import Vector
+from .util import VecFx32
 
 
 output_info = None
@@ -60,18 +61,18 @@ def apply_pos_scale_on_vecfx32(vecfx32, pos_scale):
 # Vertex command check functions
 def is_pos_s(vecfx32):
     return (
-        (vecfx32[0] & 0x3F) == 0 and
-        (vecfx32[1] & 0x3F) == 0 and
-        (vecfx32[2] & 0x3F) == 0
+        (vecfx32.x & 0x3F) == 0 and
+        (vecfx32.y & 0x3F) == 0 and
+        (vecfx32.z & 0x3F) == 0
     )
 
 
 def is_pos_diff(diff):
     # 512 is 0.125 in FX32
     return (
-        abs(diff[0]) < 512 and
-        abs(diff[1]) < 512 and
-        abs(diff[2]) < 512
+        abs(diff.x) < 512 and
+        abs(diff.y) < 512 and
+        abs(diff.z) < 512
     )
 
 
@@ -225,28 +226,25 @@ class NitroPolygon():
             pos_scale = boundry_box.get_pos_scale()
 
             # Get vertex and convert it to VecFx32
-            vertex = verts_world[i]
-            vecfx32 = vector_to_vecfx32(Vector(vertex))
+            vecfx32 = VecFx32().from_floats(verts_world[i])
 
             # Apply pos_scale
-            scaled_vecfx32 = apply_pos_scale_on_vecfx32(vecfx32, pos_scale)
-            scaled_vec = vecfx32_to_vector(scaled_vecfx32)
+            scaled_vecfx32 = vecfx32 >> pos_scale
+            scaled_vec = scaled_vecfx32.to_vector()
 
             # Calculate difference from previous vertex
             if not self.is_empty():
-                diff_vecfx32 = calculate_diff(
-                    scaled_vecfx32,
-                    self._previous_vecfx32)
-                diff_vec = vecfx32_to_vector(diff_vecfx32)
+                diff_vecfx32 = scaled_vecfx32 - self._previous_vecfx32
+                diff_vec = diff_vecfx32.to_vector()
 
             # PosYZ
-            if not self.is_empty() and diff_vecfx32[0] == 0:
+            if not self.is_empty() and diff_vecfx32.x == 0:
                 primitive.add_pos_yz(scaled_vec)
             # PosXZ
-            elif not self.is_empty() and diff_vecfx32[1] == 0:
+            elif not self.is_empty() and diff_vecfx32.y == 0:
                 primitive.add_pos_xz(scaled_vec)
             # PosXY
-            elif not self.is_empty() and diff_vecfx32[2] == 0:
+            elif not self.is_empty() and diff_vecfx32.z == 0:
                 primitive.add_pos_xy(scaled_vec)
             # PosDiff
             elif not self.is_empty() and is_pos_diff(diff_vecfx32):
