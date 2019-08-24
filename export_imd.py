@@ -54,6 +54,30 @@ def fx32_to_float(value):
     return float(value) / 4096
 
 
+def vector_to_vecfx32(vec):
+    return [
+        float_to_fx32(vec.x),
+        float_to_fx32(vec.y),
+        float_to_fx32(vec.z)
+    ]
+
+
+def vecfx32_to_vector(values):
+    return Vector([
+        fx32_to_float(values[0]),
+        fx32_to_float(values[1]),
+        fx32_to_float(values[2]),
+    ])
+
+
+def calculate_diff(vec1, vec2):
+    return [
+        vec1[0] - vec2[0],
+        vec1[1] - vec2[1],
+        vec1[2] - vec2[2],
+    ]
+
+
 # Bound Functions
 def get_object_max_min(obj):
     bounds = [obj.matrix_world @ Vector(v) for v in obj.bound_box]
@@ -119,12 +143,111 @@ def get_box_test_pos_scale(box):
     return calculate_pos_scale(max_coord)
 
 
-def apply_pos_scale(vec, pos_scale):
+def apply_pos_scale_on_vector(vec, pos_scale):
     return Vector([
         fx32_to_float(float_to_fx32(vec.x) >> pos_scale),
         fx32_to_float(float_to_fx32(vec.y) >> pos_scale),
         fx32_to_float(float_to_fx32(vec.z) >> pos_scale),
     ])
+
+
+def apply_pos_scale_on_vecfx32(vecfx32, pos_scale):
+    return [
+        vecfx32[0] >> pos_scale,
+        vecfx32[1] >> pos_scale,
+        vecfx32[2] >> pos_scale
+    ]
+
+
+# Vertex command check functions
+def is_pos_s(vecfx32):
+    return (
+        (vecfx32[0] & 0x3F) == 0 and
+        (vecfx32[1] & 0x3F) == 0 and
+        (vecfx32[2] & 0x3F) == 0
+    )
+
+
+def is_pos_diff(diff):
+    # 512 is 0.125 in FX32
+    return (
+        abs(diff[0]) < 512 and
+        abs(diff[1]) < 512 and
+        abs(diff[2]) < 512
+    )
+
+
+# Vertex command append functions
+def append_pos_xyz(commands, vec):
+    floats = [str(v) for v in vec]
+
+    commands.append(
+        {
+            'type': 'pos_xyz',
+            'tag': 'xyz',
+            'data': ' '.join(floats)
+        }
+    )
+
+
+def append_pos_s(commands, vec):
+    floats = [str(v) for v in vec]
+
+    commands.append(
+        {
+            'type': 'pos_s',
+            'tag': 'xyz',
+            'data': ' '.join(floats)
+        }
+    )
+
+
+def append_pos_diff(commands, vec):
+    floats = [str(v) for v in vec]
+
+    commands.append(
+        {
+            'type': 'pos_diff',
+            'tag': 'xyz',
+            'data': ' '.join(floats)
+        }
+    )
+
+
+def append_pos_yz(commands, vec):
+    floats = [str(v) for v in [vec.y, vec.z]]
+
+    commands.append(
+        {
+            'type': 'pos_yz',
+            'tag': 'yz',
+            'data': ' '.join(floats)
+        }
+    )
+
+
+def append_pos_xz(commands, vec):
+    floats = [str(v) for v in [vec.x, vec.z]]
+
+    commands.append(
+        {
+            'type': 'pos_xz',
+            'tag': 'xz',
+            'data': ' '.join(floats)
+        }
+    )
+
+
+def append_pos_xy(commands, vec):
+    floats = [str(v) for v in [vec.x, vec.y]]
+
+    commands.append(
+        {
+            'type': 'pos_xy',
+            'tag': 'xy',
+            'data': ' '.join(floats)
+        }
+    )
 
 
 def get_material_index(obj, index):
@@ -146,7 +269,16 @@ def get_primitive(primitives, tp):
     return primitives[-1]
 
 
+# Will be changed later
+global_vtx_count = 0
+previous_fx32 = []
+
+
 def polygon_to_primitive(dl, obj, polygon):
+    # Will be changed later
+    global global_vtx_count
+    global previous_fx32
+
     verts_local = [v.co for v in obj.data.vertices.values()]
     verts_world = [obj.matrix_world @ v_local for v_local in verts_local]
 
@@ -162,18 +294,43 @@ def polygon_to_primitive(dl, obj, polygon):
         model_data['output']['quad_size'] += 1
 
     for i in polygon.vertices:
-        vertex = verts_world[i]
         pos_scale = model_data['pos_scale']
 
-        floats = [str(v) for v in apply_pos_scale(Vector(vertex), pos_scale)]
+        # Get vertex and convert it to VecFx32
+        vertex = verts_world[i]
+        vecfx32 = vector_to_vecfx32(Vector(vertex))
 
-        primitive['commands'].append(
-            {
-                'type': 'pos_xyz',
-                'tag': 'xyz',
-                'data': ' '.join(floats)
-            }
-        )
+        # Apply pos_scale
+        scaled_fx32 = apply_pos_scale_on_vecfx32(vecfx32, pos_scale)
+        scaled_vec = vecfx32_to_vector(scaled_fx32)
+
+        # Calculate difference from previous vertex
+        if global_vtx_count > 0:
+            diff_fx32 = calculate_diff(scaled_fx32, previous_fx32)
+            diff_vec = vecfx32_to_vector(diff_fx32)
+
+        # PosYZ
+        if global_vtx_count > 0 and diff_fx32[0] == 0:
+            append_pos_yz(primitive['commands'], scaled_vec)
+        # PosXZ
+        elif global_vtx_count > 0 and diff_fx32[1] == 0:
+            append_pos_xz(primitive['commands'], scaled_vec)
+        # PosXY
+        elif global_vtx_count > 0 and diff_fx32[2] == 0:
+            append_pos_xy(primitive['commands'], scaled_vec)
+        # PosDiff
+        elif global_vtx_count > 0 and is_pos_diff(diff_fx32):
+            append_pos_xz(primitive['commands'], diff_vec)
+        # PosShort
+        elif is_pos_s(scaled_fx32):
+            append_pos_s(primitive['commands'], scaled_vec)
+        # PosXYZ
+        else:
+            append_pos_xyz(primitive['commands'], scaled_vec)
+
+        # Update previous position
+        previous_fx32 = scaled_fx32
+        global_vtx_count += 1
 
 
 def prepare_model_data():
@@ -226,9 +383,9 @@ def generate_box_test(imd):
     pos_scale = get_box_test_pos_scale(box)
     box_test = ET.SubElement(imd, 'box_test')
     box_test.set('pos_scale', str(pos_scale))
-    floats = [str(v) for v in apply_pos_scale(box['xyz'], pos_scale)]
+    floats = [str(v) for v in apply_pos_scale_on_vector(box['xyz'], pos_scale)]
     box_test.set('xyz', ' '.join(floats))
-    floats = [str(v) for v in apply_pos_scale(box['whd'], pos_scale)]
+    floats = [str(v) for v in apply_pos_scale_on_vector(box['whd'], pos_scale)]
     box_test.set('whd', ' '.join(floats))
 
 
