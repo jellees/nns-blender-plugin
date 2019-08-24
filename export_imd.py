@@ -163,6 +163,7 @@ def polygon_to_primitive(dl, obj, polygon):
 
     for i in polygon.vertices:
         vertex = verts_world[i]
+        pos_scale = model_data['pos_scale']
 
         floats = [str(v) for v in apply_pos_scale(Vector(vertex), pos_scale)]
 
@@ -178,6 +179,7 @@ def polygon_to_primitive(dl, obj, polygon):
 def prepare_model_data():
     global model_data
     model_data = {
+        'pos_scale': get_pos_scale(),
         'output': {
             'polygon_size': len(bpy.data.materials),
             'triangle_size': 0,
@@ -203,11 +205,8 @@ def prepare_model_data():
 
 
 def generate_model_info(imd):
-    global pos_scale
-    pos_scale = get_pos_scale()
-
     model_info = ET.SubElement(imd, 'model_info')
-    model_info.set('pos_scale', str(pos_scale))
+    model_info.set('pos_scale', str(model_data['pos_scale']))
     model_info.set('scaling_rule', 'standard')
     model_info.set('vertex_style', 'direct')
     model_info.set('magnify', '1.000000')
@@ -320,10 +319,9 @@ def generate_body(imd, export_settings):
     global settings
     settings = export_settings
 
-    generate_model_info(imd)
-
     prepare_model_data()
 
+    generate_model_info(imd)
     generate_box_test(imd)
     generate_materials(imd)
     generate_matrices(imd)
