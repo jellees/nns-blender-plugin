@@ -115,12 +115,16 @@ class NitroPrimitive():
         self.triangle_size = 0
         self.quad_size = 0
         self.commands = []
+        self._previous_vecfx32 = None
+
+    def is_empty(self):
+        return self._previous_vecfx32 is None
 
     def add_command(self, type_: str, tag: str, data: str):
         self.commands.append(NitroCommand(type_, tag, data))
 
-    def add_mtx(self, idx: str):
-        self.add_command('mtx', 'idx', idx)
+    def add_mtx(self, idx: int):
+        self.add_command('mtx', 'idx', str(idx))
 
     def add_pos_xyz(self, vec: Vector):
         floats = [str(v) for v in vec]
@@ -157,7 +161,7 @@ class NitroPolygon():
     def __init__(self, material):
         self.material = material
         self.primitives = []
-        self._previous_vecfx32 = []
+        # self._previous_vecfx32 = None
 
     def is_empty(self):
         if not self.primitives:
@@ -193,25 +197,25 @@ class NitroPolygon():
             scaled_vec = scaled_vecfx32.to_vector()
 
             # Add matrix command
-            # if self.is_empty():
-            #    primitive.add_mtx('0')
+            if self.is_empty():
+                primitive.add_mtx(0)
 
             # Calculate difference from previous vertex
-            if not self.is_empty():
-                diff_vecfx32 = scaled_vecfx32 - self._previous_vecfx32
+            if not primitive.is_empty():
+                diff_vecfx32 = scaled_vecfx32 - primitive._previous_vecfx32
                 diff_vec = diff_vecfx32.to_vector()
 
             # PosYZ
-            if not self.is_empty() and diff_vecfx32.x == 0:
+            if not primitive.is_empty() and diff_vecfx32.x == 0:
                 primitive.add_pos_yz(scaled_vec)
             # PosXZ
-            elif not self.is_empty() and diff_vecfx32.y == 0:
+            elif not primitive.is_empty() and diff_vecfx32.y == 0:
                 primitive.add_pos_xz(scaled_vec)
             # PosXY
-            elif not self.is_empty() and diff_vecfx32.z == 0:
+            elif not primitive.is_empty() and diff_vecfx32.z == 0:
                 primitive.add_pos_xy(scaled_vec)
             # PosDiff
-            elif not self.is_empty() and is_pos_diff(diff_vecfx32):
+            elif not primitive.is_empty() and is_pos_diff(diff_vecfx32):
                 primitive.add_pos_xz(diff_vec)
             # PosShort
             elif is_pos_s(scaled_vecfx32):
@@ -220,7 +224,7 @@ class NitroPolygon():
             else:
                 primitive.add_pos_xyz(scaled_vec)
 
-            self._previous_vecfx32 = scaled_vecfx32
+            primitive._previous_vecfx32 = scaled_vecfx32
 
     def get_primitive(self, type_):
         for primitive in self.primitives:

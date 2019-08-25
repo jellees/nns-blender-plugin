@@ -42,15 +42,15 @@ class VecFx32(object):
     def __sub__(self, other):
         if isinstance(other, self.__class__):
             return VecFx32([
-                self.x + other.x,
-                self.y + other.y,
-                self.z + other.z
+                self.x - other.x,
+                self.y - other.y,
+                self.z - other.z
             ])
         elif isinstance(other, int):
             return VecFx32([
-                self.x + other,
-                self.y + other,
-                self.z + other
+                self.x - other,
+                self.y - other,
+                self.z - other
             ])
         else:
             raise TypeError(

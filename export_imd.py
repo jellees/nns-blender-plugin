@@ -76,13 +76,15 @@ def generate_materials(imd):
         material.set('specular', '0 0 0')
         material.set('emission', '0 0 0')
         material.set('shininess_table_flag', 'off')
-        material.set('tex_image_idx', '0')
-        material.set('tex_palette_idx', '0')
-        material.set('tex_tiling', 'clamp clamp')
-        material.set('tex_scale', '1.000000 1.000000')
-        material.set('tex_rotate', '0.000000')
-        material.set('tex_translate', '0.000000 0.000000')
-        material.set('tex_gen_mode', 'none')
+
+        material.set('tex_image_idx', '-1')
+        material.set('tex_palette_idx', '-1')
+        # Only output when there is a texture assigned
+        # material.set('tex_tiling', 'clamp clamp')
+        # material.set('tex_scale', '1.000000 1.000000')
+        # material.set('tex_rotate', '0.000000')
+        # material.set('tex_translate', '0.000000 0.000000')
+        # material.set('tex_gen_mode', 'none')
 
 
 def generate_matrices(imd):
@@ -168,7 +170,7 @@ def generate_nodes(imd):
     node.set('scale', '1.000000 1.000000 1.000000')
     node.set('rotate', '0.000000 0.000000 0.000000')
     node.set('visibility', 'on')
-    node.set('display_size', '21')
+    node.set('display_size', str(len(model.polygons)))
     node.set('vertex_size', str(output.vertex_size))
     node.set('polygon_size', str(output.polygon_size))
     node.set('triangle_size', str(output.triangle_size))
@@ -179,7 +181,6 @@ def generate_nodes(imd):
     # node.set('volume_r', '0.000000')
 
     for index, dl in enumerate(model.polygons):
-        # <display index="0" material="0" polygon="13" priority="0"/>
         display = ET.SubElement(node, 'display')
         display.set('index', str(index))
         display.set('material', str(index))
