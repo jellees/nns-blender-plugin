@@ -4,6 +4,7 @@ from xml.dom import minidom
 
 
 def generate_header(imd):
+    imd.set('version', '1.6.0')
     head = ET.SubElement(imd, 'head')
 
     title = ET.SubElement(head, 'title')

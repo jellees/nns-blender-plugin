@@ -112,10 +112,15 @@ class NitroPrimitive():
     def __init__(self, type_):
         self.type = type_
         self.vertex_size = 0
+        self.triangle_size = 0
+        self.quad_size = 0
         self.commands = []
 
     def add_command(self, type_: str, tag: str, data: str):
         self.commands.append(NitroCommand(type_, tag, data))
+
+    def add_mtx(self, idx: str):
+        self.add_command('mtx', 'idx', idx)
 
     def add_pos_xyz(self, vec: Vector):
         floats = [str(v) for v in vec]
@@ -168,10 +173,14 @@ class NitroPolygon():
             primitive = self.get_primitive('triangles')
             output_info.vertex_size += 3
             output_info.triangle_size += 1
+            output_info.polygon_size += 1
+            primitive.triangle_size += 1
         elif len(polygon.vertices) == 4:
             primitive = self.get_primitive('quads')
             output_info.vertex_size += 4
             output_info.quad_size += 1
+            output_info.polygon_size += 1
+            primitive.quad_size += 1
 
         for i in polygon.vertices:
             pos_scale = boundry_box.get_pos_scale()
@@ -182,6 +191,10 @@ class NitroPolygon():
             # Apply pos_scale
             scaled_vecfx32 = vecfx32 >> pos_scale
             scaled_vec = scaled_vecfx32.to_vector()
+
+            # Add matrix command
+            # if self.is_empty():
+            #    primitive.add_mtx('0')
 
             # Calculate difference from previous vertex
             if not self.is_empty():
