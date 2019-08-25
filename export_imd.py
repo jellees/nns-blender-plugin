@@ -31,12 +31,20 @@ def generate_model_info(imd):
 
 def generate_box_test(imd):
     box = model.boundry_box.get_box_test()
+
+    # Set Pos Scale
     pos_scale = model.boundry_box.get_box_test_pos_scale()
     box_test = ET.SubElement(imd, 'box_test')
     box_test.set('pos_scale', str(pos_scale))
-    floats = [str(v) for v in nitro_model.apply_pos_scale_on_vector(box['xyz'], pos_scale)]
+
+    # Set Position
+    scaled_xyz = nitro_model.apply_pos_scale_on_vector(box['xyz'], pos_scale)
+    floats = [str(v) for v in scaled_xyz]
     box_test.set('xyz', ' '.join(floats))
-    floats = [str(v) for v in nitro_model.apply_pos_scale_on_vector(box['whd'], pos_scale)]
+
+    # Set Dimensions
+    scaled_whd = nitro_model.apply_pos_scale_on_vector(box['whd'], pos_scale)
+    floats = [str(v) for v in scaled_whd]
     box_test.set('whd', ' '.join(floats))
 
 
