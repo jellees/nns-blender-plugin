@@ -3,6 +3,7 @@ from mathutils import Vector
 import xml.etree.ElementTree as ET
 import json
 from . import nitro_model
+from .util import VecFx32
 
 
 settings = None
