@@ -39,12 +39,12 @@ def generate_box_test(imd):
     box_test.set('pos_scale', str(pos_scale))
 
     # Set Position
-    scaled_xyz = nitro_model.apply_pos_scale_on_vector(box['xyz'], pos_scale)
+    scaled_xyz = (VecFx32().from_vector(box['xyz']) >> pos_scale).to_vector()
     floats = [str(v) for v in scaled_xyz]
     box_test.set('xyz', ' '.join(floats))
 
     # Set Dimensions
-    scaled_whd = nitro_model.apply_pos_scale_on_vector(box['whd'], pos_scale)
+    scaled_whd = (VecFx32().from_vector(box['whd']) >> pos_scale).to_vector()
     floats = [str(v) for v in scaled_whd]
     box_test.set('whd', ' '.join(floats))
 
