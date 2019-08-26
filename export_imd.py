@@ -128,9 +128,9 @@ def generate_polygons(imd):
         triangle_size = 0
         quad_size = 0
 
-        for pr in dl.primitives:
+        for i, pr in enumerate(dl.primitives):
             primitive = ET.SubElement(primitive_array, 'primitive')
-            primitive.set('index', '0')
+            primitive.set('index', str(i))
             primitive.set('type', pr.type)
             primitive.set('vertex_size', str(pr.vertex_size))
 
@@ -200,7 +200,7 @@ def generate_output_info(imd):
 def generate_body(imd, export_settings):
     global settings, model
     settings = export_settings
-    model = nitro_model.get_nitro_model()
+    model = nitro_model.get_nitro_model(export_settings)
 
     generate_model_info(imd)
     generate_box_test(imd)

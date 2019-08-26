@@ -1,5 +1,6 @@
 import bpy
-from mathutils import Vector
+from mathutils import Vector, Matrix
+from bpy_extras.io_utils import axis_conversion
 from .util import VecFx32, float_to_fx32
 
 
@@ -7,6 +8,12 @@ output_info = None
 
 
 boundry_box = None
+
+
+settings = {}
+
+
+global_matrix = None
 
 
 # Vertex command check functions
@@ -66,7 +73,8 @@ class NitroSceneBoundryBox():
         return self.calculate_pos_scale(max_coord)
 
     def get_object_max_min(self, obj):
-        bounds = [obj.matrix_world @ Vector(v) for v in obj.bound_box]
+        matrix = obj.matrix_world @ global_matrix
+        bounds = [matrix @ Vector(v) for v in obj.bound_box]
         return {
             'min': bounds[0],
             'max': bounds[6]
@@ -172,7 +180,8 @@ class NitroPolygon():
 
     def add_to_primitive(self, obj, polygon):
         verts_local = [v.co for v in obj.data.vertices.values()]
-        verts_world = [obj.matrix_world @ v_local for v_local in verts_local]
+        matrix = obj.matrix_world @ global_matrix
+        verts_world = [matrix @ v_local for v_local in verts_local]
         if len(polygon.vertices) == 3:
             primitive = self.get_primitive('triangles')
             output_info.vertex_size += 3
@@ -252,11 +261,20 @@ class NitroModel():
                 self.polygons[index].add_to_primitive(obj, polygon)
 
 
-def get_nitro_model():
-    global output_info
-    global boundry_box
+def get_nitro_model(export_settings):
+    global output_info, boundry_box, settings, global_matrix
+
+    settings = export_settings
+
+    global_matrix = (
+        Matrix.Scale(settings['magnification'], 4) @ axis_conversion(
+            to_forward='-Z',
+            to_up='Y',
+        ).to_4x4())
+
     output_info = NitroOuputInfo()
     boundry_box = NitroSceneBoundryBox()
+
     nitro_model = NitroModel()
     nitro_model.output_info = output_info
     nitro_model.boundry_box = boundry_box

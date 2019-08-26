@@ -5,7 +5,7 @@ from bpy.props import BoolProperty, FloatProperty, StringProperty, EnumProperty
 bl_info = {
     "name": "Nitro IMD (.imd)",
     "author": "Jelle Streekstra, Gabriele Mercurio",
-    "version": (0, 0, 0),
+    "version": (0, 0, 1),
     "blender": (2, 80, 0),
     "location": "File > Import-Export",
     "description": "Export Nitro IMD",
@@ -20,6 +20,10 @@ class ExportNitro(bpy.types.Operator):
     filepath = StringProperty(subtype="FILE_PATH")
 
     pretty_print = BoolProperty(name="Pretty print", default=True)
+
+    magnification = FloatProperty(name="Magnification",
+                                  default=0.0625,
+                                  precision=4)
 
     def execute(self, context):
         from . import export_nitro
