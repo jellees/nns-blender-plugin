@@ -73,7 +73,7 @@ class NitroSceneBoundryBox():
         return self.calculate_pos_scale(max_coord)
 
     def get_object_max_min(self, obj):
-        matrix = obj.matrix_world @ global_matrix
+        matrix = global_matrix @ obj.matrix_world
         bounds = [matrix @ Vector(v) for v in obj.bound_box]
         return {
             'min': bounds[0],
@@ -180,8 +180,9 @@ class NitroPolygon():
 
     def add_to_primitive(self, obj, polygon):
         verts_local = [v.co for v in obj.data.vertices.values()]
-        matrix = obj.matrix_world @ global_matrix
+        matrix = global_matrix @ obj.matrix_world
         verts_world = [matrix @ v_local for v_local in verts_local]
+
         if len(polygon.vertices) == 3:
             primitive = self.get_primitive('triangles')
             output_info.vertex_size += 3
