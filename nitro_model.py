@@ -2,6 +2,7 @@ import bpy
 from mathutils import Vector, Matrix
 from bpy_extras.io_utils import axis_conversion
 from .util import VecFx32, float_to_fx32
+from . import local_logger as logger
 
 
 output_info = None
@@ -37,6 +38,7 @@ def is_pos_diff(diff):
 def get_material_index(obj, index):
     # Temporary solution, perhaps a polygon should have a material.
     if len(obj.material_slots) <= index:
+        logger.log("This object doesn't have (enough) material slots.")
         return 0
     name = obj.material_slots[index].material.name
     return bpy.data.materials.find(name)
@@ -196,6 +198,15 @@ class NitroPolygon():
             output_info.quad_size += 1
             output_info.polygon_size += 1
             primitive.quad_size += 1
+        else:
+            logger.log('ngon, skipped.')
+            return
+
+        logger.log(
+            f'Add mesh to polygon {self.material} '
+            f'vertices size: {len(polygon.vertices)} '
+            f'material index {polygon.material_index}'
+        )
 
         for i in polygon.vertices:
             pos_scale = model_info.pos_scale
@@ -259,6 +270,7 @@ class NitroModel():
         for obj in bpy.data.objects:
             if obj.type != 'MESH':
                 continue
+            logger.log('Object: ' + obj.name)
             for polygon in obj.data.polygons:
                 index = get_material_index(obj, polygon.material_index)
                 self.polygons[index].add_to_primitive(obj, polygon)

@@ -1,6 +1,7 @@
 import bpy
 import xml.etree.ElementTree as ET
 from xml.dom import minidom
+from . import local_logger as logger
 
 
 def generate_header(imd):
@@ -35,4 +36,5 @@ def generate_imd(settings):
 
 
 def save(context, settings):
+    logger.create_log(settings['filepath'])
     generate_imd(settings)
