@@ -14,8 +14,7 @@ model = None
 
 def generate_model_info(imd):
     model_info = ET.SubElement(imd, 'model_info')
-    pos_scale = model.boundry_box.get_pos_scale()
-    model_info.set('pos_scale', str(pos_scale))
+    model_info.set('pos_scale', str(model.model_info.pos_scale))
     model_info.set('scaling_rule', 'standard')
     model_info.set('vertex_style', 'direct')
     model_info.set('magnify', '1.000000')
@@ -31,20 +30,20 @@ def generate_model_info(imd):
 
 
 def generate_box_test(imd):
-    box = model.boundry_box.get_box_test()
-
     # Set Pos Scale
-    pos_scale = model.boundry_box.get_box_test_pos_scale()
+    pos_scale = model.box_test.pos_scale
     box_test = ET.SubElement(imd, 'box_test')
     box_test.set('pos_scale', str(pos_scale))
 
     # Set Position
-    scaled_xyz = (VecFx32().from_vector(box['xyz']) >> pos_scale).to_vector()
+    xyz = model.box_test.xyz
+    scaled_xyz = (VecFx32().from_vector(xyz) >> pos_scale).to_vector()
     floats = [str(v) for v in scaled_xyz]
     box_test.set('xyz', ' '.join(floats))
 
     # Set Dimensions
-    scaled_whd = (VecFx32().from_vector(box['whd']) >> pos_scale).to_vector()
+    whd = model.box_test.whd
+    scaled_whd = (VecFx32().from_vector(whd) >> pos_scale).to_vector()
     floats = [str(v) for v in scaled_whd]
     box_test.set('whd', ' '.join(floats))
 
