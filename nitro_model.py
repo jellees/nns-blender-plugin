@@ -35,6 +35,9 @@ def is_pos_diff(diff):
 
 
 def get_material_index(obj, index):
+    # Temporary solution, perhaps a polygon should have a material.
+    if len(obj.material_slots) <= index:
+        return 0
     name = obj.material_slots[index].material.name
     return bpy.data.materials.find(name)
 
