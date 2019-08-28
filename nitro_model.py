@@ -5,16 +5,22 @@ from .util import VecFx32, float_to_fx32
 from . import local_logger as logger
 
 
-output_info = None
-
-
-model_info = None
+model = None
 
 
 settings = {}
 
 
 global_matrix = None
+
+
+def get_global_mat_index(obj, index):
+    if len(obj.material_slots) <= index:
+        # If an object doesn't have (enough) material slots, the polgyon
+        # with the requested index shouldn't be converted.
+        return -1
+    name = obj.material_slots[index].material.name
+    return bpy.data.materials.find(name)
 
 
 # Vertex command check functions
@@ -33,15 +39,6 @@ def is_pos_diff(diff):
         abs(diff.y) < 512 and
         abs(diff.z) < 512
     )
-
-
-def get_material_index(obj, index):
-    # Temporary solution, perhaps a polygon should have a material.
-    if len(obj.material_slots) <= index:
-        logger.log("This object doesn't have (enough) material slots.")
-        return 0
-    name = obj.material_slots[index].material.name
-    return bpy.data.materials.find(name)
 
 
 def calculate_pos_scale(max_coord):
@@ -102,6 +99,14 @@ class NitroBoxTest():
         min_xyz = abs(min(self.xyz.x, self.xyz.y, self.xyz.z))
         max_coord = max(max_whd, min_xyz)
         self.pos_scale = calculate_pos_scale(max_coord)
+
+
+class NitroMaterial():
+    def __init__(self, blender_index, index):
+        self.blender_index = blender_index
+        self.index = index
+        blender_material = bpy.data.materials[blender_index]
+        self.name = blender_material.name
 
 
 class NitroOuputInfo():
@@ -169,8 +174,9 @@ class NitroPrimitive():
 
 
 class NitroPolygon():
-    def __init__(self, material):
-        self.material = material
+    def __init__(self, index, material):
+        self.index = index
+        self.material_index = material
         self.primitives = []
         # self._previous_vecfx32 = None
 
@@ -188,28 +194,28 @@ class NitroPolygon():
 
         if len(polygon.vertices) == 3:
             primitive = self.get_primitive('triangles')
-            output_info.vertex_size += 3
-            output_info.triangle_size += 1
-            output_info.polygon_size += 1
+            model.output_info.vertex_size += 3
+            model.output_info.triangle_size += 1
+            model.output_info.polygon_size += 1
             primitive.triangle_size += 1
         elif len(polygon.vertices) == 4:
             primitive = self.get_primitive('quads')
-            output_info.vertex_size += 4
-            output_info.quad_size += 1
-            output_info.polygon_size += 1
+            model.output_info.vertex_size += 4
+            model.output_info.quad_size += 1
+            model.output_info.polygon_size += 1
             primitive.quad_size += 1
         else:
             logger.log('ngon, skipped.')
             return
 
         logger.log(
-            f'Add mesh to polygon {self.material} '
+            f'Add mesh to polygon {self.index} '
             f'vertices size: {len(polygon.vertices)} '
-            f'material index {polygon.material_index}'
+            f'material BL index {polygon.material_index}'
         )
 
         for i in polygon.vertices:
-            pos_scale = model_info.pos_scale
+            pos_scale = model.model_info.pos_scale
 
             # Get vertex and convert it to VecFx32
             vecfx32 = VecFx32().from_floats(verts_world[i])
@@ -258,26 +264,44 @@ class NitroPolygon():
 
 class NitroModel():
     def __init__(self):
-        self.output_info = None
-        self.model_info = None
-        self.box_test = None
+        self.output_info = NitroOuputInfo()
+        self.model_info = NitroModelInfo()
+        self.box_test = NitroBoxTest()
+        self.materials = []
         self.polygons = []
-        self.init_polygons()
 
-    def init_polygons(self):
-        for i in range(len(bpy.data.materials)):
-            self.polygons.append(NitroPolygon(i))
+    def collect(self):
         for obj in bpy.data.objects:
             if obj.type != 'MESH':
                 continue
             logger.log('Object: ' + obj.name)
             for polygon in obj.data.polygons:
-                index = get_material_index(obj, polygon.material_index)
-                self.polygons[index].add_to_primitive(obj, polygon)
+                index = get_global_mat_index(obj, polygon.material_index)
+                if index == -1:
+                    logger.log("Polygon doesn't have material. Skipped.")
+                    continue
+                material = self.find_material(index)
+                pol = self.find_polgyon(material.index)
+                pol.add_to_primitive(obj, polygon)
+
+    def find_polgyon(self, material_index):
+        for polygon in self.polygons:
+            if polygon.material_index == material_index:
+                return polygon
+        self.polygons.append(NitroPolygon(len(self.polygons), material_index))
+        return self.polygons[-1]
+
+    def find_material(self, blender_index):
+        for material in self.materials:
+            if material.blender_index == blender_index:
+                return material
+        index = len(self.materials)
+        self.materials.append(NitroMaterial(blender_index, index))
+        return self.materials[-1]
 
 
 def get_nitro_model(export_settings):
-    global output_info, model_info, settings, global_matrix
+    global model, settings, global_matrix
 
     settings = export_settings
 
@@ -287,13 +311,7 @@ def get_nitro_model(export_settings):
             to_up='Y',
         ).to_4x4())
 
-    output_info = NitroOuputInfo()
-    model_info = NitroModelInfo()
+    model = NitroModel()
+    model.collect()
 
-    nitro_model = NitroModel()
-    nitro_model.output_info = output_info
-    nitro_model.model_info = model_info
-
-    nitro_model.box_test = NitroBoxTest()
-
-    return nitro_model
+    return model

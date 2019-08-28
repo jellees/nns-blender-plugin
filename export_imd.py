@@ -50,12 +50,12 @@ def generate_box_test(imd):
 
 def generate_materials(imd):
     material_array = ET.SubElement(imd, 'material_array')
-    material_array.set('size', str(len(bpy.data.materials)))
+    material_array.set('size', str(len(model.materials)))
 
-    for index, bl_material in enumerate(bpy.data.materials):
+    for mat in model.materials:
         material = ET.SubElement(material_array, 'material')
-        material.set('index', str(index))
-        material.set('name', bl_material.name)
+        material.set('index', str(mat.index))
+        material.set('name', mat.name)
         material.set('light0', 'off')
         material.set('light1', 'off')
         material.set('light2', 'off')
@@ -182,7 +182,7 @@ def generate_nodes(imd):
     for index, dl in enumerate(model.polygons):
         display = ET.SubElement(node, 'display')
         display.set('index', str(index))
-        display.set('material', str(index))
+        display.set('material', str(dl.material_index))
         display.set('polygon', str(index))
         display.set('priority', '0')
 
