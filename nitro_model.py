@@ -259,7 +259,7 @@ class NitroPolygon():
                 primitive.add_pos_xy(scaled_vec)
             # PosDiff
             elif not primitive.is_empty() and is_pos_diff(diff_vecfx32):
-                primitive.add_pos_xz(diff_vec)
+                primitive.add_pos_diff(diff_vec)
             # PosShort
             elif is_pos_s(scaled_vecfx32):
                 primitive.add_pos_s(scaled_vec)
