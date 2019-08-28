@@ -132,12 +132,18 @@ class NitroPrimitive():
         self.quad_size = 0
         self.commands = []
         self._previous_vecfx32 = None
+        # for after sort
+        # quad_strip=0 triangle_strip=1 quads=2 triangles=3
+        self.sort_key = 0
 
     def is_empty(self):
         return self._previous_vecfx32 is None
 
     def add_command(self, type_: str, tag: str, data: str):
         self.commands.append(NitroCommand(type_, tag, data))
+
+    def insert_mtx(self, position, idx: int):
+        self.commands.insert(position, NitroCommand('mtx', 'idx', str(idx)))
 
     def add_mtx(self, idx: int):
         self.add_command('mtx', 'idx', str(idx))
@@ -178,7 +184,6 @@ class NitroPolygon():
         self.index = index
         self.material_index = material
         self.primitives = []
-        # self._previous_vecfx32 = None
 
     def is_empty(self):
         if not self.primitives:
@@ -194,12 +199,14 @@ class NitroPolygon():
 
         if len(polygon.vertices) == 3:
             primitive = self.get_primitive('triangles')
+            primitive.sort_key = 3
             model.output_info.vertex_size += 3
             model.output_info.triangle_size += 1
             model.output_info.polygon_size += 1
             primitive.triangle_size += 1
         elif len(polygon.vertices) == 4:
             primitive = self.get_primitive('quads')
+            primitive.sort_key = 2
             model.output_info.vertex_size += 4
             model.output_info.quad_size += 1
             model.output_info.polygon_size += 1
@@ -223,10 +230,6 @@ class NitroPolygon():
             # Apply pos_scale
             scaled_vecfx32 = vecfx32 >> pos_scale
             scaled_vec = scaled_vecfx32.to_vector()
-
-            # Add matrix command
-            if self.is_empty():
-                primitive.add_mtx(0)
 
             # Calculate difference from previous vertex
             if not primitive.is_empty():
@@ -261,6 +264,9 @@ class NitroPolygon():
         self.primitives.append(NitroPrimitive(type_))
         return self.primitives[-1]
 
+    def set_initial_mtx(self):
+        self.primitives[0].insert_mtx(0, 0)
+
 
 class NitroModel():
     def __init__(self):
@@ -283,6 +289,10 @@ class NitroModel():
                 material = self.find_material(index)
                 pol = self.find_polgyon(material.index)
                 pol.add_to_primitive(obj, polygon)
+
+        for polygon in self.polygons:
+            polygon.primitives.sort(key=lambda x: x.sort_key)
+            polygon.set_initial_mtx()
 
     def find_polgyon(self, material_index):
         for polygon in self.polygons:
