@@ -108,7 +108,7 @@ def generate_polygons(imd):
         # Set to on when Normals are used
         polygon.set('nrm_flag', 'off')
         # Set to on when Vertex Colors are used
-        polygon.set('clr_flag', 'off')
+        polygon.set('clr_flag', dl.use_colors)
         # Set to on when Texture Coordinates are used
         polygon.set('tex_flag', 'off')
 

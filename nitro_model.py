@@ -184,6 +184,7 @@ class NitroPolygon():
         self.index = index
         self.material_index = material
         self.primitives = []
+        self.use_colors = 'off'
 
     def is_empty(self):
         if not self.primitives:
@@ -221,20 +222,31 @@ class NitroPolygon():
             f'material BL index {polygon.material_index}'
         )
 
+        if len(obj.data.vertex_colors) > 0:
+            self.use_colors = 'on'
+
         for i in polygon.vertices:
             pos_scale = model.model_info.pos_scale
 
-            # Get vertex and convert it to VecFx32
+            # Get vertex and convert it to VecFx32.
             vecfx32 = VecFx32().from_floats(verts_world[i])
 
-            # Apply pos_scale
+            # Apply pos_scale.
             scaled_vecfx32 = vecfx32 >> pos_scale
             scaled_vec = scaled_vecfx32.to_vector()
 
-            # Calculate difference from previous vertex
+            # Calculate difference from previous vertex.
             if not primitive.is_empty():
                 diff_vecfx32 = scaled_vecfx32 - primitive._previous_vecfx32
                 diff_vec = diff_vecfx32.to_vector()
+
+            # Color
+            if self.use_colors == 'on':
+                color = obj.data.vertex_colors[0].data[i].color
+                r = int(color[0] * 31)
+                g = int(color[1] * 31)
+                b = int(color[2] * 31)
+                primitive.add_command('clr', 'rgb', f'{r} {g} {b}')
 
             # PosYZ
             if not primitive.is_empty() and diff_vecfx32.x == 0:
