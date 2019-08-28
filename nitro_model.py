@@ -198,14 +198,14 @@ class NitroPolygon():
         matrix = global_matrix @ obj.matrix_world
         verts_world = [matrix @ v_local for v_local in verts_local]
 
-        if len(polygon.vertices) == 3:
+        if len(polygon.loop_indices) == 3:
             primitive = self.get_primitive('triangles')
             primitive.sort_key = 3
             model.output_info.vertex_size += 3
             model.output_info.triangle_size += 1
             model.output_info.polygon_size += 1
             primitive.triangle_size += 1
-        elif len(polygon.vertices) == 4:
+        elif len(polygon.loop_indices) == 4:
             primitive = self.get_primitive('quads')
             primitive.sort_key = 2
             model.output_info.vertex_size += 4
@@ -218,18 +218,19 @@ class NitroPolygon():
 
         logger.log(
             f'Add mesh to polygon {self.index} '
-            f'vertices size: {len(polygon.vertices)} '
+            f'vertices size: {len(polygon.loop_indices)} '
             f'material BL index {polygon.material_index}'
         )
 
         if len(obj.data.vertex_colors) > 0:
             self.use_colors = 'on'
 
-        for i in polygon.vertices:
+        for idx in polygon.loop_indices:
             pos_scale = model.model_info.pos_scale
 
             # Get vertex and convert it to VecFx32.
-            vecfx32 = VecFx32().from_floats(verts_world[i])
+            vertex_index = obj.data.loops[idx].vertex_index
+            vecfx32 = VecFx32().from_floats(verts_world[vertex_index])
 
             # Apply pos_scale.
             scaled_vecfx32 = vecfx32 >> pos_scale
@@ -242,7 +243,7 @@ class NitroPolygon():
 
             # Color
             if self.use_colors == 'on':
-                color = obj.data.vertex_colors[0].data[i].color
+                color = obj.data.vertex_colors[0].data[idx].color
                 r = int(color[0] * 31)
                 g = int(color[1] * 31)
                 b = int(color[2] * 31)
