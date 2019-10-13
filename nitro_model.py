@@ -14,6 +14,61 @@ settings = {}
 global_matrix = None
 
 
+class Primitive():
+    """
+    Raw representation of blender data into a primitive used
+    for stripping.
+    """
+    def __init__(self, obj, polygon):
+        self.type = 'illegal'
+        self.positions = []
+        self.normals = []
+        self.colors = []
+        self.texcoords = []
+        self.processed = False
+        self.next_candidate_count = 0
+        self.next_candidates = []
+
+        self.material_index = get_global_mat_index(
+            obj, polygon.material_index)
+
+        verts_local = [v.co for v in obj.data.vertices.values()]
+        matrix = global_matrix @ obj.matrix_world
+        verts_world = [matrix @ v_local for v_local in verts_local]
+
+        if len(polygon.loop_indices) == 3:
+            self.type = 'triangles'
+            self.vertex_count = 3
+        elif len(polygon.loop_indices) == 4:
+            self.type = 'quads'
+            self.vertex_count = 4
+
+        use_colors = False
+
+        if len(obj.data.vertex_colors) > 0:
+            use_colors = True
+
+        for idx in polygon.loop_indices:
+            pos_scale = model.model_info.pos_scale
+
+            # Get vertex and convert it to VecFx32.
+            vertex_index = obj.data.loops[idx].vertex_index
+            vecfx32 = VecFx32().from_floats(verts_world[vertex_index])
+
+            # Apply pos_scale.
+            self.positions.append(vecfx32 >> pos_scale)
+
+            # Color
+            if use_colors:
+                color = obj.data.vertex_colors[0].data[idx].color
+                r = int(color[0] * 31)
+                g = int(color[1] * 31)
+                b = int(color[2] * 31)
+                self.colors.append((r, g, b))
+            else:
+                self.colors.append((0, 0, 0))
+
+
 def get_global_mat_index(obj, index):
     if len(obj.material_slots) <= index:
         # If an object doesn't have (enough) material slots, the polgyon
@@ -51,12 +106,12 @@ def calculate_pos_scale(max_coord):
 
 
 def get_object_max_min(obj):
-        matrix = global_matrix @ obj.matrix_world
-        bounds = [matrix @ Vector(v) for v in obj.bound_box]
-        return {
-            'min': bounds[0],
-            'max': bounds[6]
-        }
+    matrix = global_matrix @ obj.matrix_world
+    bounds = [matrix @ Vector(v) for v in obj.bound_box]
+    return {
+        'min': bounds[0],
+        'max': bounds[6]
+    }
 
 
 def get_all_max_min():
@@ -193,61 +248,39 @@ class NitroPolygon():
             return True
         return False
 
-    def add_to_primitive(self, obj, polygon):
-        verts_local = [v.co for v in obj.data.vertices.values()]
-        matrix = global_matrix @ obj.matrix_world
-        verts_world = [matrix @ v_local for v_local in verts_local]
-
-        if len(polygon.loop_indices) == 3:
+    def add_primitive(self, obj, prim: Primitive):
+        if prim.type == 'triangles':
             primitive = self.get_primitive('triangles')
             primitive.sort_key = 3
             model.output_info.vertex_size += 3
             model.output_info.triangle_size += 1
             model.output_info.polygon_size += 1
             primitive.triangle_size += 1
-        elif len(polygon.loop_indices) == 4:
+        elif prim.type == 'quads':
             primitive = self.get_primitive('quads')
             primitive.sort_key = 2
             model.output_info.vertex_size += 4
             model.output_info.quad_size += 1
             model.output_info.polygon_size += 1
             primitive.quad_size += 1
-        else:
-            logger.log('ngon, skipped.')
-            return
-
-        logger.log(
-            f'Add mesh to polygon {self.index} '
-            f'vertices size: {len(polygon.loop_indices)} '
-            f'material BL index {polygon.material_index}'
-        )
 
         if len(obj.data.vertex_colors) > 0:
             self.use_colors = 'on'
 
-        for idx in polygon.loop_indices:
-            pos_scale = model.model_info.pos_scale
-
-            # Get vertex and convert it to VecFx32.
-            vertex_index = obj.data.loops[idx].vertex_index
-            vecfx32 = VecFx32().from_floats(verts_world[vertex_index])
+        for idx in range(len(prim.positions)):
+            # Color
+            if self.use_colors == 'on':
+                r, g, b = prim.colors[idx]
+                primitive.add_command('clr', 'rgb', f'{r} {g} {b}')
 
             # Apply pos_scale.
-            scaled_vecfx32 = vecfx32 >> pos_scale
+            scaled_vecfx32 = prim.positions[idx]
             scaled_vec = scaled_vecfx32.to_vector()
 
             # Calculate difference from previous vertex.
             if not primitive.is_empty():
                 diff_vecfx32 = scaled_vecfx32 - primitive._previous_vecfx32
                 diff_vec = diff_vecfx32.to_vector()
-
-            # Color
-            if self.use_colors == 'on':
-                color = obj.data.vertex_colors[0].data[idx].color
-                r = int(color[0] * 31)
-                g = int(color[1] * 31)
-                b = int(color[2] * 31)
-                primitive.add_command('clr', 'rgb', f'{r} {g} {b}')
 
             # PosYZ
             if not primitive.is_empty() and diff_vecfx32.x == 0:
@@ -294,14 +327,23 @@ class NitroModel():
             if obj.type != 'MESH':
                 continue
             logger.log('Object: ' + obj.name)
+            primitives = []
+
             for polygon in obj.data.polygons:
+                if len(polygon.loop_indices) > 4:
+                    logger.log("Polygon is ngon. Skipped.")
+                    continue
                 index = get_global_mat_index(obj, polygon.material_index)
                 if index == -1:
                     logger.log("Polygon doesn't have material. Skipped.")
                     continue
+                primitives.append(Primitive(obj, polygon))
+
+            for primitive in primitives:
                 material = self.find_material(index)
                 pol = self.find_polgyon(material.index)
-                pol.add_to_primitive(obj, polygon)
+                logger.log(f"Add primitive. {primitive.type}")
+                pol.add_primitive(obj, primitive)
 
         for polygon in self.polygons:
             polygon.primitives.sort(key=lambda x: x.sort_key)
