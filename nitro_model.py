@@ -340,7 +340,7 @@ class NitroModel():
                 primitives.append(Primitive(obj, polygon))
 
             for primitive in primitives:
-                material = self.find_material(index)
+                material = self.find_material(primitive.material_index)
                 pol = self.find_polgyon(material.index)
                 logger.log(f"Add primitive. {primitive.type}")
                 pol.add_primitive(obj, primitive)
