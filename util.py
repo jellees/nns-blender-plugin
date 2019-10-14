@@ -92,3 +92,10 @@ class VecFx32(object):
             raise TypeError(
                 "unsupported operand type(s) for <: '{}' and '{}'"
             ).format(self.__class__, type(other))
+
+    def __eq__(self, other):
+        return (
+            self.x == other.x
+            and self.y == other.y
+            and self.z == other.z
+        )

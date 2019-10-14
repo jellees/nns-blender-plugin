@@ -1,4 +1,5 @@
 import bpy
+import sys
 from mathutils import Vector, Matrix
 from bpy_extras.io_utils import axis_conversion
 from .util import VecFx32, float_to_fx32
@@ -14,12 +15,202 @@ settings = {}
 global_matrix = None
 
 
+class QuadStripper():
+    def get_opposite_quad_edge(self, a, b):
+        if a == 3 and b == 0:
+            return (2, 1)
+        if a == 0 and b == 3:
+            return (1, 2)
+        if a >= b:
+            return (
+                0 if a == 3 else a + 1,
+                3 if b == 0 else b - 1
+            )
+        return (
+            3 if a == 0 else a - 1,
+            0 if b == 3 else b + 1
+        )
+
+    def try_strip_in_direction(self, quads, quad_idx, vtxa, vtxb):
+        processed_tmp = [x.processed for x in quads]
+        processed_tmp[quad_idx] = True
+        quad = quads[quad_idx]
+        vtxa, vtxb = self.get_opposite_quad_edge(vtxa, vtxb)
+        quad_count = 1
+        while True:
+            i = -1
+            while i < 4:
+                i += 1
+                if i >= 4:
+                    break
+                if quad.next_candidates[i] == -1:
+                    continue
+                candidate = quads[quad.next_candidates[i]]
+                if processed_tmp[quad.next_candidates[i]]:
+                    continue
+                if not quad.is_suitable_qstrip_candidate_edge(candidate,
+                                                              vtxa,
+                                                              vtxb):
+                    continue
+                pos_a = quad.positions[vtxa]
+                vtxa = 0
+                while vtxa < 4:
+                    if candidate.positions[vtxa] == pos_a:
+                        break
+                    vtxa += 1
+                pos_b = quad.positions[vtxb]
+                vtxb = 0
+                while vtxb < 4:
+                    if candidate.positions[vtxb] == pos_b:
+                        break
+                    vtxb += 1
+                if vtxa != 4 and vtxb != 4:
+                    vtxa, vtxb = self.get_opposite_quad_edge(vtxa, vtxb)
+                    processed_tmp[quad.next_candidates[i]] = True
+                    quad_count += 1
+                    quad = candidate
+                    break
+            if i == 4 or quad_count > 1706:
+                break
+        return quad_count
+
+    def make_qstrip_primitive(self, quads, quad_idx, vtxa, vtxb):
+        result = Primitive()
+        result.type = 'quad_strip'
+        quad = quads[quad_idx]
+        quad.processed = True
+        result.material_index = quad.material_index
+        result.add_vtx(quad, vtxa)
+        result.add_vtx(quad, vtxb)
+        vtxa, vtxb = self.get_opposite_quad_edge(vtxa, vtxb)
+        result.add_vtx(quad, vtxa)
+        result.add_vtx(quad, vtxb)
+        quad_count = 1
+        while True:
+            i = -1
+            while i < 4:
+                i += 1
+                if i >= 4:
+                    break
+                if quad.next_candidates[i] == -1:
+                    continue
+                candidate = quads[quad.next_candidates[i]]
+                if candidate.processed:
+                    continue
+                if not quad.is_suitable_qstrip_candidate_edge(candidate,
+                                                              vtxa,
+                                                              vtxb):
+                    continue
+                pos_a = quad.positions[vtxa]
+                vtxa = 0
+                while vtxa < 4:
+                    if candidate.positions[vtxa] == pos_a:
+                        break
+                    vtxa += 1
+                pos_b = quad.positions[vtxb]
+                vtxb = 0
+                while vtxb < 4:
+                    if candidate.positions[vtxb] == pos_b:
+                        break
+                    vtxb += 1
+                if vtxa != 4 and vtxb != 4:
+                    vtxa, vtxb = self.get_opposite_quad_edge(vtxa, vtxb)
+                    result.add_vtx(candidate, vtxa)
+                    result.add_vtx(candidate, vtxb)
+                    candidate.processed = True
+                    quad_count += 1
+                    quad = candidate
+                    break
+            if i == 4 or quad_count >= 1706:
+                break
+        return result
+
+    def process(self, primitives):
+        result = []
+        quads = [x for x in primitives if x.type == 'quads']
+
+        for quad in quads:
+            quad.next_candidate_count = 0
+            quad.next_candidates = [-1] * 4
+            for i, candidate in enumerate(quads):
+                if not quad.is_suitable_qstrip_candidate(candidate):
+                    continue
+                quad.next_candidates[quad.next_candidate_count] = i
+                quad.next_candidate_count += 1
+                if quad.next_candidate_count >= 4:
+                    break
+
+        while True:
+            count = 0
+            for quad in quads:
+                if quad.processed:
+                    continue
+                count += 1
+                if quad.next_candidate_count > 0:
+                    cand_count = len([x for x in quad.next_candidates
+                                      if x != -1 and not quads[x].processed])
+                    quad.next_candidate_count = cand_count
+            if count == 0:
+                break
+            min_cand_count_idx = -1
+            min_cand_count = sys.maxsize
+            for i, quad in enumerate(quads):
+                if quad.processed:
+                    continue
+                if quad.next_candidate_count < min_cand_count:
+                    min_cand_count = quad.next_candidate_count
+                    min_cand_count_idx = i
+                    if min_cand_count <= 1:
+                        break
+            max_quads = 0
+            max_quads_vtx0 = -1
+            max_quads_vtx1 = -1
+            for i in range(4):
+                vtx0 = i
+                vtx1 = 0 if i == 3 else i + 1
+                quad_count = self.try_strip_in_direction(
+                    quads,
+                    min_cand_count_idx,
+                    vtx0,
+                    vtx1)
+                if quad_count > max_quads:
+                    max_quads = quad_count
+                    max_quads_vtx0 = vtx0
+                    max_quads_vtx1 = vtx1
+            logger.log(f"max_quads {max_quads}")
+            if max_quads <= 1:
+                quad = quads[min_cand_count_idx]
+                quad.processed = True
+                result.append(quad)
+            else:
+                result.append(self.make_qstrip_primitive(quads,
+                                                         min_cand_count_idx,
+                                                         max_quads_vtx0,
+                                                         max_quads_vtx1))
+        result.extend([x for x in primitives if x.type != 'quads'])
+        return result
+
+
 class Primitive():
     """
     Raw representation of blender data into a primitive used
     for stripping.
     """
-    def __init__(self, obj, polygon):
+    def __init__(self, obj=None, polygon=None):
+        if obj is None and polygon is None:
+            self.type = 'illegal'
+            self.positions = []
+            self.normals = []
+            self.colors = []
+            self.texcoords = []
+            self.processed = False
+            self.next_candidate_count = 0
+            # An array of indexes.
+            self.next_candidates = []
+            self.material_index = -1
+            self.vertex_count = 0
+            return
+
         self.type = 'illegal'
         self.positions = []
         self.normals = []
@@ -27,6 +218,7 @@ class Primitive():
         self.texcoords = []
         self.processed = False
         self.next_candidate_count = 0
+        # An array of indexes.
         self.next_candidates = []
 
         self.material_index = get_global_mat_index(
@@ -67,6 +259,77 @@ class Primitive():
                 self.colors.append((r, g, b))
             else:
                 self.colors.append((0, 0, 0))
+
+    def add_vtx(self, src, idx):
+        self.vertex_count += 1
+        self.positions.append(src.positions[idx])
+        self.colors.append(src.colors[idx])
+
+    def is_extra_data_equal(self, a, other, b):
+        return (
+            self.colors[a] == other.colors[b]
+            and self.material_index == other.material_index
+        )
+
+    def is_suitable_tstrip_candidate(self, candidate):
+        equal_count = 0
+        first_i = 0
+        first_j = 0
+        for i in range(3):
+            for j in range(3):
+                if (self.positions[i] == candidate.positions[j]
+                        and not self.is_extra_data_equal(i, candidate, j)):
+                    continue
+                if equal_count == 0:
+                    first_i = i
+                    first_j = j
+                elif equal_count == 1:
+                    if first_i == 0 and i == 2:
+                        return first_j < j or (first_j == 2 and j == 0)
+                    return first_j > j or (first_j == 0 and j == 2)
+                equal_count += 1
+
+    def is_suitable_tstrip_candidate_edge(self, candidate, a, b):
+        equal_count = 0
+        for i in range(3):
+            if (self.positions[a] == candidate.positions[i]
+                    and self.is_extra_data_equal(a, candidate, i)):
+                equal_count += 1
+            if (self.positions[b] == candidate.positions[i]
+                    and self.is_extra_data_equal(b, candidate, i)):
+                equal_count += 1
+        return equal_count == 2
+
+    def is_suitable_qstrip_candidate(self, candidate):
+        equal_count = 0
+        first_i = 0
+        first_j = 0
+        for i in range(4):
+            for j in range(4):
+                if (self.positions[i] != candidate.positions[j]
+                        or not self.is_extra_data_equal(i, candidate, j)):
+                    continue
+                if equal_count == 0:
+                    first_i = i
+                    first_j = j
+                elif equal_count == 1:
+                    if first_i == 0 and i == 3:
+                        return first_j < j or (first_j == 3 and j == 0)
+                    logger.log(str(first_j > j or (first_j == 0 and j == 3)))
+                    return first_j > j or (first_j == 0 and j == 3)
+                equal_count += 1
+        return False
+
+    def is_suitable_qstrip_candidate_edge(self, candidate, a, b):
+        equal_count = 0
+        for i in range(4):
+            if (self.positions[a] == candidate.positions[i]
+                    and self.is_extra_data_equal(a, candidate, i)):
+                equal_count += 1
+            if (self.positions[b] == candidate.positions[i]
+                    and self.is_extra_data_equal(b, candidate, i)):
+                equal_count += 1
+        return equal_count == 2
 
 
 def get_global_mat_index(obj, index):
@@ -263,6 +526,13 @@ class NitroPolygon():
             model.output_info.quad_size += 1
             model.output_info.polygon_size += 1
             primitive.quad_size += 1
+        elif prim.type == 'quad_strip':
+            primitive = self.get_primitive('quad_strip')
+            primitive.sort_key = 0
+            model.output_info.vertex_size += prim.vertex_count
+            model.output_info.quad_size += 1
+            model.output_info.polygon_size += 1
+            primitive.quad_size += 1
 
         if len(obj.data.vertex_colors) > 0:
             self.use_colors = 'on'
@@ -304,9 +574,10 @@ class NitroPolygon():
             primitive._previous_vecfx32 = scaled_vecfx32
 
     def get_primitive(self, type_):
-        for primitive in self.primitives:
-            if primitive.type == type_:
-                return primitive
+        if type_ != 'quad_strip' or type_ != 'triangle_strip':
+            for primitive in self.primitives:
+                if primitive.type == type_:
+                    return primitive
         self.primitives.append(NitroPrimitive(type_))
         return self.primitives[-1]
 
@@ -338,6 +609,9 @@ class NitroModel():
                     logger.log("Polygon doesn't have material. Skipped.")
                     continue
                 primitives.append(Primitive(obj, polygon))
+
+            quad_stripper = QuadStripper()
+            primitives = quad_stripper.process(primitives)
 
             for primitive in primitives:
                 material = self.find_material(primitive.material_index)
