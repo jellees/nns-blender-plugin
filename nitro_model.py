@@ -15,6 +15,163 @@ settings = {}
 global_matrix = None
 
 
+class TriStripper():
+    def get_previous_tri_edge(self, a, b):
+        if b == 0:
+            return (2 - (0 if a == 1 else 1), a)
+        if b == 1:
+            return (0 if a == 2 else 2, a)
+        return (1 if a == 0 else 0, a)
+
+    def try_strip_in_direction(self, tris, tri_idx, vtxa, vtxb):
+        processed_tmp = [x.processed for x in tris]
+        processed_tmp[tri_idx] = True
+        tri = tris[tri_idx]
+        vtxb, vtxa = self.get_previous_tri_edge(vtxb, vtxa)
+        tri_count = 1
+        while True:
+            i = -1
+            while i < 3:
+                i += 1
+                if i >= 3:
+                    break
+                if tri.next_candidates[i] == -1:
+                    continue
+                candidate = tris[tri.next_candidates[i]]
+                if processed_tmp[tri.next_candidates[i]]:
+                    continue
+                if not tri.is_suitable_tstrip_candidate_edge(candidate,
+                                                             vtxa,
+                                                             vtxb):
+                    continue
+                pos_a = tri.positions[vtxa]
+                vtxa = 0
+                while vtxa < 3:
+                    if candidate.positions[vtxa] == pos_a:
+                        break
+                    vtxa += 1
+                pos_b = tri.positions[vtxb]
+                vtxb = 0
+                while vtxb < 3:
+                    if candidate.positions[vtxb] == pos_b:
+                        break
+                    vtxb += 1
+                if vtxa != 3 and vtxb != 3:
+                    vtxb, vtxa = self.get_previous_tri_edge(vtxb, vtxa)
+                    processed_tmp[tri.next_candidates[i]] = True
+                    tri_count += 1
+                    tri = candidate
+                    break
+            if i == 3:
+                break
+        return tri_count
+
+    def make_tstrip_primitive(self, tris, tri_idx, vtxa, vtxb):
+        result = Primitive()
+        result.type = 'triangle_strip'
+        tri = tris[tri_idx]
+        tri.processed = True
+        result.material_index = tri.material_index
+        result.add_vtx(tri, vtxa)
+        result.add_vtx(tri, vtxb)
+        vtxb, vtxa = self.get_previous_tri_edge(vtxb, vtxa)
+        result.add_vtx(tri, vtxb)
+        while True:
+            i = -1
+            while i < 3:
+                i += 1
+                if i >= 3:
+                    break
+                if tri.next_candidates[i] == -1:
+                    continue
+                candidate = tris[tri.next_candidates[i]]
+                if candidate.processed:
+                    continue
+                if not tri.is_suitable_tstrip_candidate_edge(candidate,
+                                                             vtxa,
+                                                             vtxb):
+                    continue
+                pos_a = tri.positions[vtxa]
+                vtxa = 0
+                while vtxa < 3:
+                    if candidate.positions[vtxa] == pos_a:
+                        break
+                    vtxa += 1
+                pos_b = tri.positions[vtxb]
+                vtxb = 0
+                while vtxb < 3:
+                    if candidate.positions[vtxb] == pos_b:
+                        break
+                    vtxb += 1
+                if vtxa != 3 and vtxb != 3:
+                    vtxb, vtxa = self.get_previous_tri_edge(vtxb, vtxa)
+                    result.add_vtx(candidate, vtxb)
+                    candidate.processed = True
+                    tri = candidate
+            if i == 3:
+                break
+        return result
+
+    def process(self, primitives):
+        result = []
+        tris = [x for x in primitives if x.type == 'triangles']
+        for tri in tris:
+            tri.next_candidate_count = 0
+            tri.next_candidates = [-1] * 4
+            for i, candidate in enumerate(tris):
+                if not tri.is_suitable_tstrip_candidate(candidate):
+                    continue
+                tri.next_candidates[tri.next_candidate_count] = i
+                tri.next_candidate_count += 1
+                if tri.next_candidate_count >= 3:
+                    break
+        while True:
+            count = 0
+            for tri in tris:
+                if tri.processed:
+                    continue
+                count += 1
+                if tri.next_candidate_count > 0:
+                    cand_count = len([x for x in tri.next_candidates
+                                      if x != -1 and not tris[x].processed])
+                    tri.next_candidate_count = cand_count
+            if count == 0:
+                break
+            min_cand_count_idx = -1
+            min_cand_count = sys.maxsize
+            for i, tri in enumerate(tris):
+                if tri.processed:
+                    continue
+                if tri.next_candidate_count < min_cand_count:
+                    min_cand_count = tri.next_candidate_count
+                    min_cand_count_idx = i
+                    if min_cand_count <= 1:
+                        break
+            max_tris = 0
+            max_tris_vtx0 = -1
+            max_tris_vtx1 = -1
+            for i in range(3):
+                vtx0 = i
+                vtx1 = 0 if i == 2 else i + 1
+                tri_count = self.try_strip_in_direction(
+                    tris, min_cand_count_idx, vtx0, vtx1)
+                if tri_count > max_tris:
+                    max_tris = tri_count
+                    max_tris_vtx0 = vtx0
+                    max_tris_vtx1 = vtx1
+            if max_tris <= 1:
+                tri = tris[min_cand_count_idx]
+                tri.processed = True
+                result.append(tri)
+            else:
+                result.append(self.make_tstrip_primitive(tris,
+                                                         min_cand_count_idx,
+                                                         max_tris_vtx0,
+                                                         max_tris_vtx1))
+        result.extend([x for x in primitives if x.type != 'triangles'])
+        return result
+
+
 class QuadStripper():
     def get_opposite_quad_edge(self, a, b):
         if a == 3 and b == 0:
@@ -524,6 +681,13 @@ class NitroPolygon():
             model.output_info.quad_size += 1
             model.output_info.polygon_size += 1
             primitive.quad_size += 1
+        elif prim.type == 'triangle_strip':
+            primitive = self.get_primitive('triangle_strip')
+            primitive.sort_key = 1
+            model.output_info.vertex_size += prim.vertex_count
+            model.output_info.triangle_size += 1
+            model.output_info.polygon_size += 1
+            primitive.triangle_size += 1
         elif prim.type == 'quad_strip':
             primitive = self.get_primitive('quad_strip')
             primitive.sort_key = 0
@@ -610,6 +774,9 @@ class NitroModel():
 
             quad_stripper = QuadStripper()
             primitives = quad_stripper.process(primitives)
+
+            tri_stripper = TriStripper()
+            primitives = tri_stripper.process(primitives)
 
             for primitive in primitives:
                 material = self.find_material(primitive.material_index)
