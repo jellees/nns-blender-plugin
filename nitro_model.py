@@ -177,7 +177,6 @@ class QuadStripper():
                     max_quads = quad_count
                     max_quads_vtx0 = vtx0
                     max_quads_vtx1 = vtx1
-            logger.log(f"max_quads {max_quads}")
             if max_quads <= 1:
                 quad = quads[min_cand_count_idx]
                 quad.processed = True
@@ -278,7 +277,7 @@ class Primitive():
         for i in range(3):
             for j in range(3):
                 if (self.positions[i] == candidate.positions[j]
-                        and not self.is_extra_data_equal(i, candidate, j)):
+                        or not self.is_extra_data_equal(i, candidate, j)):
                     continue
                 if equal_count == 0:
                     first_i = i
@@ -315,7 +314,6 @@ class Primitive():
                 elif equal_count == 1:
                     if first_i == 0 and i == 3:
                         return first_j < j or (first_j == 3 and j == 0)
-                    logger.log(str(first_j > j or (first_j == 0 and j == 3)))
                     return first_j > j or (first_j == 0 and j == 3)
                 equal_count += 1
         return False
@@ -574,7 +572,7 @@ class NitroPolygon():
             primitive._previous_vecfx32 = scaled_vecfx32
 
     def get_primitive(self, type_):
-        if type_ != 'quad_strip' or type_ != 'triangle_strip':
+        if type_ != 'quad_strip' and type_ != 'triangle_strip':
             for primitive in self.primitives:
                 if primitive.type == type_:
                     return primitive
