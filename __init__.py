@@ -25,6 +25,9 @@ class ExportNitro(bpy.types.Operator):
                                   default=0.0625,
                                   precision=4)
 
+    use_primitive_strip = BoolProperty(name="Use primitive strip",
+                                       default=True)
+
     def execute(self, context):
         from . import export_nitro
         settings = self.as_keywords()

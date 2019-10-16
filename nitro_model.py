@@ -772,11 +772,12 @@ class NitroModel():
                     continue
                 primitives.append(Primitive(obj, polygon))
 
-            quad_stripper = QuadStripper()
-            primitives = quad_stripper.process(primitives)
+            if settings['use_primitive_strip']:
+                quad_stripper = QuadStripper()
+                primitives = quad_stripper.process(primitives)
 
-            tri_stripper = TriStripper()
-            primitives = tri_stripper.process(primitives)
+                tri_stripper = TriStripper()
+                primitives = tri_stripper.process(primitives)
 
             for primitive in primitives:
                 material = self.find_material(primitive.material_index)
