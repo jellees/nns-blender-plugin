@@ -578,8 +578,26 @@ class NitroMaterial():
     def __init__(self, blender_index, index):
         self.blender_index = blender_index
         self.index = index
-        blender_material = bpy.data.materials[blender_index]
-        self.name = blender_material.name
+        material = bpy.data.materials[blender_index]
+        self.name = material.name
+
+        self.light0 = 'on' if material.nns_light0 else 'off'
+        self.light1 = 'on' if material.nns_light1 else 'off'
+        self.light2 = 'on' if material.nns_light2 else 'off'
+        self.light3 = 'on' if material.nns_light3 else 'off'
+        self.shininess_table_flag = 'on' if material.nns_use_srst else 'off'
+        self.fog_flag = 'on' if material.nns_fog else 'off'
+        self.wire_mode = 'on' if material.nns_wireframe else 'off'
+        self.depth_test_decal = 'on' if material.nns_depth_test else 'off'
+        self.translucent_update_depth = ('on'
+                                         if material.nns_update_depth_buffer
+                                         else 'off')
+        self.render_1_pixel = 'on' if material.nns_render_1_pixel else 'off'
+        self.far_clipping = 'on' if material.nns_far_clipping else 'off'
+        self.polygon_id = material.nns_polygonid
+        self.face = material.nns_display_face
+        self.polygon_mode = material.nns_polygon_mode
+        self.tex_gen_mode = material.nns_tex_gen_mode
 
 
 class NitroOuputInfo():
