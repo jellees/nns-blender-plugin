@@ -416,15 +416,21 @@ class Primitive():
             else:
                 self.colors.append((0, 0, 0))
 
+            # Normal
+            self.normals.append(
+                VecFx32().from_vector(obj.data.loops[idx].normal))
+
     def add_vtx(self, src, idx):
         self.vertex_count += 1
         self.positions.append(src.positions[idx])
         self.colors.append(src.colors[idx])
+        self.normals.append(src.normals[idx])
 
     def is_extra_data_equal(self, a, other, b):
         return (
             self.colors[a] == other.colors[b]
             and self.material_index == other.material_index
+            and self.normals[a] == other.normals[b]
         )
 
     def is_suitable_tstrip_candidate(self, candidate):
@@ -684,7 +690,7 @@ class NitroPolygon():
             return True
         return False
 
-    def add_primitive(self, obj, prim: Primitive):
+    def add_primitive(self, obj, prim: Primitive, material):
         if prim.type == 'triangles':
             primitive = self.get_primitive('triangles')
             primitive.sort_key = 3
@@ -714,7 +720,12 @@ class NitroPolygon():
             model.output_info.polygon_size += 1
             primitive.quad_size += 1
 
-        if len(obj.data.vertex_colors) > 0:
+        light_on = (material.light0 == 'on' or
+                    material.light1 == 'on' or
+                    material.light2 == 'on' or
+                    material.light3 == 'on')
+
+        if len(obj.data.vertex_colors) > 0 and not light_on:
             self.use_colors = 'on'
 
         for idx in range(len(prim.positions)):
@@ -722,6 +733,11 @@ class NitroPolygon():
             if self.use_colors == 'on':
                 r, g, b = prim.colors[idx]
                 primitive.add_command('clr', 'rgb', f'{r} {g} {b}')
+
+            if light_on:
+                normal = prim.normals[idx]
+                primitive.add_command('nrm', 'xyz',
+                                      f'{normal.x} {normal.y} {normal.z}')
 
             # Apply pos_scale.
             scaled_vecfx32 = prim.positions[idx]
@@ -801,7 +817,7 @@ class NitroModel():
                 material = self.find_material(primitive.material_index)
                 pol = self.find_polgyon(material.index)
                 logger.log(f"Add primitive. {primitive.type}")
-                pol.add_primitive(obj, primitive)
+                pol.add_primitive(obj, primitive, material)
 
         for polygon in self.polygons:
             polygon.primitives.sort(key=lambda x: x.sort_key)
