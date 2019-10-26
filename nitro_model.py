@@ -2,6 +2,7 @@ import bpy
 import sys
 from mathutils import Vector, Matrix
 from bpy_extras.io_utils import axis_conversion
+from bpy_extras import node_shader_utils
 from .util import VecFx32, float_to_fx32
 from . import local_logger as logger
 
@@ -604,6 +605,13 @@ class NitroMaterial():
         self.face = material.nns_display_face
         self.polygon_mode = material.nns_polygon_mode
         self.tex_gen_mode = material.nns_tex_gen_mode
+
+        # For now let's use PrincipledBSDF to get the color and image.
+        wrap = node_shader_utils.PrincipledBSDFWrapper(material)
+        self.alpha = int(wrap.alpha * 31)
+        self.diffuse = ' '.join([str(int(x * 31)) for x in wrap.base_color])
+        self.specular = ' '.join(
+            [str(int(wrap.specular * 31)) for _ in range(3)])
 
 
 class NitroOuputInfo():
