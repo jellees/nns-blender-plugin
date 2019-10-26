@@ -116,15 +116,15 @@ def generate_materials(imd):
         material.set('specular', mat.specular)
         material.set('emission', '0 0 0')
         material.set('shininess_table_flag', mat.shininess_table_flag)
-
         material.set('tex_image_idx', str(mat.image_idx))
         material.set('tex_palette_idx', str(mat.palette_idx))
         # Only output when there is a texture assigned
-        # material.set('tex_tiling', 'clamp clamp')
-        # material.set('tex_scale', '1.000000 1.000000')
-        # material.set('tex_rotate', '0.000000')
-        # material.set('tex_translate', '0.000000 0.000000')
-        # material.set('tex_gen_mode', mat.tex_gen_mode)
+        if mat.image_idx != -1:
+            material.set('tex_tiling', 'repeat repeat')
+            material.set('tex_scale', '1.000000 1.000000')
+            material.set('tex_rotate', '0.000000')
+            material.set('tex_translate', '0.000000 0.000000')
+            material.set('tex_gen_mode', mat.tex_gen_mode)
 
 
 def generate_matrices(imd):

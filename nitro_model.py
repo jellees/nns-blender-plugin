@@ -423,17 +423,24 @@ class Primitive():
             self.normals.append(
                 VecFx32().from_vector(obj.data.loops[idx].normal))
 
+            # Texture coordinates
+            uv = obj.data.uv_layers.active.data[idx].uv
+            self.texcoords.append(
+                VecFx32().from_vector(Vector([uv[0], uv[1], 0])))
+
     def add_vtx(self, src, idx):
         self.vertex_count += 1
         self.positions.append(src.positions[idx])
         self.colors.append(src.colors[idx])
         self.normals.append(src.normals[idx])
+        self.texcoords.append(src.texcoords[idx])
 
     def is_extra_data_equal(self, a, other, b):
         return (
             self.colors[a] == other.colors[b]
             and self.material_index == other.material_index
             and self.normals[a] == other.normals[b]
+            and self.texcoords[a] == other.texcoords[b]
         )
 
     def is_suitable_tstrip_candidate(self, candidate):
@@ -811,6 +818,14 @@ class NitroPolygon():
                 normal = prim.normals[idx]
                 primitive.add_command('nrm', 'xyz',
                                       f'{normal.x} {normal.y} {normal.z}')
+
+            # Texture coordinate.
+            if material.image_idx != -1:
+                tex = model.textures[material.image_idx]
+                uv = prim.texcoords[idx].to_vector()
+                s = uv.x * tex.width
+                t = uv.y * -tex.height + tex.height
+                primitive.add_command('tex', 'st', f'{s} {t}')
 
             # Apply pos_scale.
             scaled_vecfx32 = prim.positions[idx]
