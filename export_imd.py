@@ -48,6 +48,47 @@ def generate_box_test(imd):
     box_test.set('whd', ' '.join(floats))
 
 
+def generate_textures(imd):
+    tex_image_array = ET.SubElement(imd, 'tex_image_array')
+    tex_image_array.set('size', str(len(model.textures)))
+
+    for tex in model.textures:
+        tex_image = ET.SubElement(tex_image_array, 'tex_image')
+        tex_image.set('index', str(tex.index))
+        tex_image.set('name', tex.name)
+        tex_image.set('width', str(tex.width))
+        tex_image.set('height', str(tex.height))
+        tex_image.set('original_width', str(tex.original_width))
+        tex_image.set('original_height', str(tex.original_height))
+        tex_image.set('format', tex.format)
+        if hasattr(tex, 'color0_mode'):
+            tex_image.set('color0_mode', tex.color0_mode)
+        if hasattr(tex, 'palette_name'):
+            tex_image.set('palette_name', tex.palette_name)
+        tex_image.set('path', tex.path)
+
+        bitmap = ET.SubElement(tex_image, 'bitmap')
+        bitmap.set('size', str(tex.bitmap_size))
+        bitmap.text = tex.bitmap_data
+
+        if hasattr(tex, 'tex4x4_palette_idx_data'):
+            tex4x4_palette_idx = ET.SubElement(tex_image, 'tex4x4_palette_idx')
+            tex4x4_palette_idx.set('size', str(tex.tex4x4_palette_idx_size))
+            tex4x4_palette_idx.text = tex.tex4x4_palette_idx_data
+
+
+def generate_palettes(imd):
+    tex_palette_array = ET.SubElement(imd, 'tex_palette_array')
+    tex_palette_array.set('size', str(len(model.palettes)))
+
+    for pal in model.palettes:
+        tex_palette = ET.SubElement(tex_palette_array, 'tex_palette')
+        tex_palette.set('index', str(pal.index))
+        tex_palette.set('name', pal.name)
+        tex_palette.set('color_size', str(pal.size))
+        tex_palette.text = pal.data
+
+
 def generate_materials(imd):
     material_array = ET.SubElement(imd, 'material_array')
     material_array.set('size', str(len(model.materials)))
@@ -77,7 +118,10 @@ def generate_materials(imd):
         material.set('shininess_table_flag', mat.shininess_table_flag)
 
         material.set('tex_image_idx', '-1')
-        material.set('tex_palette_idx', '-1')
+        material.set('tex_image_idx', '-1')
+
+        # material.set('tex_image_idx', str(mat.image_idx))
+        # material.set('tex_palette_idx', str(mat.palette_idx))
         # Only output when there is a texture assigned
         # material.set('tex_tiling', 'clamp clamp')
         # material.set('tex_scale', '1.000000 1.000000')
@@ -203,6 +247,8 @@ def generate_body(imd, export_settings):
 
     generate_model_info(imd)
     generate_box_test(imd)
+    generate_textures(imd)
+    generate_palettes(imd)
     generate_materials(imd)
     generate_matrices(imd)
     generate_polygons(imd)

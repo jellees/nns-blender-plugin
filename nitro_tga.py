@@ -116,9 +116,9 @@ def get_bitmap_data(tga):
 
 def get_bitmap_size(tga):
     if tga['nitro_data']['tex_format'] == 'tex4x4':
-        return len(tga['nitro_data']['texel_data']) / 4
+        return int(len(tga['nitro_data']['texel_data']) / 4)
     else:
-        return len(tga['nitro_data']['texel_data']) / 2
+        return int(len(tga['nitro_data']['texel_data']) / 2)
 
 
 def get_palette_data(tga):
@@ -126,7 +126,7 @@ def get_palette_data(tga):
 
 
 def get_palette_size(tga):
-    return len(tga['nitro_data']['palette']) / 2
+    return int(len(tga['nitro_data']['palette']) / 2)
 
 
 # Used for tex4x4 only
@@ -135,4 +135,4 @@ def get_pltt_idx_data(tga):
 
 
 def get_pltt_idx_size(tga):
-    return len(tga['nitro_data']['pltt_idx_data']) / 2
+    return int(len(tga['nitro_data']['pltt_idx_data']) / 2)

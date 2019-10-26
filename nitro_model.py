@@ -1,5 +1,6 @@
 import bpy
 import sys
+import os
 from mathutils import Vector, Matrix
 from bpy_extras.io_utils import axis_conversion
 from bpy_extras import node_shader_utils
@@ -594,13 +595,13 @@ class NitroTexImage():
     def __init__(self, path, index):
         self.path = path
         self.index = index
+        self.name = str(os.path.splitext(os.path.basename(path))[0])[0:15]
 
         # Load Nitro TGA Data from path
         tga = nitro_tga.read_nitro_tga(path)
 
         # Set TexImage properties
         self.format = tga['nitro_data']['tex_format']
-        self.palette_name = tga['nitro_data']['palette_name']
         self.width = tga['header']['image_width']
         self.height = tga['header']['image_heigth']
         self.original_width = tga['header']['image_width']
@@ -608,7 +609,7 @@ class NitroTexImage():
 
         # Color 0 Mode
         transp = tga['nitro_data']['color_0_transp']
-        if format in ('palette4', 'palette16', 'palette256'):
+        if self.format in ('palette4', 'palette16', 'palette256'):
             self.color0_mode = 'transparent' if transp else 'color'
 
         # Get Bitmap Data
@@ -616,7 +617,7 @@ class NitroTexImage():
         self.bitmap_size = nitro_tga.get_bitmap_size(tga)
 
         # Get Tex4x4 Palette Index Data
-        if format == 'tex4x4':
+        if self.format == 'tex4x4':
             self.tex4x4_palette_idx_data = nitro_tga.get_pltt_idx_data(tga)
             self.tex4x4_palette_idx_size = nitro_tga.get_pltt_idx_size(tga)
 
@@ -625,7 +626,8 @@ class NitroTexImage():
         self.palette_idx = -1
 
         # Get Palette Data
-        if format != 'direct':
+        if self.format != 'direct':
+            self.palette_name = tga['nitro_data']['palette_name'][0:15]
             plt_data = nitro_tga.get_palette_data(tga)
             plt_size = nitro_tga.get_palette_size(tga)
             self.palette_idx = model.add_palette(
@@ -666,7 +668,9 @@ class NitroMaterial():
 
         tex_wrap = getattr(wrap, 'base_color_texture', None)
         if tex_wrap is not None and tex_wrap.image is not None:
-            texture = model.find_texture(tex_wrap.image)
+            path = bpy.path.abspath(
+                tex_wrap.image.filepath, library=tex_wrap.image.library)
+            texture = model.find_texture(path)
             self.image_idx = texture.index
             self.palette_idx = texture.palette_idx
         else:
