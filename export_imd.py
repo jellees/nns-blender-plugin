@@ -71,7 +71,7 @@ def generate_textures(imd):
         bitmap.set('size', str(tex.bitmap_size))
         bitmap.text = tex.bitmap_data
 
-        if hasattr(tex, 'tex4x4_palette_idx_data'):
+        if tex.format == 'tex4x4':
             tex4x4_palette_idx = ET.SubElement(tex_image, 'tex4x4_palette_idx')
             tex4x4_palette_idx.set('size', str(tex.tex4x4_palette_idx_size))
             tex4x4_palette_idx.text = tex.tex4x4_palette_idx_data
@@ -117,11 +117,8 @@ def generate_materials(imd):
         material.set('emission', '0 0 0')
         material.set('shininess_table_flag', mat.shininess_table_flag)
 
-        material.set('tex_image_idx', '-1')
-        material.set('tex_image_idx', '-1')
-
-        # material.set('tex_image_idx', str(mat.image_idx))
-        # material.set('tex_palette_idx', str(mat.palette_idx))
+        material.set('tex_image_idx', str(mat.image_idx))
+        material.set('tex_palette_idx', str(mat.palette_idx))
         # Only output when there is a texture assigned
         # material.set('tex_tiling', 'clamp clamp')
         # material.set('tex_scale', '1.000000 1.000000')

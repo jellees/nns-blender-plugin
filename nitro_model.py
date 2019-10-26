@@ -630,8 +630,8 @@ class NitroTexImage():
             self.palette_name = tga['nitro_data']['palette_name'][0:15]
             plt_data = nitro_tga.get_palette_data(tga)
             plt_size = nitro_tga.get_palette_size(tga)
-            self.palette_idx = model.add_palette(
-                self.palette_name, plt_data, plt_size)
+            palette = model.add_palette(self.palette_name, plt_data, plt_size)
+            self.palette_idx = palette.index
 
 
 class NitroMaterial():
@@ -671,6 +671,7 @@ class NitroMaterial():
             path = bpy.path.abspath(
                 tex_wrap.image.filepath, library=tex_wrap.image.library)
             texture = model.find_texture(path)
+            logger.log(str(texture.palette_idx))
             self.image_idx = texture.index
             self.palette_idx = texture.palette_idx
         else:
@@ -927,7 +928,7 @@ class NitroModel():
     def add_palette(self, name, data, size):
         self.palettes.append(
             NitroPalette(name, data, size, len(self.palettes)))
-        return self.palettes.index
+        return self.palettes[-1]
 
 
 def get_nitro_model(export_settings):
