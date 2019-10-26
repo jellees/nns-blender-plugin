@@ -633,7 +633,7 @@ class NitroMaterial():
             [str(int(wrap.specular * 31)) for _ in range(3)])
 
         tex_wrap = getattr(wrap, 'base_color_texture', None)
-        if tex_wrap not None and tex_wrap.image not None:
+        if tex_wrap is not None and tex_wrap.image is not None:
             texture = model.find_texture(tex_wrap.image)
             self.image_idx = texture.index
             self.palette_idx = texture.palette_idx
