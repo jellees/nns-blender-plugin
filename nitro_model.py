@@ -863,6 +863,11 @@ class NitroModel():
         for obj in bpy.data.objects:
             if obj.type != 'MESH':
                 continue
+
+            if obj.hide_get():
+                logger.log('Object ' + obj.name + ' is hidden. Skipped.')
+                continue
+
             logger.log('Object: ' + obj.name)
             primitives = []
 
