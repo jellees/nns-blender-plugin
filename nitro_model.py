@@ -585,7 +585,9 @@ class NitroBoxTest():
 class NitroPalette():
     def __init__(self, name, data, size, index):
         self.index = index
-        # Palette init here. Edit add_palette to pass on more parameters.
+        self.name = name
+        self.data = data
+        self.size = size
 
 
 class NitroTexImage():
