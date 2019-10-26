@@ -424,9 +424,12 @@ class Primitive():
                 VecFx32().from_vector(obj.data.loops[idx].normal))
 
             # Texture coordinates
-            uv = obj.data.uv_layers.active.data[idx].uv
-            self.texcoords.append(
-                VecFx32().from_vector(Vector([uv[0], uv[1], 0])))
+            if obj.data.uv_layers.active is not None:
+                uv = obj.data.uv_layers.active.data[idx].uv
+                self.texcoords.append(
+                    VecFx32().from_vector(Vector([uv[0], uv[1], 0])))
+            else:
+                self.texcoords.append(VecFx32([0, 0, 0]))
 
     def add_vtx(self, src, idx):
         self.vertex_count += 1
@@ -669,21 +672,25 @@ class NitroMaterial():
         # For now let's use PrincipledBSDF to get the color and image.
         wrap = node_shader_utils.PrincipledBSDFWrapper(material)
         self.alpha = int(wrap.alpha * 31)
-        self.diffuse = ' '.join([str(int(x * 31)) for x in wrap.base_color])
+        self.diffuse = ' '.join([str(int(wrap.base_color[0] * 31)),
+                                 str(int(wrap.base_color[1] * 31)),
+                                 str(int(wrap.base_color[2] * 31))])
         self.specular = ' '.join(
             [str(int(wrap.specular * 31)) for _ in range(3)])
+
+        self.image_idx = -1
+        self.palette_idx = -1
 
         tex_wrap = getattr(wrap, 'base_color_texture', None)
         if tex_wrap is not None and tex_wrap.image is not None:
             path = bpy.path.abspath(
                 tex_wrap.image.filepath, library=tex_wrap.image.library)
-            texture = model.find_texture(path)
-            logger.log(str(texture.palette_idx))
-            self.image_idx = texture.index
-            self.palette_idx = texture.palette_idx
-        else:
-            self.image_idx = -1
-            self.palette_idx = -1
+            _, extension = os.path.splitext(path)
+            if extension == '.tga':
+                texture = model.find_texture(path)
+                logger.log(str(texture.palette_idx))
+                self.image_idx = texture.index
+                self.palette_idx = texture.palette_idx
 
 
 class NitroOuputInfo():
