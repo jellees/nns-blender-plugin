@@ -581,6 +581,25 @@ class NitroBoxTest():
         self.pos_scale = calculate_pos_scale(max_coord)
 
 
+class NitroPalette():
+    def __init__(self, index):
+        self.index = index
+        # Palette init here. Edit add_palette to pass on more parameters.
+
+
+class NitroTexImage():
+    def __init__(self, path, index):
+        self.path = path
+        self.index = index
+
+        # Ermii insert code here, please make the properties like tex_image
+        # attributes.
+
+        # Store the palette index that model.add_palette returns in here or
+        # leave it -1.
+        self.palette_idx = -1
+
+
 class NitroMaterial():
     def __init__(self, blender_index, index):
         self.blender_index = blender_index
@@ -612,6 +631,15 @@ class NitroMaterial():
         self.diffuse = ' '.join([str(int(x * 31)) for x in wrap.base_color])
         self.specular = ' '.join(
             [str(int(wrap.specular * 31)) for _ in range(3)])
+
+        tex_wrap = getattr(wrap, 'base_color_texture', None)
+        if tex_wrap not None and tex_wrap.image not None:
+            texture = model.find_texture(tex_wrap.image)
+            self.image_idx = texture.index
+            self.palette_idx = texture.palette_idx
+        else:
+            self.image_idx = -1
+            self.palette_idx = -1
 
 
 class NitroOuputInfo():
@@ -796,6 +824,8 @@ class NitroModel():
         self.box_test = NitroBoxTest()
         self.materials = []
         self.polygons = []
+        self.textures = []
+        self.palettes = []
 
     def collect(self):
         for obj in bpy.data.objects:
@@ -845,6 +875,17 @@ class NitroModel():
         index = len(self.materials)
         self.materials.append(NitroMaterial(blender_index, index))
         return self.materials[-1]
+
+    def find_texture(self, path):
+        for texture in self.textures:
+            if texture.path == path:
+                return texture
+        self.textures.append(NitroTexImage(path, len(self.textures)))
+        return self.textures[-1]
+
+    def add_palette(self):
+        self.palettes.append(NitroPalette(len(self.palettes)))
+        return self.palettes.index
 
 
 def get_nitro_model(export_settings):
