@@ -5,6 +5,7 @@ from bpy_extras.io_utils import axis_conversion
 from bpy_extras import node_shader_utils
 from .util import VecFx32, float_to_fx32
 from . import local_logger as logger
+from . import nitro_tga
 
 
 model = None
@@ -582,7 +583,7 @@ class NitroBoxTest():
 
 
 class NitroPalette():
-    def __init__(self, index):
+    def __init__(self, name, data, size, index):
         self.index = index
         # Palette init here. Edit add_palette to pass on more parameters.
 
@@ -592,12 +593,41 @@ class NitroTexImage():
         self.path = path
         self.index = index
 
-        # Ermii insert code here, please make the properties like tex_image
-        # attributes.
+        # Load Nitro TGA Data from path
+        tga = nitro_tga.read_nitro_tga(path)
+
+        # Set TexImage properties
+        self.format = tga['nitro_data']['tex_format']
+        self.palette_name = tga['nitro_data']['palette_name']
+        self.width = tga['header']['image_width']
+        self.height = tga['header']['image_heigth']
+        self.original_width = tga['header']['image_width']
+        self.original_height = tga['header']['image_heigth']
+
+        # Color 0 Mode
+        transp = tga['nitro_data']['color_0_transp']
+        if format in ('palette4', 'palette16', 'palette256'):
+            self.color0_mode = 'transparent' if transp else 'color'
+
+        # Get Bitmap Data
+        self.bitmap_data = nitro_tga.get_bitmap_data(tga)
+        self.bitmap_size = nitro_tga.get_bitmap_size(tga)
+
+        # Get Tex4x4 Palette Index Data
+        if format == 'tex4x4':
+            self.tex4x4_palette_idx_data = nitro_tga.get_pltt_idx_data(tga)
+            self.tex4x4_palette_idx_size = nitro_tga.get_pltt_idx_size(tga)
 
         # Store the palette index that model.add_palette returns in here or
         # leave it -1.
         self.palette_idx = -1
+
+        # Get Palette Data
+        if format != 'direct':
+            plt_data = nitro_tga.get_palette_data(tga)
+            plt_size = nitro_tga.get_palette_size(tga)
+            self.palette_idx = model.add_palette(
+                self.palette_name, plt_data, plt_size)
 
 
 class NitroMaterial():
@@ -883,8 +913,9 @@ class NitroModel():
         self.textures.append(NitroTexImage(path, len(self.textures)))
         return self.textures[-1]
 
-    def add_palette(self):
-        self.palettes.append(NitroPalette(len(self.palettes)))
+    def add_palette(self, name, data, size):
+        self.palettes.append(
+            NitroPalette(name, data, size, len(self.palettes)))
         return self.palettes.index
 
 

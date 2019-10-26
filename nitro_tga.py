@@ -38,6 +38,8 @@ def read_nitro_tga_data(f, offset):
         sig = f.read(8).decode('ascii')
         length = int.from_bytes(f.read(4), byteorder='little')
 
+        color_0_transp = False
+
         if sig == 'nns_frmt':
             tex_format = f.read(length - 12).decode('ascii')
         elif sig == 'nns_txel':
@@ -112,10 +114,25 @@ def get_bitmap_data(tga):
     return format_hex_data(tga['nitro_data']['texel_data'], element_size)
 
 
+def get_bitmap_size(tga):
+    if tga['nitro_data']['tex_format'] == 'tex4x4':
+        return len(tga['nitro_data']['texel_data']) / 4
+    else:
+        return len(tga['nitro_data']['texel_data']) / 2
+
+
 def get_palette_data(tga):
     return format_hex_data(tga['nitro_data']['palette'], 2)
+
+
+def get_palette_size(tga):
+    return len(tga['nitro_data']['palette']) / 2
 
 
 # Used for tex4x4 only
 def get_pltt_idx_data(tga):
     return format_hex_data(tga['nitro_data']['pltt_idx_data'], 2)
+
+
+def get_pltt_idx_size(tga):
+    return len(tga['nitro_data']['pltt_idx_data']) / 2
