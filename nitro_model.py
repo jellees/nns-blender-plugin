@@ -688,7 +688,6 @@ class NitroMaterial():
             _, extension = os.path.splitext(path)
             if extension == '.tga':
                 texture = model.find_texture(path)
-                logger.log(str(texture.palette_idx))
                 self.image_idx = texture.index
                 self.palette_idx = texture.palette_idx
 
@@ -887,12 +886,8 @@ class NitroModel():
         self.palettes = []
 
     def collect(self):
-        for obj in bpy.data.objects:
+        for obj in bpy.context.view_layer.objects:
             if obj.type != 'MESH':
-                continue
-
-            if obj.hide_get():
-                logger.log('Object ' + obj.name + ' is hidden. Skipped.')
                 continue
 
             logger.log('Object: ' + obj.name)
