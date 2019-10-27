@@ -897,6 +897,9 @@ class NitroModel():
                 if len(polygon.loop_indices) > 4:
                     logger.log("Polygon is ngon. Skipped.")
                     continue
+                if len(polygon.loop_indices) < 3:
+                    logger.log("Polygon is a line. Skipped.")
+                    continue
                 index = get_global_mat_index(obj, polygon.material_index)
                 if index == -1:
                     logger.log("Polygon doesn't have material. Skipped.")
