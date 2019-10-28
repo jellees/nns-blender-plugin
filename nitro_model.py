@@ -425,9 +425,14 @@ class Primitive():
 
             # Texture coordinates
             if obj.data.uv_layers.active is not None:
-                uv = obj.data.uv_layers.active.data[idx].uv
-                self.texcoords.append(
-                    VecFx32().from_vector(Vector([uv[0], uv[1], 0])))
+                if len(obj.data.uv_layers.active.data) <= idx:
+                    logger.log('Object uv layer not aligned, add zero coord:')
+                    logger.log(f'UV layer: {obj.data.uv_layers.active.name}')
+                    self.texcoords.append(VecFx32([0, 0, 0]))
+                else:
+                    uv = obj.data.uv_layers.active.data[idx].uv
+                    self.texcoords.append(
+                        VecFx32().from_vector(Vector([uv[0], uv[1], 0])))
             else:
                 self.texcoords.append(VecFx32([0, 0, 0]))
 
@@ -668,6 +673,16 @@ class NitroMaterial():
         self.face = material.nns_display_face
         self.polygon_mode = material.nns_polygon_mode
         self.tex_gen_mode = material.nns_tex_gen_mode
+        self.tex_gen_st_src = material.nns_tex_gen_st_src
+        row0 = material.nns_tex_effect_mtx_0
+        row1 = material.nns_tex_effect_mtx_1
+        row2 = material.nns_tex_effect_mtx_2
+        row3 = material.nns_tex_effect_mtx_3
+        matrix = f'{row0[0]} {row0[1]} 0.0 0.0 ' \
+                 f'{row1[0]} {row1[1]} 0.0 0.0 ' \
+                 f'{row2[0]} {row2[1]} 1.0 0.0 ' \
+                 f'{row3[0]} {row3[1]} 0.0 1.0'
+        self.tex_effect_mtx = matrix
 
         # For now let's use PrincipledBSDF to get the color and image.
         wrap = node_shader_utils.PrincipledBSDFWrapper(material)
@@ -768,6 +783,8 @@ class NitroPolygon():
         self.material_index = material
         self.primitives = []
         self.use_colors = 'off'
+        self.use_normals = 'off'
+        self.use_texcoords = 'off'
 
     def is_empty(self):
         if not self.primitives:
@@ -813,6 +830,12 @@ class NitroPolygon():
 
         if len(obj.data.vertex_colors) > 0 and not light_on:
             self.use_colors = 'on'
+
+        if material.image_idx != -1:
+            self.use_texcoords = 'on'
+
+        if light_on:
+            self.use_normals = 'on'
 
         for idx in range(len(prim.positions)):
             # Color

@@ -3,7 +3,8 @@ from bpy.props import (BoolProperty,
                        FloatProperty,
                        StringProperty,
                        EnumProperty,
-                       IntProperty)
+                       IntProperty,
+                       FloatVectorProperty)
 
 
 bl_info = {
@@ -48,6 +49,18 @@ class NTR_PT_material(bpy.types.Panel):
         layout.prop(mat, "nns_display_face")
         layout.prop(mat, "nns_polygon_mode")
         layout.prop(mat, "nns_tex_gen_mode")
+        if mat.nns_tex_gen_mode == 'nrm' or mat.nns_tex_gen_mode == 'pos':
+            layout.prop(mat, "nns_tex_gen_st_src")
+            box = layout.box()
+            box.label(text="Texture effect matrix")
+            row = box.row(align=True)
+            row.prop(mat, "nns_tex_effect_mtx_0")
+            row = box.row(align=True)
+            row.prop(mat, "nns_tex_effect_mtx_1")
+            row = box.row(align=True)
+            row.prop(mat, "nns_tex_effect_mtx_2")
+            row = box.row(align=True)
+            row.prop(mat, "nns_tex_effect_mtx_3")
 
 
 class ExportNitro(bpy.types.Operator):
@@ -124,6 +137,20 @@ def register():
     ]
     bpy.types.Material.nns_tex_gen_mode = EnumProperty(
         name="Tex gen mode", items=tex_gen_mode_items)
+    tex_gen_st_src_items = [
+        ("polygon", "Polygon", '', 1),
+        ("material", "Material", '', 2),
+    ]
+    bpy.types.Material.nns_tex_gen_st_src = EnumProperty(
+        name="Tex gen ST source", items=tex_gen_st_src_items)
+    bpy.types.Material.nns_tex_effect_mtx_0 = FloatVectorProperty(size=2,
+                                                                  name='')
+    bpy.types.Material.nns_tex_effect_mtx_1 = FloatVectorProperty(size=2,
+                                                                  name='')
+    bpy.types.Material.nns_tex_effect_mtx_2 = FloatVectorProperty(size=2,
+                                                                  name='')
+    bpy.types.Material.nns_tex_effect_mtx_3 = FloatVectorProperty(size=2,
+                                                                  name='')
 
     bpy.utils.register_class(ExportNitro)
     bpy.utils.register_class(NTR_PT_material)

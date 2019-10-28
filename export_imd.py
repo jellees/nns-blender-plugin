@@ -125,6 +125,9 @@ def generate_materials(imd):
             material.set('tex_rotate', '0.000000')
             material.set('tex_translate', '0.000000 0.000000')
             material.set('tex_gen_mode', mat.tex_gen_mode)
+            if mat.tex_gen_mode == 'nrm' or mat.tex_gen_mode == 'pos':
+                material.set('tex_gen_st_src', mat.tex_gen_st_src)
+                material.set('tex_effect_mtx', mat.tex_effect_mtx)
 
 
 def generate_matrices(imd):
@@ -147,11 +150,11 @@ def generate_polygons(imd):
         polygon.set('name', f'polygon{index}')
         polygon.set('mtx_prim_size', '1')
         # Set to on when Normals are used
-        polygon.set('nrm_flag', 'off')
+        polygon.set('nrm_flag', dl.use_normals)
         # Set to on when Vertex Colors are used
         polygon.set('clr_flag', dl.use_colors)
         # Set to on when Texture Coordinates are used
-        polygon.set('tex_flag', 'off')
+        polygon.set('tex_flag', dl.use_texcoords)
 
         mtx_prim = ET.SubElement(polygon, 'mtx_prim')
         mtx_prim.set('index', '0')
