@@ -4,7 +4,7 @@ import os
 from mathutils import Vector, Matrix
 from bpy_extras.io_utils import axis_conversion
 from bpy_extras import node_shader_utils
-from .util import VecFx32, float_to_fx32
+from .util import VecFx32, float_to_fx32, Vecfx10, normal_to_vecfx10
 from . import local_logger as logger
 from . import nitro_tga
 
@@ -420,8 +420,7 @@ class Primitive():
                 self.colors.append((0, 0, 0))
 
             # Normal
-            self.normals.append(
-                VecFx32().from_vector(obj.data.loops[idx].normal))
+            self.normals.append(normal_to_vecfx10(obj.data.loops[idx].normal))
 
             # Texture coordinates
             if obj.data.uv_layers.active is not None:
@@ -843,8 +842,9 @@ class NitroPolygon():
                 r, g, b = prim.colors[idx]
                 primitive.add_command('clr', 'rgb', f'{r} {g} {b}')
 
+            # Normal
             if light_on:
-                normal = prim.normals[idx]
+                normal = prim.normals[idx].to_vector()
                 primitive.add_command('nrm', 'xyz',
                                       f'{normal.x} {normal.y} {normal.z}')
 
@@ -915,6 +915,8 @@ class NitroModel():
 
             logger.log('Object: ' + obj.name)
             primitives = []
+
+            obj.data.calc_normals_split()
 
             for polygon in obj.data.polygons:
                 if len(polygon.loop_indices) > 4:

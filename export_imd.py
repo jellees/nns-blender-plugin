@@ -49,6 +49,9 @@ def generate_box_test(imd):
 
 
 def generate_textures(imd):
+    if len(model.textures) == 0:
+        return
+
     tex_image_array = ET.SubElement(imd, 'tex_image_array')
     tex_image_array.set('size', str(len(model.textures)))
 
@@ -78,6 +81,9 @@ def generate_textures(imd):
 
 
 def generate_palettes(imd):
+    if len(model.palettes) == 0:
+        return
+
     tex_palette_array = ET.SubElement(imd, 'tex_palette_array')
     tex_palette_array.set('size', str(len(model.palettes)))
 

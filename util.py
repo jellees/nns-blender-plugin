@@ -9,6 +9,43 @@ def fx32_to_float(value):
     return float(value) / 4096
 
 
+def float_to_fx10(value):
+    return max(min(int(round(value * 512)), 511), -512)
+
+
+def fx10_to_float(value):
+    return float(value) / 512
+
+
+def normal_to_vecfx10(vector):
+    return Vecfx10([
+        float_to_fx10(vector.y),
+        float_to_fx10(vector.z),
+        float_to_fx10(vector.x),
+    ])
+
+
+class Vecfx10():
+    def __init__(self, vector=[0, 0, 0]):
+        self.x = vector[0]
+        self.y = vector[1]
+        self.z = vector[2]
+
+    def to_vector(self):
+        return Vector([
+            fx10_to_float(self.x),
+            fx10_to_float(self.y),
+            fx10_to_float(self.z),
+        ])
+
+    def __eq__(self, other):
+        return (
+            self.x == other.x
+            and self.y == other.y
+            and self.z == other.z
+        )
+
+
 class VecFx32(object):
     def __init__(self, vector=[0, 0, 0]):
         self.x = vector[0]
