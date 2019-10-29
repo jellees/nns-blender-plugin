@@ -10,7 +10,7 @@ from bpy.props import (BoolProperty,
 bl_info = {
     "name": "Nitro IMD (.imd)",
     "author": "Jelle Streekstra, Gabriele Mercurio",
-    "version": (0, 0, 0),
+    "version": (0, 0, 1),
     "blender": (2, 80, 0),
     "location": "File > Import-Export",
     "description": "Export Nitro IMD",
