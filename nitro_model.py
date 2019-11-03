@@ -4,7 +4,7 @@ import os
 from mathutils import Vector, Matrix
 from bpy_extras.io_utils import axis_conversion
 from bpy_extras import node_shader_utils
-from .util import VecFx32, float_to_fx32, Vecfx10, normal_to_vecfx10
+from .util import VecFx32, float_to_fx32, Vecfx10, vector_to_vecfx10
 from . import local_logger as logger
 from . import nitro_tga
 
@@ -420,7 +420,8 @@ class Primitive():
                 self.colors.append((0, 0, 0))
 
             # Normal
-            self.normals.append(normal_to_vecfx10(obj.data.loops[idx].normal))
+            normal = matrix @ obj.data.loops[idx].normal
+            self.normals.append(vector_to_vecfx10(normal.normalized()))
 
             # Texture coordinates
             if obj.data.uv_layers.active is not None:

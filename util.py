@@ -17,11 +17,11 @@ def fx10_to_float(value):
     return float(value) / 512
 
 
-def normal_to_vecfx10(vector):
+def vector_to_vecfx10(vector):
     return Vecfx10([
+        float_to_fx10(vector.x),
         float_to_fx10(vector.y),
         float_to_fx10(vector.z),
-        float_to_fx10(vector.x),
     ])
 
 
