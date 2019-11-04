@@ -18,6 +18,47 @@ bl_info = {
 }
 
 
+def generate_nodes(self, context):
+    material = context.material
+    if material.nns_generate_nodes:
+        nodes = material.node_tree.nodes
+        nodes.clear()
+        links = material.node_tree.links
+        node_image = nodes.new(type='ShaderNodeTexImage')
+        node_image.name = 'nns_input_image'
+        node_attr = nodes.new(type='ShaderNodeAttribute')
+        node_attr.attribute_name = 'Col'
+        node_mix = nodes.new(type='ShaderNodeMixRGB')
+        node_mix.inputs[0].default_value = 0.0
+        node_multiply = nodes.new(type='ShaderNodeMixRGB')
+        node_multiply.blend_type = 'MULTIPLY'
+        node_multiply.inputs[0].default_value = 1.0
+        node_bsdf = nodes.new(type='ShaderNodeBsdfTransparent')
+        node_mix_shader = nodes.new(type='ShaderNodeMixShader')
+        node_output = nodes.new(type='ShaderNodeOutputMaterial')
+
+        links.new(node_image.outputs[0], node_mix.inputs[1])
+        links.new(node_image.outputs[1], node_mix.inputs[2])
+        links.new(node_image.outputs[1], node_mix_shader.inputs[0])
+        links.new(node_mix.outputs[0], node_multiply.inputs[1])
+        links.new(node_attr.outputs[0], node_multiply.inputs[2])
+        links.new(node_multiply.outputs[0], node_mix_shader.inputs[2])
+        links.new(node_bsdf.outputs[0], node_mix_shader.inputs[1])
+        links.new(node_mix_shader.outputs[0], node_output.inputs[0])
+
+
+def update_nodes_image(self, context):
+    material = context.material
+    if material.nns_generate_nodes:
+        if material.nns_image != '':
+            try:
+                image = bpy.data.images.load(material.nns_image)
+                node_image = material.node_tree.nodes.get('nns_input_image')
+                node_image.image = image
+            except:
+                raise NameError("Cannot load image %s" % path)
+
+
 class NTR_PT_material(bpy.types.Panel):
     bl_label = "NNS Material Options"
     bl_idname = "MATERIAL_PT_nns"
@@ -32,6 +73,14 @@ class NTR_PT_material(bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
         mat = context.material
+
+        layout.prop(mat, "nns_generate_nodes", toggle=True)
+        if mat.nns_generate_nodes:
+            layout.prop(mat, "nns_image")
+            layout.prop(mat, "nns_diffuse")
+            layout.prop(mat, "nns_ambient")
+            layout.prop(mat, "nns_specular")
+            layout.prop(mat, "nns_emission")
 
         row = layout.row(align=True)
         row.prop(mat, "nns_light0", toggle=True)
@@ -94,6 +143,19 @@ def menu_func_export(self, context):
 
 
 def register():
+    bpy.types.Material.nns_generate_nodes = BoolProperty(
+        name="Generate nodes", default=False, update=generate_nodes)
+    bpy.types.Material.nns_image = StringProperty(
+        subtype='FILE_PATH', name='Texture', update=update_nodes_image)
+    bpy.types.Material.nns_diffuse = FloatVectorProperty(
+        default=(0, 0, 0), subtype='COLOR', min=0.0, max=1.0, name='Diffuse')
+    bpy.types.Material.nns_ambient = FloatVectorProperty(
+        default=(1, 1, 1), subtype='COLOR', min=0.0, max=1.0, name='Ambient')
+    bpy.types.Material.nns_specular = FloatVectorProperty(
+        default=(0, 0, 0), subtype='COLOR', min=0.0, max=1.0, name='Specular')
+    bpy.types.Material.nns_emission = FloatVectorProperty(
+        default=(0, 0, 0), subtype='COLOR', min=0.0, max=1.0, name='Emission')
+
     bpy.types.Material.nns_light0 = BoolProperty(name="Light0", default=False)
     bpy.types.Material.nns_light1 = BoolProperty(name="Light1", default=False)
     bpy.types.Material.nns_light2 = BoolProperty(name="Light2", default=False)
