@@ -684,27 +684,47 @@ class NitroMaterial():
                  f'{row3[0]} {row3[1]} 0.0 1.0'
         self.tex_effect_mtx = matrix
 
-        # For now let's use PrincipledBSDF to get the color and image.
-        wrap = node_shader_utils.PrincipledBSDFWrapper(material)
-        self.alpha = int(wrap.alpha * 31)
-        self.diffuse = ' '.join([str(int(wrap.base_color[0] * 31)),
-                                 str(int(wrap.base_color[1] * 31)),
-                                 str(int(wrap.base_color[2] * 31))])
-        self.specular = ' '.join(
-            [str(int(wrap.specular * 31)) for _ in range(3)])
-
         self.image_idx = -1
         self.palette_idx = -1
 
-        tex_wrap = getattr(wrap, 'base_color_texture', None)
-        if tex_wrap is not None and tex_wrap.image is not None:
-            path = bpy.path.abspath(
-                tex_wrap.image.filepath, library=tex_wrap.image.library)
-            _, extension = os.path.splitext(path)
-            if extension == '.tga':
-                texture = model.find_texture(path)
-                self.image_idx = texture.index
-                self.palette_idx = texture.palette_idx
+        if material.nns_generate_nodes:
+            self.alpha = 31
+            self.diffuse = ' '.join(
+                [str(int(material.nns_diffuse * 31)) for _ in range(3)])
+            self.specular = ' '.join(
+                [str(int(material.nns_specular * 31)) for _ in range(3)])
+            self.ambient = ' '.join(
+                [str(int(material.nns_ambient * 31)) for _ in range(3)])
+            self.emission = ' '.join(
+                [str(int(material.nns_emission * 31)) for _ in range(3)])
+            if material.nns_image != '':
+                path = bpy.path.abspath(material.nns_image)
+                _, extension = os.path.splitext(path)
+                if extension == '.tga':
+                    texture = model.find_texture(path)
+                    self.image_idx = texture.index
+                    self.palette_idx = texture.palette_idx
+        else:
+            # For now let's use PrincipledBSDF to get the color and image.
+            wrap = node_shader_utils.PrincipledBSDFWrapper(material)
+            self.alpha = int(wrap.alpha * 31)
+            self.diffuse = ' '.join([str(int(wrap.base_color[0] * 31)),
+                                    str(int(wrap.base_color[1] * 31)),
+                                    str(int(wrap.base_color[2] * 31))])
+            self.specular = ' '.join(
+                [str(int(wrap.specular * 31)) for _ in range(3)])
+            self.ambient = '31 31 31'
+            self.emission = '0 0 0'
+
+            tex_wrap = getattr(wrap, 'base_color_texture', None)
+            if tex_wrap is not None and tex_wrap.image is not None:
+                path = bpy.path.abspath(
+                    tex_wrap.image.filepath, library=tex_wrap.image.library)
+                _, extension = os.path.splitext(path)
+                if extension == '.tga':
+                    texture = model.find_texture(path)
+                    self.image_idx = texture.index
+                    self.palette_idx = texture.palette_idx
 
 
 class NitroOuputInfo():
