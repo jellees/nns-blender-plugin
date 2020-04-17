@@ -26,6 +26,7 @@ def generate_nodes(self, context):
         links = material.node_tree.links
         node_image = nodes.new(type='ShaderNodeTexImage')
         node_image.name = 'nns_input_image'
+        node_image.interpolation = 'Closest'
         node_attr = nodes.new(type='ShaderNodeAttribute')
         node_attr.attribute_name = 'Col'
         node_mix = nodes.new(type='ShaderNodeMixRGB')
