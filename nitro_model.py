@@ -690,13 +690,13 @@ class NitroMaterial():
         if material.nns_generate_nodes:
             self.alpha = 31
             self.diffuse = ' '.join(
-                [str(int(material.nns_diffuse * 31)) for _ in range(3)])
+                [str(int(x * 31)) for x in material.nns_diffuse])
             self.specular = ' '.join(
-                [str(int(material.nns_specular * 31)) for _ in range(3)])
+                [str(int(x * 31)) for x in material.nns_specular])
             self.ambient = ' '.join(
-                [str(int(material.nns_ambient * 31)) for _ in range(3)])
+                [str(int(x * 31)) for x in material.nns_ambient])
             self.emission = ' '.join(
-                [str(int(material.nns_emission * 31)) for _ in range(3)])
+                [str(int(x * 31)) for x in material.nns_emission])
             if material.nns_image != '':
                 path = bpy.path.abspath(material.nns_image)
                 _, extension = os.path.splitext(path)
