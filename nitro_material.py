@@ -7,6 +7,52 @@ from bpy.props import (BoolProperty,
                        FloatVectorProperty)
 
 
+def generate_tiling_nodes(material, nodes, links, node_image):
+
+    node_uvmap = nodes.new(type='ShaderNodeUVMap')
+    node_uvmap.uv_map = "UVMap"
+
+    node_sp_xyz = nodes.new(type='ShaderNodeSeparateXYZ')
+    links.new(node_uvmap.outputs[0], node_sp_xyz.inputs[0])
+
+    node_cb_xyz = nodes.new(type='ShaderNodeCombineXYZ')
+    links.new(node_sp_xyz.outputs[2], node_cb_xyz.inputs[2])
+
+    if material.nns_tex_tiling_u == "flip":
+        node_math_u = nodes.new(type='ShaderNodeMath')
+        node_math_u.operation = 'PINGPONG'
+        node_math_u.inputs[1].default_value = 1.0
+        links.new(node_sp_xyz.outputs[0], node_math_u.inputs[0])
+        links.new(node_math_u.outputs[0], node_cb_xyz.inputs[0])
+    elif material.nns_tex_tiling_u == "clamp":
+        node_math_u = nodes.new(type='ShaderNodeMath')
+        node_math_u.operation = 'MINIMUM'
+        node_math_u.inputs[1].default_value = 1.0
+        node_math_u.use_clamp = True
+        links.new(node_sp_xyz.outputs[0], node_math_u.inputs[0])
+        links.new(node_math_u.outputs[0], node_cb_xyz.inputs[0])
+    else:
+        links.new(node_sp_xyz.outputs[0], node_cb_xyz.inputs[0])
+
+    if material.nns_tex_tiling_v == "flip":
+        node_math_v = nodes.new(type='ShaderNodeMath')
+        node_math_v.operation = 'PINGPONG'
+        node_math_v.inputs[1].default_value = 1.0
+        links.new(node_sp_xyz.outputs[1], node_math_v.inputs[0])
+        links.new(node_math_v.outputs[0], node_cb_xyz.inputs[1])
+    elif material.nns_tex_tiling_v == "clamp":
+        node_math_v = nodes.new(type='ShaderNodeMath')
+        node_math_v.operation = 'MINIMUM'
+        node_math_v.inputs[1].default_value = 1.0
+        node_math_v.use_clamp = True
+        links.new(node_sp_xyz.outputs[1], node_math_v.inputs[0])
+        links.new(node_math_v.outputs[0], node_cb_xyz.inputs[1])
+    else:
+        links.new(node_sp_xyz.outputs[1], node_cb_xyz.inputs[1])
+
+    links.new(node_cb_xyz.outputs[0], node_image.inputs[0])
+
+
 def generate_mod_vc_nodes(material):
     nodes = material.node_tree.nodes
     nodes.clear()
@@ -24,6 +70,8 @@ def generate_mod_vc_nodes(material):
             node_image.image = image
         except Exception:
             raise NameError("Cannot load image %s" % path)
+
+    generate_tiling_nodes(material, nodes, links, node_image)
 
     node_attr = nodes.new(type='ShaderNodeAttribute')
     node_attr.attribute_name = 'Col'
@@ -63,6 +111,8 @@ def generate_decal_vc_nodes(material):
             node_image.image = image
         except Exception:
             raise NameError("Cannot load image %s" % path)
+
+    generate_tiling_nodes(material, nodes, links, node_image)
 
     node_attr = nodes.new(type='ShaderNodeAttribute')
     node_attr.attribute_name = 'Col'
@@ -276,9 +326,9 @@ def material_register():
         ("clamp", "Clamp", '', 3)
     ]
     bpy.types.Material.nns_tex_tiling_u = EnumProperty(
-        name="Tex tiling u", items=tex_tiling_items)
+        name="Tex tiling u", items=tex_tiling_items, update=update_nodes_mode)
     bpy.types.Material.nns_tex_tiling_v = EnumProperty(
-        name="Tex tiling v", items=tex_tiling_items)
+        name="Tex tiling v", items=tex_tiling_items, update=update_nodes_mode)
 
     bpy.utils.register_class(CreateNNSMaterial)
     bpy.utils.register_class(NTR_PT_material)
