@@ -7,35 +7,92 @@ from bpy.props import (BoolProperty,
                        FloatVectorProperty)
 
 
+def generate_mod_vc_nodes(material):
+    nodes = material.node_tree.nodes
+    nodes.clear()
+    links = material.node_tree.links
+    links.clear()
+
+    node_image = nodes.new(type='ShaderNodeTexImage')
+    node_image.name = 'nns_input_image'
+    node_image.interpolation = 'Closest'
+
+    if material.nns_image != '':
+        try:
+            image = bpy.data.images.load(material.nns_image,
+                                         check_existing=True)
+            node_image.image = image
+        except Exception:
+            raise NameError("Cannot load image %s" % path)
+
+    node_attr = nodes.new(type='ShaderNodeAttribute')
+    node_attr.attribute_name = 'Col'
+    node_mix = nodes.new(type='ShaderNodeMixRGB')
+    node_mix.inputs[0].default_value = 0.0
+    node_multiply = nodes.new(type='ShaderNodeMixRGB')
+    node_multiply.blend_type = 'MULTIPLY'
+    node_multiply.inputs[0].default_value = 1.0
+    node_bsdf = nodes.new(type='ShaderNodeBsdfTransparent')
+    node_mix_shader = nodes.new(type='ShaderNodeMixShader')
+    node_output = nodes.new(type='ShaderNodeOutputMaterial')
+
+    links.new(node_image.outputs[0], node_mix.inputs[1])
+    links.new(node_image.outputs[1], node_mix.inputs[2])
+    links.new(node_image.outputs[1], node_mix_shader.inputs[0])
+    links.new(node_mix.outputs[0], node_multiply.inputs[1])
+    links.new(node_attr.outputs[0], node_multiply.inputs[2])
+    links.new(node_multiply.outputs[0], node_mix_shader.inputs[2])
+    links.new(node_bsdf.outputs[0], node_mix_shader.inputs[1])
+    links.new(node_mix_shader.outputs[0], node_output.inputs[0])
+
+
+def generate_decal_vc_nodes(material):
+    nodes = material.node_tree.nodes
+    nodes.clear()
+    links = material.node_tree.links
+    links.clear()
+
+    node_image = nodes.new(type='ShaderNodeTexImage')
+    node_image.name = 'nns_input_image'
+    node_image.interpolation = 'Closest'
+
+    if material.nns_image != '':
+        try:
+            image = bpy.data.images.load(material.nns_image,
+                                         check_existing=True)
+            node_image.image = image
+        except Exception:
+            raise NameError("Cannot load image %s" % path)
+
+    node_attr = nodes.new(type='ShaderNodeAttribute')
+    node_attr.attribute_name = 'Col'
+    node_mix_1 = nodes.new(type='ShaderNodeMixRGB')
+    node_mix_1.inputs[0].default_value = 0.0
+    node_mix_2 = nodes.new(type='ShaderNodeMixRGB')
+    node_output = nodes.new(type='ShaderNodeOutputMaterial')
+
+    links.new(node_image.outputs[0], node_mix_1.inputs[1])
+    links.new(node_image.outputs[1], node_mix_1.inputs[2])
+    links.new(node_image.outputs[1], node_mix_2.inputs[0])
+
+    links.new(node_mix_1.outputs[0], node_mix_2.inputs[2])
+
+    links.new(node_attr.outputs[0], node_mix_2.inputs[1])
+
+    links.new(node_mix_2.outputs[0], node_output.inputs[0])
+
+
 def generate_nodes(material):
     if material.is_nns:
-        nodes = material.node_tree.nodes
-        nodes.clear()
-        links = material.node_tree.links
-        links.clear()
+        if material.nns_polygon_mode == "modulate":
+            generate_mod_vc_nodes(material)
+        elif material.nns_polygon_mode == "decal":
+            generate_decal_vc_nodes(material)
 
-        node_image = nodes.new(type='ShaderNodeTexImage')
-        node_image.name = 'nns_input_image'
-        node_image.interpolation = 'Closest'
-        node_attr = nodes.new(type='ShaderNodeAttribute')
-        node_attr.attribute_name = 'Col'
-        node_mix = nodes.new(type='ShaderNodeMixRGB')
-        node_mix.inputs[0].default_value = 0.0
-        node_multiply = nodes.new(type='ShaderNodeMixRGB')
-        node_multiply.blend_type = 'MULTIPLY'
-        node_multiply.inputs[0].default_value = 1.0
-        node_bsdf = nodes.new(type='ShaderNodeBsdfTransparent')
-        node_mix_shader = nodes.new(type='ShaderNodeMixShader')
-        node_output = nodes.new(type='ShaderNodeOutputMaterial')
 
-        links.new(node_image.outputs[0], node_mix.inputs[1])
-        links.new(node_image.outputs[1], node_mix.inputs[2])
-        links.new(node_image.outputs[1], node_mix_shader.inputs[0])
-        links.new(node_mix.outputs[0], node_multiply.inputs[1])
-        links.new(node_attr.outputs[0], node_multiply.inputs[2])
-        links.new(node_multiply.outputs[0], node_mix_shader.inputs[2])
-        links.new(node_bsdf.outputs[0], node_mix_shader.inputs[1])
-        links.new(node_mix_shader.outputs[0], node_output.inputs[0])
+def update_nodes_mode(self, context):
+    material = context.material
+    generate_nodes(material)
 
 
 def update_nodes_image(self, context):
@@ -189,7 +246,8 @@ def material_register():
         ("shadow", "Shadow", '', 4)
     ]
     bpy.types.Material.nns_polygon_mode = EnumProperty(
-        name="Polygon mode", items=polygon_mode_items)
+        name="Polygon mode", items=polygon_mode_items,
+        update=update_nodes_mode)
     tex_gen_mode_items = [
         ("none", "None", '', 1),
         ("tex", "Texcoord", '', 2),
