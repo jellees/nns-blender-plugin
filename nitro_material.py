@@ -165,6 +165,7 @@ def create_nns_material(obj):
 
     material.is_nns = True
     material.use_nodes = True
+    material.blend_method = 'HASHED'
 
     generate_nodes(material)
 
