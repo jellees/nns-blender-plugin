@@ -674,6 +674,8 @@ class NitroMaterial():
         self.polygon_mode = material.nns_polygon_mode
         self.tex_gen_mode = material.nns_tex_gen_mode
         self.tex_gen_st_src = material.nns_tex_gen_st_src
+        self.tex_tiling_u = material.nns_tex_tiling_u
+        self.tex_tiling_v = material.nns_tex_tiling_v
         row0 = material.nns_tex_effect_mtx_0
         row1 = material.nns_tex_effect_mtx_1
         row2 = material.nns_tex_effect_mtx_2
@@ -687,7 +689,7 @@ class NitroMaterial():
         self.image_idx = -1
         self.palette_idx = -1
 
-        if material.nns_generate_nodes:
+        if material.is_nns:
             self.alpha = 31
             self.diffuse = ' '.join(
                 [str(int(x * 31)) for x in material.nns_diffuse])

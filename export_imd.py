@@ -126,7 +126,8 @@ def generate_materials(imd):
         material.set('tex_palette_idx', str(mat.palette_idx))
         # Only output when there is a texture assigned
         if mat.image_idx != -1:
-            material.set('tex_tiling', 'repeat repeat')
+            material.set('tex_tiling',
+                         f'{mat.tex_tiling_u} {mat.tex_tiling_v}')
             material.set('tex_scale', '1.000000 1.000000')
             material.set('tex_rotate', '0.000000')
             material.set('tex_translate', '0.000000 0.000000')
