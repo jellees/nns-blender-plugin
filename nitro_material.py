@@ -169,9 +169,9 @@ def update_nodes_alpha(self, context):
         try:
             node_alpha = material.node_tree.nodes.get('nns_node_alpha')
             node_alpha.inputs[2].default_value = (
-                material.nns_alpha,
-                material.nns_alpha,
-                material.nns_alpha,
+                material.nns_alpha / 31,
+                material.nns_alpha / 31,
+                material.nns_alpha / 31,
                 1.0
             )
         except Exception:
@@ -352,8 +352,8 @@ def material_register():
         name="Tex tiling u", items=tex_tiling_items, update=update_nodes_mode)
     bpy.types.Material.nns_tex_tiling_v = EnumProperty(
         name="Tex tiling v", items=tex_tiling_items, update=update_nodes_mode)
-    bpy.types.Material.nns_alpha = FloatProperty(
-        name="Alpha", min=0.0, max=1.0, default=1.0, update=update_nodes_alpha)
+    bpy.types.Material.nns_alpha = IntProperty(
+        name="Alpha", min=0, max=31, default=31, update=update_nodes_alpha)
 
     bpy.utils.register_class(CreateNNSMaterial)
     bpy.utils.register_class(NTR_PT_material)

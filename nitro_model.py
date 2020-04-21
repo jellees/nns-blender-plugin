@@ -690,7 +690,7 @@ class NitroMaterial():
         self.palette_idx = -1
 
         if material.is_nns:
-            self.alpha = int(material.nns_alpha * 31)
+            self.alpha = material.nns_alpha
             self.diffuse = ' '.join(
                 [str(int(x * 31)) for x in material.nns_diffuse])
             self.specular = ' '.join(
