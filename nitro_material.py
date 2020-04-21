@@ -87,7 +87,12 @@ def generate_mod_vc_nodes(material):
     node_mix_rgb.blend_type = 'MULTIPLY'
     node_mix_rgb.name = 'nns_node_alpha'
     node_mix_rgb.inputs[0].default_value = 1.0
-    node_mix_rgb.inputs[2].default_value = (1.0, 1.0, 1.0, 1.0)
+    node_mix_rgb.inputs[2].default_value = (
+        material.nns_alpha / 31,
+        material.nns_alpha / 31,
+        material.nns_alpha / 31,
+        1.0
+    )
 
     links.new(node_image.outputs[0], node_mix.inputs[1])
     links.new(node_image.outputs[1], node_mix.inputs[2])
@@ -127,6 +132,11 @@ def generate_decal_vc_nodes(material):
     node_mix_2 = nodes.new(type='ShaderNodeMixRGB')
     node_output = nodes.new(type='ShaderNodeOutputMaterial')
 
+    node_mix_shader = nodes.new(type='ShaderNodeMixShader')
+    node_mix_shader.name = 'nns_node_alpha'
+    node_mix_shader.inputs[0].default_value = material.nns_alpha / 31
+    node_trans_bsdf = nodes.new(type='ShaderNodeBsdfTransparent')
+
     links.new(node_image.outputs[0], node_mix_1.inputs[1])
     links.new(node_image.outputs[1], node_mix_1.inputs[2])
     links.new(node_image.outputs[1], node_mix_2.inputs[0])
@@ -135,7 +145,10 @@ def generate_decal_vc_nodes(material):
 
     links.new(node_attr.outputs[0], node_mix_2.inputs[1])
 
-    links.new(node_mix_2.outputs[0], node_output.inputs[0])
+    links.new(node_mix_2.outputs[0], node_mix_shader.inputs[2])
+    links.new(node_trans_bsdf.outputs[0], node_mix_shader.inputs[1])
+
+    links.new(node_mix_shader.outputs[0], node_output.inputs[0])
 
 
 def generate_nodes(material):
@@ -166,16 +179,23 @@ def update_nodes_image(self, context):
 def update_nodes_alpha(self, context):
     material = context.material
     if material.is_nns:
-        try:
-            node_alpha = material.node_tree.nodes.get('nns_node_alpha')
-            node_alpha.inputs[2].default_value = (
-                material.nns_alpha / 31,
-                material.nns_alpha / 31,
-                material.nns_alpha / 31,
-                1.0
-            )
-        except Exception:
-            raise NameError("Something alpha I think")
+        if material.nns_polygon_mode == "modulate":
+            try:
+                node_alpha = material.node_tree.nodes.get('nns_node_alpha')
+                node_alpha.inputs[2].default_value = (
+                    material.nns_alpha / 31,
+                    material.nns_alpha / 31,
+                    material.nns_alpha / 31,
+                    1.0
+                )
+            except Exception:
+                raise NameError("Something alpha I think")
+        elif material.nns_polygon_mode == "decal":
+            try:
+                node_alpha = material.node_tree.nodes.get('nns_node_alpha')
+                node_alpha.inputs[0].default_value = material.nns_alpha / 31
+            except Exception:
+                raise NameError("Something alpha I think")
 
 
 def create_nns_material(obj):
