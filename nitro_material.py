@@ -60,7 +60,7 @@ def generate_mod_vc_nodes(material):
     links.clear()
 
     node_image = nodes.new(type='ShaderNodeTexImage')
-    node_image.name = 'nns_input_image'
+    node_image.name = 'nns_node_image'
     node_image.interpolation = 'Closest'
 
     if material.nns_image != '':
@@ -83,10 +83,16 @@ def generate_mod_vc_nodes(material):
     node_bsdf = nodes.new(type='ShaderNodeBsdfTransparent')
     node_mix_shader = nodes.new(type='ShaderNodeMixShader')
     node_output = nodes.new(type='ShaderNodeOutputMaterial')
+    node_mix_rgb = nodes.new(type='ShaderNodeMixRGB')
+    node_mix_rgb.blend_type = 'MULTIPLY'
+    node_mix_rgb.name = 'nns_node_alpha'
+    node_mix_rgb.inputs[0].default_value = 1.0
+    node_mix_rgb.inputs[2].default_value = (1.0, 1.0, 1.0, 1.0)
 
     links.new(node_image.outputs[0], node_mix.inputs[1])
     links.new(node_image.outputs[1], node_mix.inputs[2])
-    links.new(node_image.outputs[1], node_mix_shader.inputs[0])
+    links.new(node_image.outputs[1], node_mix_rgb.inputs[1])
+    links.new(node_mix_rgb.outputs[0], node_mix_shader.inputs[0])
     links.new(node_mix.outputs[0], node_multiply.inputs[1])
     links.new(node_attr.outputs[0], node_multiply.inputs[2])
     links.new(node_multiply.outputs[0], node_mix_shader.inputs[2])
@@ -101,7 +107,7 @@ def generate_decal_vc_nodes(material):
     links.clear()
 
     node_image = nodes.new(type='ShaderNodeTexImage')
-    node_image.name = 'nns_input_image'
+    node_image.name = 'nns_node_image'
     node_image.interpolation = 'Closest'
 
     if material.nns_image != '':
@@ -151,10 +157,25 @@ def update_nodes_image(self, context):
         if material.nns_image != '':
             try:
                 image = bpy.data.images.load(material.nns_image)
-                node_image = material.node_tree.nodes.get('nns_input_image')
+                node_image = material.node_tree.nodes.get('nns_node_image')
                 node_image.image = image
             except Exception:
                 raise NameError("Cannot load image %s" % path)
+
+
+def update_nodes_alpha(self, context):
+    material = context.material
+    if material.is_nns:
+        try:
+            node_alpha = material.node_tree.nodes.get('nns_node_alpha')
+            node_alpha.inputs[2].default_value = (
+                material.nns_alpha,
+                material.nns_alpha,
+                material.nns_alpha,
+                1.0
+            )
+        except Exception:
+            raise NameError("Something alpha I think")
 
 
 def create_nns_material(obj):
@@ -218,6 +239,7 @@ class NTR_PT_material(bpy.types.Panel):
             layout.row().prop(mat, "nns_ambient")
             layout.row().prop(mat, "nns_specular")
             layout.row().prop(mat, "nns_emission")
+            layout.row().prop(mat, "nns_alpha", slider=True)
 
             row = layout.row(align=True)
             row.prop(mat, "nns_light0", toggle=True)
@@ -330,6 +352,8 @@ def material_register():
         name="Tex tiling u", items=tex_tiling_items, update=update_nodes_mode)
     bpy.types.Material.nns_tex_tiling_v = EnumProperty(
         name="Tex tiling v", items=tex_tiling_items, update=update_nodes_mode)
+    bpy.types.Material.nns_alpha = FloatProperty(
+        name="Alpha", min=0.0, max=1.0, default=1.0, update=update_nodes_alpha)
 
     bpy.utils.register_class(CreateNNSMaterial)
     bpy.utils.register_class(NTR_PT_material)
