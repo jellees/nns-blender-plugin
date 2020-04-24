@@ -568,12 +568,18 @@ def get_all_max_min():
         max_min = get_object_max_min(obj)
         # Max
         max_p.x = max(max_p.x, max_min['max'].x)
+        max_p.x = max(max_p.x, max_min['min'].x)
         max_p.y = max(max_p.y, max_min['max'].y)
+        max_p.y = max(max_p.y, max_min['min'].y)
         max_p.z = max(max_p.z, max_min['max'].z)
+        max_p.z = max(max_p.z, max_min['min'].z)
         # Min
         min_p.x = min(min_p.x, max_min['min'].x)
+        min_p.x = min(min_p.x, max_min['max'].x)
         min_p.y = min(min_p.y, max_min['min'].y)
+        min_p.y = min(min_p.y, max_min['max'].y)
         min_p.z = min(min_p.z, max_min['min'].z)
+        min_p.z = min(min_p.z, max_min['max'].z)
     return {
         'min': min_p,
         'max': max_p
