@@ -710,9 +710,11 @@ class NitroMaterial():
             # For now let's use PrincipledBSDF to get the color and image.
             wrap = node_shader_utils.PrincipledBSDFWrapper(material)
             self.alpha = int(wrap.alpha * 31)
-            self.diffuse = ' '.join([str(int(wrap.base_color[0] * 31)),
-                                    str(int(wrap.base_color[1] * 31)),
-                                    str(int(wrap.base_color[2] * 31))])
+            self.diffuse = ' '.join([
+                str(int(self.lin2s(wrap.base_color[0]) * 31)),
+                str(int(self.lin2s(wrap.base_color[1]) * 31)),
+                str(int(self.lin2s(wrap.base_color[2]) * 31))
+            ])
             self.specular = ' '.join(
                 [str(int(wrap.specular * 31)) for _ in range(3)])
             self.ambient = '31 31 31'
@@ -727,6 +729,18 @@ class NitroMaterial():
                     texture = model.find_texture(path)
                     self.image_idx = texture.index
                     self.palette_idx = texture.palette_idx
+
+    def lin2s(self, x):
+        """
+        Le color correction function. From some guy on blender stackexchange.
+        http://entropymine.com/imageworsener/srgbformula/
+        """
+        a = 0.055
+        if x <= 0.0031308:
+            y = x * 12.92
+        elif 0.0031308 < x <= 1:
+            y = 1.055 * x ** (1 / 2.4) - 0.055
+        return y
 
 
 class NitroOuputInfo():
