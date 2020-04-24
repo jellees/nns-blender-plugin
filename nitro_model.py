@@ -119,6 +119,9 @@ class TriStripper():
         result = []
         tris = [x for x in primitives if x.type == 'triangles']
         for tri in tris:
+            tri.processed = False
+
+        for tri in tris:
             tri.next_candidate_count = 0
             tri.next_candidates = [-1] * 4
             for i, candidate in enumerate(tris):
@@ -457,7 +460,7 @@ class Primitive():
         first_j = 0
         for i in range(3):
             for j in range(3):
-                if (self.positions[i] == candidate.positions[j]
+                if (self.positions[i] != candidate.positions[j]
                         or not self.is_extra_data_equal(i, candidate, j)):
                     continue
                 if equal_count == 0:
