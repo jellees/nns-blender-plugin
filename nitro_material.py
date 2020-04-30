@@ -1,10 +1,11 @@
 import bpy
 from bpy.props import (BoolProperty,
                        FloatProperty,
-                       StringProperty,
                        EnumProperty,
                        IntProperty,
-                       FloatVectorProperty)
+                       FloatVectorProperty,
+                       PointerProperty)
+from bpy.types import Image
 
 
 def generate_tiling_nodes(material, nodes, links, node_image):
@@ -65,9 +66,7 @@ def generate_mod_vc_nodes(material):
 
     if material.nns_image != '':
         try:
-            image = bpy.data.images.load(material.nns_image,
-                                         check_existing=True)
-            node_image.image = image
+            node_image.image = material.nns_image
         except Exception:
             raise NameError("Cannot load image %s" % path)
 
@@ -117,9 +116,7 @@ def generate_decal_vc_nodes(material):
 
     if material.nns_image != '':
         try:
-            image = bpy.data.images.load(material.nns_image,
-                                         check_existing=True)
-            node_image.image = image
+            node_image.image = material.nns_image
         except Exception:
             raise NameError("Cannot load image %s" % path)
 
@@ -169,9 +166,8 @@ def update_nodes_image(self, context):
     if material.is_nns:
         if material.nns_image != '':
             try:
-                image = bpy.data.images.load(material.nns_image)
                 node_image = material.node_tree.nodes.get('nns_node_image')
-                node_image.image = image
+                node_image.image = material.nns_image
             except Exception:
                 raise NameError("Cannot load image %s" % path)
 
@@ -254,7 +250,7 @@ class NTR_PT_material(bpy.types.Panel):
             title = layout.column()
             title.label(text="NNS Material Options")
 
-            layout.prop(mat, "nns_image")
+            layout.template_ID(mat, "nns_image", open="image.open")
             layout.row().prop(mat, "nns_diffuse")
             layout.row().prop(mat, "nns_ambient")
             layout.row().prop(mat, "nns_specular")
@@ -295,8 +291,8 @@ class NTR_PT_material(bpy.types.Panel):
 
 def material_register():
     bpy.types.Material.is_nns = BoolProperty(default=False)
-    bpy.types.Material.nns_image = StringProperty(
-        subtype='FILE_PATH', name='Texture', update=update_nodes_image)
+    bpy.types.Material.nns_image = PointerProperty(
+        name='Texture', type=Image, update=update_nodes_image)
     bpy.types.Material.nns_diffuse = FloatVectorProperty(
         default=(0, 0, 0), subtype='COLOR', min=0.0, max=1.0, name='Diffuse')
     bpy.types.Material.nns_ambient = FloatVectorProperty(
