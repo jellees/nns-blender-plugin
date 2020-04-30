@@ -36,5 +36,5 @@ def generate_imd(settings):
 
 
 def save(context, settings):
-    logger.create_log(settings['filepath'])
+    logger.create_log(settings['filepath'], settings['generate_log'])
     generate_imd(settings)

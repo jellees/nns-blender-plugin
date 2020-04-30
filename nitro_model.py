@@ -580,6 +580,7 @@ def get_all_max_min():
         min_p.y = min(min_p.y, max_min['max'].y)
         min_p.z = min(min_p.z, max_min['min'].z)
         min_p.z = min(min_p.z, max_min['max'].z)
+
     return {
         'min': min_p,
         'max': max_p

@@ -31,6 +31,8 @@ class ExportNitro(bpy.types.Operator):
     use_primitive_strip = BoolProperty(name="Use primitive strip",
                                        default=True)
 
+    generate_log = BoolProperty(name="Generate log file", default=False)
+
     def execute(self, context):
         from . import export_nitro
         settings = self.as_keywords()
