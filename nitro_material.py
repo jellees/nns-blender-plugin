@@ -8,7 +8,18 @@ from bpy.props import (BoolProperty,
 from bpy.types import Image
 
 
-def generate_tiling_nodes(material, nodes, links, node_image):
+def generate_image_nodes(material):
+    nodes = material.node_tree.nodes
+    links = material.node_tree.links
+
+    node_image = nodes.new(type='ShaderNodeTexImage')
+    node_image.name = 'nns_node_image'
+    node_image.interpolation = 'Closest'
+    if material.nns_image != '':
+        try:
+            node_image.image = material.nns_image
+        except Exception:
+            raise NameError("Cannot load image %s" % path)
 
     node_uvmap = nodes.new(type='ShaderNodeUVMap')
     node_uvmap.uv_map = "UVMap"
@@ -53,39 +64,21 @@ def generate_tiling_nodes(material, nodes, links, node_image):
 
     links.new(node_cb_xyz.outputs[0], node_image.inputs[0])
 
+    return node_image
+
 
 def generate_mod_vc_nodes(material):
     nodes = material.node_tree.nodes
-    nodes.clear()
     links = material.node_tree.links
-    links.clear()
 
-    node_image = nodes.new(type='ShaderNodeTexImage')
-    node_image.name = 'nns_node_image'
-    node_image.interpolation = 'Closest'
-
-    if material.nns_image != '':
-        try:
-            node_image.image = material.nns_image
-        except Exception:
-            raise NameError("Cannot load image %s" % path)
-
-    generate_tiling_nodes(material, nodes, links, node_image)
-
-    node_attr = nodes.new(type='ShaderNodeAttribute')
-    node_attr.attribute_name = 'Col'
     node_mix = nodes.new(type='ShaderNodeMixRGB')
     node_mix.inputs[0].default_value = 0.0
-    node_multiply = nodes.new(type='ShaderNodeMixRGB')
-    node_multiply.blend_type = 'MULTIPLY'
-    node_multiply.inputs[0].default_value = 1.0
-    node_bsdf = nodes.new(type='ShaderNodeBsdfTransparent')
-    node_mix_shader = nodes.new(type='ShaderNodeMixShader')
-    node_output = nodes.new(type='ShaderNodeOutputMaterial')
+
     node_mix_rgb = nodes.new(type='ShaderNodeMixRGB')
     node_mix_rgb.blend_type = 'MULTIPLY'
     node_mix_rgb.name = 'nns_node_alpha'
     node_mix_rgb.inputs[0].default_value = 1.0
+    node_mix_rgb.inputs[1].default_value = (1.0, 1.0, 1.0, 1.0)
     node_mix_rgb.inputs[2].default_value = (
         material.nns_alpha / 31,
         material.nns_alpha / 31,
@@ -93,9 +86,23 @@ def generate_mod_vc_nodes(material):
         1.0
     )
 
-    links.new(node_image.outputs[0], node_mix.inputs[1])
-    links.new(node_image.outputs[1], node_mix.inputs[2])
-    links.new(node_image.outputs[1], node_mix_rgb.inputs[1])
+    if "tx" in material.nns_mat_type:
+        node_image = generate_image_nodes(material)
+        links.new(node_image.outputs[0], node_mix.inputs[1])
+        links.new(node_image.outputs[1], node_mix.inputs[2])
+        links.new(node_image.outputs[1], node_mix_rgb.inputs[1])
+
+    node_attr = nodes.new(type='ShaderNodeAttribute')
+    node_attr.attribute_name = 'Col'
+    node_multiply = nodes.new(type='ShaderNodeMixRGB')
+    node_multiply.blend_type = 'MULTIPLY'
+    node_multiply.inputs[0].default_value = 1.0
+    node_multiply.inputs[1].default_value = (1.0, 1.0, 1.0, 1.0)
+    node_multiply.inputs[2].default_value = (1.0, 1.0, 1.0, 1.0)
+    node_bsdf = nodes.new(type='ShaderNodeBsdfTransparent')
+    node_mix_shader = nodes.new(type='ShaderNodeMixShader')
+    node_output = nodes.new(type='ShaderNodeOutputMaterial')
+
     links.new(node_mix_rgb.outputs[0], node_mix_shader.inputs[0])
     links.new(node_mix.outputs[0], node_multiply.inputs[1])
     links.new(node_attr.outputs[0], node_multiply.inputs[2])
@@ -106,39 +113,30 @@ def generate_mod_vc_nodes(material):
 
 def generate_decal_vc_nodes(material):
     nodes = material.node_tree.nodes
-    nodes.clear()
     links = material.node_tree.links
-    links.clear()
 
-    node_image = nodes.new(type='ShaderNodeTexImage')
-    node_image.name = 'nns_node_image'
-    node_image.interpolation = 'Closest'
+    node_mix_1 = nodes.new(type='ShaderNodeMixRGB')
+    node_mix_1.inputs[0].default_value = 0.0
 
-    if material.nns_image != '':
-        try:
-            node_image.image = material.nns_image
-        except Exception:
-            raise NameError("Cannot load image %s" % path)
+    node_mix_2 = nodes.new(type='ShaderNodeMixRGB')
 
-    generate_tiling_nodes(material, nodes, links, node_image)
+    links.new(node_mix_1.outputs[0], node_mix_2.inputs[2])
+
+    if "tx" in material.nns_mat_type:
+        node_image = generate_image_nodes(material)
+        links.new(node_image.outputs[0], node_mix_1.inputs[1])
+        links.new(node_image.outputs[1], node_mix_1.inputs[2])
+        links.new(node_image.outputs[1], node_mix_2.inputs[0])
 
     node_attr = nodes.new(type='ShaderNodeAttribute')
     node_attr.attribute_name = 'Col'
-    node_mix_1 = nodes.new(type='ShaderNodeMixRGB')
-    node_mix_1.inputs[0].default_value = 0.0
-    node_mix_2 = nodes.new(type='ShaderNodeMixRGB')
-    node_output = nodes.new(type='ShaderNodeOutputMaterial')
 
     node_mix_shader = nodes.new(type='ShaderNodeMixShader')
     node_mix_shader.name = 'nns_node_alpha'
     node_mix_shader.inputs[0].default_value = material.nns_alpha / 31
     node_trans_bsdf = nodes.new(type='ShaderNodeBsdfTransparent')
 
-    links.new(node_image.outputs[0], node_mix_1.inputs[1])
-    links.new(node_image.outputs[1], node_mix_1.inputs[2])
-    links.new(node_image.outputs[1], node_mix_2.inputs[0])
-
-    links.new(node_mix_1.outputs[0], node_mix_2.inputs[2])
+    node_output = nodes.new(type='ShaderNodeOutputMaterial')
 
     links.new(node_attr.outputs[0], node_mix_2.inputs[1])
 
@@ -148,15 +146,118 @@ def generate_decal_vc_nodes(material):
     links.new(node_mix_shader.outputs[0], node_output.inputs[0])
 
 
+def generate_image_only_nodes(material):
+    nodes = material.node_tree.nodes
+    links = material.node_tree.links
+
+    node_mix_rgb = nodes.new(type='ShaderNodeMixRGB')
+    node_mix_rgb.blend_type = 'MULTIPLY'
+    node_mix_rgb.name = 'nns_node_alpha'
+    node_mix_rgb.inputs[0].default_value = 1.0
+    node_mix_rgb.inputs[2].default_value = (
+        material.nns_alpha / 31,
+        material.nns_alpha / 31,
+        material.nns_alpha / 31,
+        1.0
+    )
+    node_bsdf = nodes.new(type='ShaderNodeBsdfTransparent')
+    node_mix_shader = nodes.new(type='ShaderNodeMixShader')
+    node_output = nodes.new(type='ShaderNodeOutputMaterial')
+    node_image = generate_image_nodes(material)
+
+    links.new(node_image.outputs[0], node_mix_shader.inputs[2])
+    links.new(node_image.outputs[1], node_mix_rgb.inputs[1])
+    links.new(node_mix_rgb.outputs[0], node_mix_shader.inputs[0])
+    links.new(node_bsdf.outputs[0], node_mix_shader.inputs[1])
+    links.new(node_mix_shader.outputs[0], node_output.inputs[0])
+
+
+def generate_solid_color_nodes(material):
+    nodes = material.node_tree.nodes
+    links = material.node_tree.links
+
+    node_mix_rgb = nodes.new(type='ShaderNodeMixRGB')
+    node_mix_rgb.blend_type = 'MULTIPLY'
+    node_mix_rgb.name = 'nns_node_alpha'
+    node_mix_rgb.inputs[0].default_value = 1.0
+    node_mix_rgb.inputs[1].default_value = (1.0, 1.0, 1.0, 1.0)
+    node_mix_rgb.inputs[2].default_value = (
+        material.nns_alpha / 31,
+        material.nns_alpha / 31,
+        material.nns_alpha / 31,
+        1.0
+    )
+    node_bsdf = nodes.new(type='ShaderNodeBsdfTransparent')
+    node_mix_df = nodes.new(type='ShaderNodeMixRGB')
+    node_mix_df.name = 'nns_node_diffuse'
+    node_mix_df.inputs[0].default_value = 1.0
+    node_mix_df.inputs[2].default_value = (
+        material.nns_diffuse[0],
+        material.nns_diffuse[1],
+        material.nns_diffuse[2],
+        1.0
+    )
+    node_mix_shader = nodes.new(type='ShaderNodeMixShader')
+    node_output = nodes.new(type='ShaderNodeOutputMaterial')
+
+    links.new(node_mix_rgb.outputs[0], node_mix_shader.inputs[0])
+    links.new(node_bsdf.outputs[0], node_mix_shader.inputs[1])
+    links.new(node_mix_df.outputs[0], node_mix_shader.inputs[2])
+    links.new(node_mix_shader.outputs[0], node_output.inputs[0])
+
+
+def generate_only_vc_nodes(material):
+    nodes = material.node_tree.nodes
+    links = material.node_tree.links
+
+    node_mix_rgb = nodes.new(type='ShaderNodeMixRGB')
+    node_mix_rgb.blend_type = 'MULTIPLY'
+    node_mix_rgb.name = 'nns_node_alpha'
+    node_mix_rgb.inputs[0].default_value = 1.0
+    node_mix_rgb.inputs[1].default_value = (1.0, 1.0, 1.0, 1.0)
+    node_mix_rgb.inputs[2].default_value = (
+        material.nns_alpha / 31,
+        material.nns_alpha / 31,
+        material.nns_alpha / 31,
+        1.0
+    )
+    node_bsdf = nodes.new(type='ShaderNodeBsdfTransparent')
+    node_vc = nodes.new(type='ShaderNodeVertexColor')
+    node_vc.layer_name = 'Col'
+    node_mix_shader = nodes.new(type='ShaderNodeMixShader')
+    node_output = nodes.new(type='ShaderNodeOutputMaterial')
+
+    links.new(node_mix_rgb.outputs[0], node_mix_shader.inputs[0])
+    links.new(node_bsdf.outputs[0], node_mix_shader.inputs[1])
+    links.new(node_vc.outputs[0], node_mix_shader.inputs[2])
+    links.new(node_mix_shader.outputs[0], node_output.inputs[0])
+
+
 def generate_nodes(material):
     if material.is_nns:
-        if material.nns_polygon_mode == "modulate":
+        nodes = material.node_tree.nodes
+        nodes.clear()
+        links = material.node_tree.links
+        links.clear()
+
+        if material.nns_mat_type == "tx":
+            generate_image_only_nodes(material)
+        elif material.nns_mat_type == "df":
+            generate_solid_color_nodes(material)
+        elif material.nns_mat_type == "vc":
+            generate_only_vc_nodes(material)
+        elif material.nns_polygon_mode == "modulate":
             generate_mod_vc_nodes(material)
         elif material.nns_polygon_mode == "decal":
             generate_decal_vc_nodes(material)
 
 
 def update_nodes_mode(self, context):
+    material = context.material
+    generate_nodes(material)
+
+
+def update_nodes_mat_type(self, context):
     material = context.material
     generate_nodes(material)
 
@@ -192,6 +293,18 @@ def update_nodes_alpha(self, context):
                 node_alpha.inputs[0].default_value = material.nns_alpha / 31
             except Exception:
                 raise NameError("Something alpha I think")
+
+
+def update_nodes_diffuse(self, context):
+    material = context.material
+    if material.is_nns:
+        node_diffuse = material.node_tree.nodes.get('nns_node_diffuse')
+        node_diffuse.inputs[2].default_value = (
+            material.nns_diffuse[0],
+            material.nns_diffuse[1],
+            material.nns_diffuse[2],
+            1.0
+        )
 
 
 def create_nns_material(obj):
@@ -248,20 +361,35 @@ class NTR_PT_material(bpy.types.Panel):
         else:
             layout = layout.box()
             title = layout.column()
-            title.label(text="NNS Material Options")
+            title.box().label(text="NNS Material Options")
 
-            layout.template_ID(mat, "nns_image", open="image.open")
-            layout.row().prop(mat, "nns_diffuse")
-            layout.row().prop(mat, "nns_ambient")
-            layout.row().prop(mat, "nns_specular")
-            layout.row().prop(mat, "nns_emission")
+            layout.prop(mat, "nns_mat_type")
+
+            if "vc" in mat.nns_mat_type:
+                layout.label(
+                    text='Note: There must be a vertex color layer named '
+                         '"Col"')
+
+            if "tx" in mat.nns_mat_type:
+                layout.template_ID(mat, "nns_image", open="image.open")
+
+            if "df" in mat.nns_mat_type:
+                layout.row().prop(mat, "nns_diffuse")
+
+            if "nr" in mat.nns_mat_type:
+                layout.row().prop(mat, "nns_ambient")
+                layout.row().prop(mat, "nns_specular")
+                layout.row().prop(mat, "nns_emission")
+
             layout.row().prop(mat, "nns_alpha", slider=True)
 
-            row = layout.row(align=True)
-            row.prop(mat, "nns_light0", toggle=True)
-            row.prop(mat, "nns_light1", toggle=True)
-            row.prop(mat, "nns_light2", toggle=True)
-            row.prop(mat, "nns_light3", toggle=True)
+            if "nr" in mat.nns_mat_type:
+                row = layout.row(align=True)
+                row.prop(mat, "nns_light0", toggle=True)
+                row.prop(mat, "nns_light1", toggle=True)
+                row.prop(mat, "nns_light2", toggle=True)
+                row.prop(mat, "nns_light3", toggle=True)
+
             layout.prop(mat, "nns_use_srst")
             layout.prop(mat, "nns_fog")
             layout.prop(mat, "nns_wireframe")
@@ -271,10 +399,13 @@ class NTR_PT_material(bpy.types.Panel):
             layout.prop(mat, "nns_far_clipping")
             layout.prop(mat, "nns_polygonid")
             layout.prop(mat, "nns_display_face")
-            layout.prop(mat, "nns_tex_tiling_u")
-            layout.prop(mat, "nns_tex_tiling_v")
-            layout.prop(mat, "nns_polygon_mode")
-            layout.prop(mat, "nns_tex_gen_mode")
+
+            if "tx" in mat.nns_mat_type:
+                layout.prop(mat, "nns_tex_tiling_u")
+                layout.prop(mat, "nns_tex_tiling_v")
+                layout.prop(mat, "nns_polygon_mode")
+                layout.prop(mat, "nns_tex_gen_mode")
+
             if mat.nns_tex_gen_mode == 'nrm' or mat.nns_tex_gen_mode == 'pos':
                 layout.prop(mat, "nns_tex_gen_st_src")
                 box = layout.box()
@@ -291,10 +422,23 @@ class NTR_PT_material(bpy.types.Panel):
 
 def material_register():
     bpy.types.Material.is_nns = BoolProperty(default=False)
+    mat_type_items = [
+        ("df", "Solid color", '', 1),
+        ("df_nr", "Solid color + normals", '', 2),
+        ("vc", "Vertex colored", '', 3),
+        ("tx", "Textured", '', 4),
+        ("tx_df", "Textured + solid color", '', 5),
+        ("tx_vc", "Textured + vertex colors", '', 6),
+        ("tx_nr_df", "Textured + normals", '', 7)
+    ]
+    bpy.types.Material.nns_mat_type = EnumProperty(
+        name="Material type", items=mat_type_items,
+        update=update_nodes_mat_type)
     bpy.types.Material.nns_image = PointerProperty(
         name='Texture', type=Image, update=update_nodes_image)
     bpy.types.Material.nns_diffuse = FloatVectorProperty(
-        default=(0, 0, 0), subtype='COLOR', min=0.0, max=1.0, name='Diffuse')
+        default=(0, 0, 0), subtype='COLOR', min=0.0, max=1.0, name='Diffuse',
+        update=update_nodes_diffuse)
     bpy.types.Material.nns_ambient = FloatVectorProperty(
         default=(1, 1, 1), subtype='COLOR', min=0.0, max=1.0, name='Ambient')
     bpy.types.Material.nns_specular = FloatVectorProperty(
