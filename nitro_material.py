@@ -40,11 +40,22 @@ def generate_image_nodes(material):
         except Exception:
             raise NameError("Cannot load image %s" % path)
 
-    node_uvmap = nodes.new(type='ShaderNodeUVMap')
-    node_uvmap.uv_map = "UVMap"
-
     node_sp_xyz = nodes.new(type='ShaderNodeSeparateXYZ')
-    links.new(node_uvmap.outputs[0], node_sp_xyz.inputs[0])
+
+    if material.nns_tex_gen_mode == "nrm":
+        node_geo = nodes.new(type='ShaderNodeNewGeometry')
+        node_vec_trans = nodes.new(type='ShaderNodeVectorTransform')
+        node_vec_trans.convert_from = 'OBJECT'
+        node_vec_trans.convert_to = 'CAMERA'
+        node_vec_trans.vector_type = 'NORMAL'
+        node_mapping = nodes.new(type='ShaderNodeMapping')
+        links.new(node_geo.outputs[1], node_vec_trans.inputs[0])
+        links.new(node_vec_trans.outputs[0], node_mapping.inputs[0])
+        links.new(node_mapping.outputs[0], node_sp_xyz.inputs[0])
+    else:
+        node_uvmap = nodes.new(type='ShaderNodeUVMap')
+        node_uvmap.uv_map = "UVMap"
+        links.new(node_uvmap.outputs[0], node_sp_xyz.inputs[0])
 
     node_cb_xyz = nodes.new(type='ShaderNodeCombineXYZ')
     links.new(node_sp_xyz.outputs[2], node_cb_xyz.inputs[2])
@@ -401,6 +412,11 @@ def update_nodes_face(self, context):
     generate_nodes(material)
 
 
+def update_nodes_tex_gen(self, context):
+    material = context.material
+    generate_nodes(material)
+
+
 def create_nns_material(obj):
     material = bpy.data.materials.new('Material')
     obj.data.materials.append(material)
@@ -583,7 +599,8 @@ def material_register():
         ("pos", "Vertex", '', 4)
     ]
     bpy.types.Material.nns_tex_gen_mode = EnumProperty(
-        name="Tex gen mode", items=tex_gen_mode_items)
+        name="Tex gen mode", items=tex_gen_mode_items,
+        update=update_nodes_tex_gen)
     tex_gen_st_src_items = [
         ("polygon", "Polygon", '', 1),
         ("material", "Material", '', 2),
