@@ -8,6 +8,25 @@ from bpy.props import (BoolProperty,
 from bpy.types import Image
 
 
+def generate_culling_nodes(material):
+    nodes = material.node_tree.nodes
+    links = material.node_tree.links
+
+    node_geo = nodes.new(type='ShaderNodeNewGeometry')
+    node_invert = nodes.new(type='ShaderNodeInvert')
+    if material.nns_display_face == "front":
+        node_invert.inputs[0].default_value = 1.0
+    elif material.nns_display_face == "back":
+        node_invert.inputs[0].default_value = 0.0
+    node_mix_rgb = nodes.new(type='ShaderNodeMixRGB')
+    node_mix_rgb.blend_type = 'MULTIPLY'
+    node_mix_rgb.inputs[0].default_value = 1.0
+    links.new(node_geo.outputs[6], node_invert.inputs[1])
+    links.new(node_invert.outputs[0], node_mix_rgb.inputs[1])
+
+    return node_mix_rgb
+
+
 def generate_image_nodes(material):
     nodes = material.node_tree.nodes
     links = material.node_tree.links
@@ -108,9 +127,16 @@ def generate_mod_vc_nodes(material):
     node_mix_shader = nodes.new(type='ShaderNodeMixShader')
     node_output = nodes.new(type='ShaderNodeOutputMaterial')
 
-    links.new(node_mix_rgb.outputs[0], node_mix_shader.inputs[0])
     links.new(node_mix.outputs[0], node_multiply.inputs[1])
     links.new(node_multiply.outputs[0], node_mix_shader.inputs[2])
+
+    if material.nns_display_face == "both":
+        links.new(node_mix_rgb.outputs[0], node_mix_shader.inputs[0])
+    else:
+        node_face = generate_culling_nodes(material)
+        links.new(node_mix_rgb.outputs[0], node_face.inputs[2])
+        links.new(node_face.outputs[0], node_mix_shader.inputs[0])
+
     links.new(node_bsdf.outputs[0], node_mix_shader.inputs[1])
     links.new(node_mix_shader.outputs[0], node_output.inputs[0])
 
@@ -138,8 +164,6 @@ def generate_decal_vc_nodes(material):
         links.new(node_image.outputs[1], node_mix_2.inputs[0])
 
     node_mix_shader = nodes.new(type='ShaderNodeMixShader')
-    node_mix_shader.name = 'nns_node_alpha'
-    node_mix_shader.inputs[0].default_value = material.nns_alpha / 31
     node_trans_bsdf = nodes.new(type='ShaderNodeBsdfTransparent')
 
     node_output = nodes.new(type='ShaderNodeOutputMaterial')
@@ -165,6 +189,26 @@ def generate_decal_vc_nodes(material):
             1.0)
         links.new(node_diffuse.outputs[0], node_mix_2.inputs[1])
 
+    node_mix_rgb = nodes.new(type='ShaderNodeMixRGB')
+    node_mix_rgb.location = (0, 200)
+    node_mix_rgb.blend_type = 'MULTIPLY'
+    node_mix_rgb.name = 'nns_node_alpha'
+    node_mix_rgb.inputs[0].default_value = 1.0
+    node_mix_rgb.inputs[1].default_value = (1.0, 1.0, 1.0, 1.0)
+    node_mix_rgb.inputs[2].default_value = (
+        material.nns_alpha / 31,
+        material.nns_alpha / 31,
+        material.nns_alpha / 31,
+        1.0
+    )
+
+    if material.nns_display_face == "both":
+        links.new(node_mix_rgb.outputs[0], node_mix_shader.inputs[0])
+    else:
+        node_face = generate_culling_nodes(material)
+        links.new(node_mix_rgb.outputs[0], node_face.inputs[2])
+        links.new(node_face.outputs[0], node_mix_shader.inputs[0])
+
 
 def generate_image_only_nodes(material):
     nodes = material.node_tree.nodes
@@ -187,7 +231,14 @@ def generate_image_only_nodes(material):
 
     links.new(node_image.outputs[0], node_mix_shader.inputs[2])
     links.new(node_image.outputs[1], node_mix_rgb.inputs[1])
-    links.new(node_mix_rgb.outputs[0], node_mix_shader.inputs[0])
+
+    if material.nns_display_face == "both":
+        links.new(node_mix_rgb.outputs[0], node_mix_shader.inputs[0])
+    else:
+        node_face = generate_culling_nodes(material)
+        links.new(node_mix_rgb.outputs[0], node_face.inputs[2])
+        links.new(node_face.outputs[0], node_mix_shader.inputs[0])
+
     links.new(node_bsdf.outputs[0], node_mix_shader.inputs[1])
     links.new(node_mix_shader.outputs[0], node_output.inputs[0])
 
@@ -224,7 +275,13 @@ def generate_solid_color_nodes(material):
     node_output = nodes.new(type='ShaderNodeOutputMaterial')
     node_output.location = (400, 0)
 
-    links.new(node_mix_rgb.outputs[0], node_mix_shader.inputs[0])
+    if material.nns_display_face == "both":
+        links.new(node_mix_rgb.outputs[0], node_mix_shader.inputs[0])
+    else:
+        node_face = generate_culling_nodes(material)
+        links.new(node_mix_rgb.outputs[0], node_face.inputs[2])
+        links.new(node_face.outputs[0], node_mix_shader.inputs[0])
+
     links.new(node_bsdf.outputs[0], node_mix_shader.inputs[1])
     links.new(node_mix_df.outputs[0], node_mix_shader.inputs[2])
     links.new(node_mix_shader.outputs[0], node_output.inputs[0])
@@ -251,7 +308,13 @@ def generate_only_vc_nodes(material):
     node_mix_shader = nodes.new(type='ShaderNodeMixShader')
     node_output = nodes.new(type='ShaderNodeOutputMaterial')
 
-    links.new(node_mix_rgb.outputs[0], node_mix_shader.inputs[0])
+    if material.nns_display_face == "both":
+        links.new(node_mix_rgb.outputs[0], node_mix_shader.inputs[0])
+    else:
+        node_face = generate_culling_nodes(material)
+        links.new(node_mix_rgb.outputs[0], node_face.inputs[2])
+        links.new(node_face.outputs[0], node_mix_shader.inputs[0])
+
     links.new(node_bsdf.outputs[0], node_mix_shader.inputs[1])
     links.new(node_vc.outputs[0], node_mix_shader.inputs[2])
     links.new(node_mix_shader.outputs[0], node_output.inputs[0])
@@ -331,6 +394,11 @@ def update_nodes_diffuse(self, context):
             material.nns_diffuse[2],
             1.0
         )
+
+
+def update_nodes_face(self, context):
+    material = context.material
+    generate_nodes(material)
 
 
 def create_nns_material(obj):
@@ -497,7 +565,8 @@ def material_register():
         ("both", "Both faces", '', 3)
     ]
     bpy.types.Material.nns_display_face = EnumProperty(
-        name="Display face", items=display_face_items)
+        name="Display face", items=display_face_items,
+        update=update_nodes_face)
     polygon_mode_items = [
         ("modulate", "Modulate", '', 1),
         ("decal", "Decal", '', 2),
