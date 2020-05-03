@@ -875,18 +875,18 @@ class NitroPolygon():
             model.output_info.polygon_size += 1
             primitive.quad_size += 1
 
-        light_on = (material.light0 == 'on' or
-                    material.light1 == 'on' or
-                    material.light2 == 'on' or
-                    material.light3 == 'on')
-
-        if len(obj.data.vertex_colors) > 0 and not light_on:
+        if len(obj.data.vertex_colors) > 0 and "vc" in material.nns_mat_type:
             self.use_colors = 'on'
 
-        if material.image_idx != -1:
+        if material.image_idx != -1 and "tx" in material.nns_mat_type and \
+                material.nns_tex_gen_mode != "nrm":
             self.use_texcoords = 'on'
 
-        if light_on:
+        if ((material.light0 == 'on' or
+            material.light1 == 'on' or
+            material.light2 == 'on' or
+            material.light3 == 'on') and "nr" in material.nns_mat_type) or \
+                material.nns_tex_gen_mode == "nrm":
             self.use_normals = 'on'
 
         for idx in range(len(prim.positions)):
@@ -896,13 +896,13 @@ class NitroPolygon():
                 primitive.add_command('clr', 'rgb', f'{r} {g} {b}')
 
             # Normal
-            if light_on:
+            if self.use_normals == 'on':
                 normal = prim.normals[idx].to_vector()
                 primitive.add_command('nrm', 'xyz',
                                       f'{normal.x} {normal.y} {normal.z}')
 
             # Texture coordinate.
-            if material.image_idx != -1:
+            if self.use_texcoords == 'on':
                 tex = model.textures[material.image_idx]
                 uv = prim.texcoords[idx].to_vector()
                 s = uv.x * tex.width
