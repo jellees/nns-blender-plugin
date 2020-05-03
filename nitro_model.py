@@ -666,6 +666,8 @@ class NitroMaterial():
         material = bpy.data.materials[blender_index]
         self.name = material.name
 
+        self.type = material.nns_mat_type
+
         self.light0 = 'on' if material.nns_light0 else 'off'
         self.light1 = 'on' if material.nns_light1 else 'off'
         self.light2 = 'on' if material.nns_light2 else 'off'
@@ -875,18 +877,18 @@ class NitroPolygon():
             model.output_info.polygon_size += 1
             primitive.quad_size += 1
 
-        if len(obj.data.vertex_colors) > 0 and "vc" in material.nns_mat_type:
+        if len(obj.data.vertex_colors) > 0 and "vc" in material.type:
             self.use_colors = 'on'
 
-        if material.image_idx != -1 and "tx" in material.nns_mat_type and \
-                material.nns_tex_gen_mode != "nrm":
+        if material.image_idx != -1 and "tx" in material.type and \
+                material.tex_gen_mode != "nrm":
             self.use_texcoords = 'on'
 
         if ((material.light0 == 'on' or
             material.light1 == 'on' or
             material.light2 == 'on' or
-            material.light3 == 'on') and "nr" in material.nns_mat_type) or \
-                material.nns_tex_gen_mode == "nrm":
+            material.light3 == 'on') and "nr" in material.type) or \
+                material.tex_gen_mode == "nrm":
             self.use_normals = 'on'
 
         for idx in range(len(prim.positions)):
