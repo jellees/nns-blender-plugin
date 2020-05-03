@@ -128,9 +128,9 @@ def generate_materials(imd):
         if mat.image_idx != -1:
             material.set('tex_tiling',
                          f'{mat.tex_tiling_u} {mat.tex_tiling_v}')
-            material.set('tex_scale', '1.000000 1.000000')
-            material.set('tex_rotate', '0.000000')
-            material.set('tex_translate', '0.000000 0.000000')
+            material.set('tex_scale', mat.tex_scale)
+            material.set('tex_rotate', mat.tex_rotate)
+            material.set('tex_translate', mat.tex_translate)
             material.set('tex_gen_mode', mat.tex_gen_mode)
             if mat.tex_gen_mode == 'nrm' or mat.tex_gen_mode == 'pos':
                 material.set('tex_gen_st_src', mat.tex_gen_st_src)

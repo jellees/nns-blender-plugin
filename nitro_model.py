@@ -695,6 +695,11 @@ class NitroMaterial():
                  f'{row2[0]} {row2[1]} 1.0 0.0 ' \
                  f'{row3[0]} {row3[1]} 0.0 1.0'
         self.tex_effect_mtx = matrix
+        self.tex_scale = f'{material.nns_tex_scale[0]} \
+                           {material.nns_tex_scale[1]}'
+        self.tex_rotate = str(material.nns_tex_rotate)
+        self.tex_translate = f'{material.nns_tex_translate[0]} \
+                               {material.nns_tex_translate[1]}'
 
         self.image_idx = -1
         self.palette_idx = -1
@@ -709,8 +714,9 @@ class NitroMaterial():
                 [str(int(x * 31)) for x in material.nns_ambient])
             self.emission = ' '.join(
                 [str(int(x * 31)) for x in material.nns_emission])
-            if material.nns_image != '':
-                path = bpy.path.abspath(material.nns_image)
+            if (material.nns_image is not None
+                    and "tx" not in material.nns_mat_type):
+                path = bpy.path.abspath(material.nns_image.filepath)
                 _, extension = os.path.splitext(path)
                 if extension == '.tga':
                     texture = model.find_texture(path)

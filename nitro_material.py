@@ -514,6 +514,9 @@ class NTR_PT_material(bpy.types.Panel):
             if "tx" in mat.nns_mat_type:
                 layout.prop(mat, "nns_tex_tiling_u")
                 layout.prop(mat, "nns_tex_tiling_v")
+                layout.row(align=True).prop(mat, "nns_tex_scale")
+                layout.prop(mat, "nns_tex_rotate")
+                layout.row(align=True).prop(mat, "nns_tex_translate")
                 layout.prop(mat, "nns_tex_gen_mode")
 
             if mat.nns_tex_gen_mode == 'nrm' or mat.nns_tex_gen_mode == 'pos':
@@ -626,6 +629,11 @@ def material_register():
         name="Tex tiling v", items=tex_tiling_items, update=update_nodes_mode)
     bpy.types.Material.nns_alpha = IntProperty(
         name="Alpha", min=0, max=31, default=31, update=update_nodes_alpha)
+    bpy.types.Material.nns_tex_scale = FloatVectorProperty(
+        size=2, name="Texture scale")
+    bpy.types.Material.nns_tex_rotate = FloatProperty(name="Texture rotation")
+    bpy.types.Material.nns_tex_translate = FloatVectorProperty(
+        size=2, name="Texture translation")
 
     bpy.utils.register_class(CreateNNSMaterial)
     bpy.utils.register_class(NTR_PT_material)
