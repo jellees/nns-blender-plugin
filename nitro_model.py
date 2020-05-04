@@ -718,7 +718,8 @@ class NitroMaterial():
                 [str(int(x * 31)) for x in material.nns_emission])
             if material.nns_image is not None \
                     and "tx" in material.nns_mat_type:
-                path = bpy.path.abspath(material.nns_image.filepath)
+                filepath = material.nns_image.filepath
+                path = os.path.realpath(bpy.path.abspath(filepath))
                 _, extension = os.path.splitext(path)
                 if extension == '.tga':
                     texture = model.find_texture(path)
@@ -740,8 +741,8 @@ class NitroMaterial():
 
             tex_wrap = getattr(wrap, 'base_color_texture', None)
             if tex_wrap is not None and tex_wrap.image is not None:
-                path = bpy.path.abspath(
-                    tex_wrap.image.filepath, library=tex_wrap.image.library)
+                path = os.path.realpath(bpy.path.abspath(
+                    tex_wrap.image.filepath, library=tex_wrap.image.library))
                 _, extension = os.path.splitext(path)
                 if extension == '.tga':
                     texture = model.find_texture(path)
