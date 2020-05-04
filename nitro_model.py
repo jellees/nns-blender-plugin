@@ -716,8 +716,8 @@ class NitroMaterial():
                 [str(int(x * 31)) for x in material.nns_ambient])
             self.emission = ' '.join(
                 [str(int(x * 31)) for x in material.nns_emission])
-            if (material.nns_image is not None
-                    and "tx" not in material.nns_mat_type):
+            if material.nns_image is not None \
+                    and "tx" in material.nns_mat_type:
                 path = bpy.path.abspath(material.nns_image.filepath)
                 _, extension = os.path.splitext(path)
                 if extension == '.tga':
