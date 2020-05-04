@@ -539,10 +539,9 @@ def material_register():
         ("df", "Solid color", '', 1),
         ("df_nr", "Solid color + normals", '', 2),
         ("vc", "Vertex colored", '', 3),
-        ("tx", "Textured", '', 4),
-        ("tx_df", "Textured + solid color", '', 5),
-        ("tx_vc", "Textured + vertex colors", '', 6),
-        ("tx_nr_df", "Textured + normals", '', 7)
+        ("tx_df", "Textured + solid color", '', 4),
+        ("tx_vc", "Textured + vertex colors", '', 5),
+        ("tx_nr_df", "Textured + normals", '', 6)
     ]
     bpy.types.Material.nns_mat_type = EnumProperty(
         name="Material type", items=mat_type_items,
@@ -550,7 +549,7 @@ def material_register():
     bpy.types.Material.nns_image = PointerProperty(
         name='Texture', type=Image, update=update_nodes_image)
     bpy.types.Material.nns_diffuse = FloatVectorProperty(
-        default=(0, 0, 0), subtype='COLOR', min=0.0, max=1.0, name='Diffuse',
+        default=(1, 1, 1), subtype='COLOR', min=0.0, max=1.0, name='Diffuse',
         update=update_nodes_diffuse)
     bpy.types.Material.nns_ambient = FloatVectorProperty(
         default=(1, 1, 1), subtype='COLOR', min=0.0, max=1.0, name='Ambient')
