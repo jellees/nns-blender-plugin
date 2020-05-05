@@ -709,13 +709,13 @@ class NitroMaterial():
         if material.is_nns:
             self.alpha = material.nns_alpha
             self.diffuse = ' '.join(
-                [str(int(x * 31)) for x in material.nns_diffuse])
+                [str(int(self.lin2s(x) * 31)) for x in material.nns_diffuse])
             self.specular = ' '.join(
-                [str(int(x * 31)) for x in material.nns_specular])
+                [str(int(self.lin2s(x) * 31)) for x in material.nns_specular])
             self.ambient = ' '.join(
-                [str(int(x * 31)) for x in material.nns_ambient])
+                [str(int(self.lin2s(x) * 31)) for x in material.nns_ambient])
             self.emission = ' '.join(
-                [str(int(x * 31)) for x in material.nns_emission])
+                [str(int(self.lin2s(x) * 31)) for x in material.nns_emission])
             if material.nns_image is not None \
                     and "tx" in material.nns_mat_type:
                 filepath = material.nns_image.filepath
