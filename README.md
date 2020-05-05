@@ -26,4 +26,5 @@ Under the settings tab of your material, you can choose the blend method. Please
 * Stomatol for suggesting features and helping with shader nodes
 * Gericom for technical knowledge on NNS and tristripping
 * SGC for suggesting features
+* PK dab for testing the plugin and suggesting features
 * Ridefii for giving examples on how to make a plugin
