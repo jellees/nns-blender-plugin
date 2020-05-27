@@ -516,8 +516,11 @@ class Primitive():
 
 def get_global_mat_index(obj, index):
     if len(obj.material_slots) <= index:
-        # If an object doesn't have (enough) material slots, the polgyon
+        # If an object doesn't have (enough) material slots, the polygon
         # with the requested index shouldn't be converted.
+        return -1
+    if obj.material_slots[index].material is None:
+        # Material doesn't have any material in the slot.
         return -1
     name = obj.material_slots[index].material.name
     return bpy.data.materials.find(name)
