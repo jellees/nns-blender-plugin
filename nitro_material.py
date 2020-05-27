@@ -6,6 +6,7 @@ from bpy.props import (BoolProperty,
                        FloatVectorProperty,
                        PointerProperty)
 from bpy.types import Image
+from bpy.app.handlers import persistent
 
 
 def generate_culling_nodes(material):
@@ -42,6 +43,12 @@ def generate_image_nodes(material):
 
     node_sp_xyz = nodes.new(type='ShaderNodeSeparateXYZ')
 
+    # Put in mapping node for srt.
+    node_srt_mapping = nodes.new(type='ShaderNodeMapping')
+    node_srt_mapping.name = 'nns_node_srt'
+    node_srt_mapping.inputs[3].default_value = (1, 1, 1)
+    links.new(node_srt_mapping.outputs[0], node_sp_xyz.inputs[0])
+
     if material.nns_tex_gen_mode == "nrm":
         node_geo = nodes.new(type='ShaderNodeNewGeometry')
         node_vec_trans = nodes.new(type='ShaderNodeVectorTransform')
@@ -51,11 +58,11 @@ def generate_image_nodes(material):
         node_mapping = nodes.new(type='ShaderNodeMapping')
         links.new(node_geo.outputs[1], node_vec_trans.inputs[0])
         links.new(node_vec_trans.outputs[0], node_mapping.inputs[0])
-        links.new(node_mapping.outputs[0], node_sp_xyz.inputs[0])
+        links.new(node_mapping.outputs[0], node_srt_mapping.inputs[0])
     else:
         node_uvmap = nodes.new(type='ShaderNodeUVMap')
         node_uvmap.uv_map = "UVMap"
-        links.new(node_uvmap.outputs[0], node_sp_xyz.inputs[0])
+        links.new(node_uvmap.outputs[0], node_srt_mapping.inputs[0])
 
     node_cb_xyz = nodes.new(type='ShaderNodeCombineXYZ')
     links.new(node_sp_xyz.outputs[2], node_cb_xyz.inputs[2])
@@ -417,6 +424,37 @@ def update_nodes_tex_gen(self, context):
     generate_nodes(material)
 
 
+def update_nodes_srt(material):
+    if material.is_nns:
+        if "tx" in material.nns_mat_type:
+            try:
+                node_srt = material.node_tree.nodes.get('nns_node_srt')
+                node_srt.inputs[1].default_value = (
+                    material.nns_srt_translate[0],
+                    material.nns_srt_translate[1],
+                    0
+                )
+                node_srt.inputs[2].default_value[2] = material.nns_srt_rotate
+                node_srt.inputs[3].default_value = (
+                    material.nns_srt_scale[0],
+                    material.nns_srt_scale[1],
+                    0
+                )
+            except Exception:
+                raise NameError("Couldn't find node?")
+
+
+def update_nodes_srt_hook(self, context):
+    material = context.material
+    update_nodes_srt(material)
+
+
+@persistent
+def frame_change_handler(scene):
+    material = bpy.context.active_object.active_material
+    update_nodes_srt(material)
+
+
 def create_nns_material(obj):
     material = bpy.data.materials.new('Material')
     obj.data.materials.append(material)
@@ -444,6 +482,35 @@ class CreateNNSMaterial(bpy.types.Operator):
             create_nns_material(obj)
             self.report({'INFO'}, 'Created new NNS material.')
         return {'FINISHED'}
+
+
+class NTR_PT_material_keyframe(bpy.types.Panel):
+    bl_label = "NNS Material Keyframes"
+    bl_idname = "MATERIAL_KEYFRAME_PT_nns"
+    bl_space_type = 'PROPERTIES'
+    bl_region_type = 'WINDOW'
+    bl_context = "material"
+    bl_options = {'HIDE_HEADER'}
+
+    @classmethod
+    def poll(cls, context):
+        return context.material
+
+    def draw(self, context):
+        layout = self.layout
+        mat = context.material
+
+        if mat is None:
+            pass
+        elif not(mat.use_nodes and mat.is_nns):
+            pass
+        elif "tx" in mat.nns_mat_type:
+            layout = layout.box()
+            title = layout.column()
+            title.box().label(text="NNS Material SRT")
+            layout.row(align=True).prop(mat, "nns_srt_scale")
+            layout.prop(mat, "nns_srt_rotate")
+            layout.row(align=True).prop(mat, "nns_srt_translate")
 
 
 class NTR_PT_material(bpy.types.Panel):
@@ -633,11 +700,23 @@ def material_register():
     bpy.types.Material.nns_tex_rotate = FloatProperty(name="Texture rotation")
     bpy.types.Material.nns_tex_translate = FloatVectorProperty(
         size=2, name="Texture translation")
+    
+    bpy.types.Material.nns_srt_translate = FloatVectorProperty(
+        size=2, name="Translate", update=update_nodes_srt_hook)
+    bpy.types.Material.nns_srt_scale = FloatVectorProperty(
+        size=2, name="Scale", update=update_nodes_srt_hook, default=(1, 1))
+    bpy.types.Material.nns_srt_rotate = FloatProperty(
+        name="Rotate", update=update_nodes_srt_hook)
+
+    print("register handler")
+    bpy.app.handlers.frame_change_pre.append(frame_change_handler)
 
     bpy.utils.register_class(CreateNNSMaterial)
     bpy.utils.register_class(NTR_PT_material)
+    bpy.utils.register_class(NTR_PT_material_keyframe)
 
 
 def material_unregister():
     bpy.utils.unregister_class(CreateNNSMaterial)
     bpy.utils.unregister_class(NTR_PT_material)
+    bpy.utils.unregister_class(NTR_PT_material_keyframe)
