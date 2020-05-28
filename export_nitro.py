@@ -35,6 +35,26 @@ def generate_imd(settings):
         f.write(output)
 
 
+def generate_ita(settings):
+    from . import export_ita
+
+    ita = ET.Element('ita')
+    generate_header(ita)
+    body = ET.SubElement(ita, 'body')
+    export_ita.generate_body(body, settings)
+
+    output = ""
+    if settings['pretty_print']:
+        output = minidom.parseString(ET.tostring(ita))
+        output = output.toprettyxml(indent='   ')
+    else:
+        output = ET.tostring(ita, encoding='unicode')
+
+    with open(settings['filepath'] + '.ita', 'w') as f:
+        f.write(output)
+
+
 def save(context, settings):
     logger.create_log(settings['filepath'], settings['generate_log'])
     generate_imd(settings)
+    generate_ita(settings)
