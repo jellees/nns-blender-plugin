@@ -8,7 +8,10 @@ settings = None
 
 class NitroSRTData:
     def __init__(self, data):
-        self.data = data
+        if all(elem == data[0] for elem in data):
+            self.data = [data[0]]
+        else:
+            self.data = data
         self.head = 0
 
 
