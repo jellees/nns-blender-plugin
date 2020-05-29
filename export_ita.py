@@ -1,6 +1,7 @@
 import bpy
 from mathutils import Vector
 import xml.etree.ElementTree as ET
+import math
 
 
 settings = None
@@ -32,6 +33,7 @@ class NitroSRTAnmation:
             elif index == 1:
                 self.tex_scale_t = NitroSRTData(data)
         elif type == 'nns_srt_rotate':
+            data = [math.degrees(x) for x in data]
             self.tex_rotate = NitroSRTData(data)
         elif type == 'nns_srt_translate':
             if index == 0:

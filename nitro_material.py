@@ -7,6 +7,7 @@ from bpy.props import (BoolProperty,
                        PointerProperty)
 from bpy.types import Image
 from bpy.app.handlers import persistent
+from math import pi
 
 
 def generate_culling_nodes(material):
@@ -28,6 +29,38 @@ def generate_culling_nodes(material):
     return node_mix_rgb
 
 
+def generate_srt_nodes(material, input):
+    nodes = material.node_tree.nodes
+    links = material.node_tree.links
+
+    node_sub = nodes.new(type='ShaderNodeVectorMath')
+    node_sub.operation = 'SUBTRACT'
+    node_sub.location = (-100,0)
+    node_sub.inputs[1].default_value = (0.5, 0.5, 0.5)
+    
+    node_rt_mapping = nodes.new(type='ShaderNodeMapping')
+    node_rt_mapping.name = 'nns_node_rt'
+    node_rt_mapping.location = (0,0)
+    node_rt_mapping.inputs[3].default_value = (1, 1, 1)
+
+    node_add = nodes.new(type='ShaderNodeVectorMath')
+    node_add.operation = 'ADD'
+    node_add.location = (100,0)
+    node_add.inputs[1].default_value = (0.5, 0.5, 0.5)
+    
+    node_s_mapping = nodes.new(type='ShaderNodeMapping')
+    node_s_mapping.name = 'nns_node_s'
+    node_s_mapping.location = (200,0)
+    node_s_mapping.inputs[3].default_value = (1, 1, 1)
+
+    links.new(input.outputs[0], node_sub.inputs[0])
+    links.new(node_sub.outputs[0], node_rt_mapping.inputs[0])
+    links.new(node_rt_mapping.outputs[0], node_add.inputs[0])
+    links.new(node_add.outputs[0], node_s_mapping.inputs[0])
+
+    return node_s_mapping
+
+
 def generate_image_nodes(material):
     nodes = material.node_tree.nodes
     links = material.node_tree.links
@@ -41,13 +74,8 @@ def generate_image_nodes(material):
         except Exception:
             raise NameError("Cannot load image %s" % path)
 
-    node_sp_xyz = nodes.new(type='ShaderNodeSeparateXYZ')
-
-    # Put in mapping node for srt.
-    node_srt_mapping = nodes.new(type='ShaderNodeMapping')
-    node_srt_mapping.name = 'nns_node_srt'
-    node_srt_mapping.inputs[3].default_value = (1, 1, 1)
-    links.new(node_srt_mapping.outputs[0], node_sp_xyz.inputs[0])
+    # Make this ahead of time. Must always be filled.
+    node_srt = None
 
     if material.nns_tex_gen_mode == "nrm":
         node_geo = nodes.new(type='ShaderNodeNewGeometry')
@@ -58,11 +86,14 @@ def generate_image_nodes(material):
         node_mapping = nodes.new(type='ShaderNodeMapping')
         links.new(node_geo.outputs[1], node_vec_trans.inputs[0])
         links.new(node_vec_trans.outputs[0], node_mapping.inputs[0])
-        links.new(node_mapping.outputs[0], node_srt_mapping.inputs[0])
+        node_srt = generate_srt_nodes(material, node_mapping)
     else:
         node_uvmap = nodes.new(type='ShaderNodeUVMap')
         node_uvmap.uv_map = "UVMap"
-        links.new(node_uvmap.outputs[0], node_srt_mapping.inputs[0])
+        node_srt = generate_srt_nodes(material, node_uvmap)
+    
+    node_sp_xyz = nodes.new(type='ShaderNodeSeparateXYZ')
+    links.new(node_srt.outputs[0], node_sp_xyz.inputs[0])
 
     node_cb_xyz = nodes.new(type='ShaderNodeCombineXYZ')
     links.new(node_sp_xyz.outputs[2], node_cb_xyz.inputs[2])
@@ -428,14 +459,15 @@ def update_nodes_srt(material):
     if material.is_nns:
         if "tx" in material.nns_mat_type:
             try:
-                node_srt = material.node_tree.nodes.get('nns_node_srt')
-                node_srt.inputs[1].default_value = (
-                    material.nns_srt_translate[0],
-                    material.nns_srt_translate[1],
+                node_rt = material.node_tree.nodes.get('nns_node_rt')
+                node_rt.inputs[1].default_value = (
+                    -material.nns_srt_translate[0],
+                    -material.nns_srt_translate[1],
                     0
                 )
-                node_srt.inputs[2].default_value[2] = material.nns_srt_rotate
-                node_srt.inputs[3].default_value = (
+                node_rt.inputs[2].default_value[2] = material.nns_srt_rotate
+                node_s = material.node_tree.nodes.get('nns_node_s')
+                node_s.inputs[3].default_value = (
                     material.nns_srt_scale[0],
                     material.nns_srt_scale[1],
                     0
@@ -706,7 +738,7 @@ def material_register():
     bpy.types.Material.nns_srt_scale = FloatVectorProperty(
         size=2, name="Scale", update=update_nodes_srt_hook, default=(1, 1))
     bpy.types.Material.nns_srt_rotate = FloatProperty(
-        name="Rotate", update=update_nodes_srt_hook)
+        name="Rotate", update=update_nodes_srt_hook, subtype='ANGLE')
 
     print("register handler")
     bpy.app.handlers.frame_change_pre.append(frame_change_handler)
