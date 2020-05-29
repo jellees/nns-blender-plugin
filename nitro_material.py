@@ -7,7 +7,6 @@ from bpy.props import (BoolProperty,
                        PointerProperty)
 from bpy.types import Image
 from bpy.app.handlers import persistent
-from math import pi
 
 
 def generate_culling_nodes(material):
