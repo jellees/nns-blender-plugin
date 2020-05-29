@@ -56,5 +56,7 @@ def generate_ita(settings):
 
 def save(context, settings):
     logger.create_log(settings['filepath'], settings['generate_log'])
-    generate_imd(settings)
-    generate_ita(settings)
+    if settings['imd_export']:
+        generate_imd(settings)
+    if settings['ita_export']:
+        generate_ita(settings)

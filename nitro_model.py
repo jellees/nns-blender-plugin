@@ -990,7 +990,7 @@ class NitroModel():
                     continue
                 primitives.append(Primitive(obj, polygon))
 
-            if settings['use_primitive_strip']:
+            if settings['imd_use_primitive_strip']:
                 quad_stripper = QuadStripper()
                 primitives = quad_stripper.process(primitives)
 
@@ -1041,7 +1041,7 @@ def get_nitro_model(export_settings):
     settings = export_settings
 
     global_matrix = (
-        Matrix.Scale(settings['magnification'], 4) @ axis_conversion(
+        Matrix.Scale(settings['imd_magnification'], 4) @ axis_conversion(
             to_forward='-Z',
             to_up='Y',
         ).to_4x4())
