@@ -9,7 +9,7 @@ from .nitro_material import material_register, material_unregister
 bl_info = {
     "name": "Nitro Intermediate (.imd, .ita)",
     "author": "Jelle Streekstra, Gabriele Mercurio",
-    "version": (0, 0, 2),
+    "version": (0, 0, 3),
     "blender": (2, 80, 0),
     "location": "File > Import-Export",
     "description": "Export Nitro Intermediate files",

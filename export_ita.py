@@ -9,7 +9,11 @@ settings = None
 
 class NitroSRTInfo():
     def __init__(self):
-        self.rotation_tolerance = 0.1
+        self.frame_size = 0
+    
+    def set_frame_size(self, size):
+        if size > self.frame_size:
+            self.frame_size = size
 
 
 class NitroSRTData():
@@ -85,6 +89,7 @@ class NitroSRT():
             data = []
             for i in range(int(action.frame_range[1]+1)):
                 data.append(round(curve.evaluate(i), 6))
+            self.info.set_frame_size(len(data))
             animation = self.find_animation(material_name)
             if curve.data_path == 'nns_srt_scale':
                 result = self.scale_data.add_data(data)
@@ -108,19 +113,22 @@ class NitroSRT():
         return self.animations[-1]
 
 
-def generate_srt_info(ita):
+def generate_srt_info(ita, info):
     tex_srt_info = ET.SubElement(ita, 'tex_srt_info')
-    tex_srt_info.set('frame_size', '60')
-    tex_srt_info.set('tool_start_frame', '1')
-    tex_srt_info.set('tool_end_frame', '60')
+    tex_srt_info.set('frame_size', str(info.frame_size))
+    tex_srt_info.set('tool_start_frame', '0')
+    tex_srt_info.set('tool_end_frame', str(info.frame_size))
     tex_srt_info.set('interpolation', 'frame')
     tex_srt_info.set('tex_matrix_mode', 'maya')
     tex_srt_info.set('compress_material', 'off')
     tex_srt_info.set('material_size', '1 1')
     tex_srt_info.set('frame_step_mode', '1')
-    tex_srt_info.set('tolerance_tex_scale', '0.100000')
-    tex_srt_info.set('tolerance_tex_rotate', '0.100000')
-    tex_srt_info.set('tolerance_tex_translate', '0.010000')
+    scale_tolerance = '{:.6f}'.format(settings['ita_scale_tolerance'])
+    tex_srt_info.set('tolerance_tex_scale', scale_tolerance)
+    rotate_tolerance = '{:.6f}'.format(settings['ita_rotate_tolerance'])
+    tex_srt_info.set('tolerance_tex_rotate', rotate_tolerance)
+    translate_tolerance = '{:.6f}'.format(settings['ita_translate_tolerance'])
+    tex_srt_info.set('tolerance_tex_translate', translate_tolerance)
 
 
 def generate_data(ita, str_data: NitroSRTData):
@@ -155,7 +163,7 @@ def generate_body(ita, export_settings):
     srt = NitroSRT()
     srt.collect()
 
-    generate_srt_info(ita)
+    generate_srt_info(ita, srt.info)
     generate_data(ita, srt.scale_data)
     generate_data(ita, srt.rotate_data)
     generate_data(ita, srt.translate_data)
