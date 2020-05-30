@@ -12,7 +12,7 @@ bl_info = {
     "version": (0, 0, 3),
     "blender": (2, 80, 0),
     "location": "File > Import-Export",
-    "description": "Export Nitro Intermediate files",
+    "description": "Export intermediate files for Nitro system",
     "category": "Import-Export"
 }
 
@@ -22,7 +22,7 @@ class NTR_PT_export_imd(bpy.types.Panel):
 
     bl_space_type = 'FILE_BROWSER'
     bl_region_type = 'TOOL_PROPS'
-    bl_label = "Intermediate Files for Nitro System (.imd, .ita)"
+    bl_label = "Intermediate Model Data (.imd)"
     bl_parent_id = "FILE_PT_operator"
     bl_options = {'DEFAULT_CLOSED'}
 
