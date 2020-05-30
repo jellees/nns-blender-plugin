@@ -7,43 +7,71 @@ import math
 settings = None
 
 
-class NitroSRTData:
-    def __init__(self, data):
-        if all(elem == data[0] for elem in data):
-            self.data = [data[0]]
+class NitroSRTInfo():
+    def __init__(self):
+        self.rotation_tolerance = 0.1
+
+
+class NitroSRTData():
+    def __init__(self, name):
+        self.name = name
+        if name == 'tex_scale_data':
+            self.data = [1.0]
         else:
-            self.data = data
-        self.head = 0
+            self.data = [0.0]
+    
+    def add_data(self, data):
+        """
+        Adds and compresses data. Returns a tuple with head and size.
+        """
+        head = len(self.data)
+        if all(elem == data[0] for elem in data):
+            try:
+                head = self.data.index(data[0])
+            except ValueError:
+                self.data.append(data[0])
+            return (head, 1)
+        else:
+            length = len(data)
+            if self.data[-1] == data[0]:
+                data.pop(0)
+                head = head - 1
+            self.data.extend(data)
+            return (head, length)
 
 
-class NitroSRTAnmation:
+class NitroSRTReference():
+    def __init__(self):
+        self.data_head = 0
+        self.data_size = 1
+        self.frame_step = 1
+
+
+class NitroSRTAnimation():
     def __init__(self, index, material_name):
         self.index = index
         self.material_name = material_name
-        self.tex_scale_s = NitroSRTData([1.0])
-        self.tex_scale_t = NitroSRTData([1.0])
-        self.tex_rotate = NitroSRTData([0.0])
-        self.tex_translate_s = NitroSRTData([0.0])
-        self.tex_translate_t = NitroSRTData([0.0])
+        self.references = {
+            'tex_scale_s': NitroSRTReference(),
+            'tex_scale_t': NitroSRTReference(),
+            'tex_rotate': NitroSRTReference(),
+            'tex_translate_s': NitroSRTReference(),
+            'tex_translate_t': NitroSRTReference()
+        }
     
-    def add_data(self, type, index, data):
-        if type == 'nns_srt_scale':
-            if index == 0:
-                self.tex_scale_s = NitroSRTData(data)
-            elif index == 1:
-                self.tex_scale_t = NitroSRTData(data)
-        elif type == 'nns_srt_rotate':
-            data = [math.degrees(x) for x in data]
-            self.tex_rotate = NitroSRTData(data)
-        elif type == 'nns_srt_translate':
-            if index == 0:
-                self.tex_translate_s = NitroSRTData(data)
-            elif index == 1:
-                self.tex_translate_t = NitroSRTData(data)
+    def set_reference(self, name, head, size, step):
+        reference = self.references[name]
+        reference.data_head = head
+        reference.data_size = size
+        reference.frame_step = step
 
 
-class NitroSRTAnimations:
+class NitroSRT():
     def __init__(self):
+        self.info = NitroSRTInfo()
+        self.scale_data = NitroSRTData('tex_scale_data')
+        self.rotate_data = NitroSRTData('tex_rotate_data')
+        self.translate_data = NitroSRTData('tex_translate_data')
         self.animations = []
     
     def collect(self):
@@ -51,21 +79,32 @@ class NitroSRTAnimations:
             if mat.nns_srt_translate.data.animation_data is not None:
                 action = mat.nns_srt_translate.data.animation_data.action
                 self.process_action(mat.name, action)
-
-    def process_action(self, name, action):
+    
+    def process_action(self, material_name, action):
         for curve in action.fcurves:
             data = []
             for i in range(int(action.frame_range[1]+1)):
                 data.append(round(curve.evaluate(i), 6))
-            animation = self.find_animation(name)
-            animation.add_data(curve.data_path, curve.array_index, data)
-
+            animation = self.find_animation(material_name)
+            if curve.data_path == 'nns_srt_scale':
+                result = self.scale_data.add_data(data)
+                name = 'tex_scale_t' if curve.array_index else 'tex_scale_s'
+                animation.set_reference(name, result[0], result[1], 1)
+            elif curve.data_path == 'nns_srt_rotate':
+                data = [math.degrees(x) for x in data]
+                result = self.rotate_data.add_data(data)
+                animation.set_reference('tex_rotate', result[0], result[1], 1)
+            elif curve.data_path == 'nns_srt_translate':
+                result = self.translate_data.add_data(data)
+                name = 'tex_translate_t' if curve.array_index else 'tex_translate_s'
+                animation.set_reference(name, result[0], result[1], 1)
+    
     def find_animation(self, material_name):
         for animation in self.animations:
             if animation.material_name == material_name:
                 return animation
         index = len(self.animations)
-        self.animations.append(NitroSRTAnmation(index, material_name))
+        self.animations.append(NitroSRTAnimation(index, material_name))
         return self.animations[-1]
 
 
@@ -84,89 +123,40 @@ def generate_srt_info(ita):
     tex_srt_info.set('tolerance_tex_translate', '0.010000')
 
 
-def generate_scale_data(ita, animations):
-    tex_scale_data = ET.SubElement(ita, 'tex_scale_data')
-    tex_scale_data.text = ''
-    size = 0
-    for animation in animations.animations:
-        animation.tex_scale_s.head = size
-        size = size + len(animation.tex_scale_s.data)
-        for point in animation.tex_scale_s.data:
-            point = '{:.6f}'.format(point)
-            tex_scale_data.text = tex_scale_data.text + ' ' + point
-        animation.tex_scale_t.head = size
-        size = size + len(animation.tex_scale_t.data)
-        for point in animation.tex_scale_t.data:
-            point = '{:.6f}'.format(point)
-            tex_scale_data.text = tex_scale_data.text + ' ' + point
-    tex_scale_data.set('size', str(size))
+def generate_data(ita, str_data: NitroSRTData):
+    tex_data = ET.SubElement(ita, str_data.name)
+    tex_data.set('size', str(len(str_data.data)))
+    data_string = ' '.join(['{:.6f}'.format(x) for x in str_data.data])
+    tex_data.text = data_string
 
 
-def generate_rotate_data(ita, animations):
-    tex_rotate_data = ET.SubElement(ita, 'tex_rotate_data')
-    tex_rotate_data.text = ''
-    size = 0
-    for animation in animations.animations:
-        animation.tex_rotate.head = size
-        size = size + len(animation.tex_rotate.data)
-        for point in animation.tex_rotate.data:
-            point = '{:.6f}'.format(point)
-            tex_rotate_data.text = tex_rotate_data.text + ' ' + point
-    tex_rotate_data.set('size', str(size))
-
-
-def generate_translate_data(ita, animations):
-    tex_translate_data = ET.SubElement(ita, 'tex_translate_data')
-    tex_translate_data.text = ''
-    size = 0
-    for animation in animations.animations:
-        animation.tex_translate_s.head = size
-        size = size + len(animation.tex_translate_s.data)
-        for point in animation.tex_translate_s.data:
-            point = '{:.6f}'.format(point)
-            tex_translate_data.text = tex_translate_data.text + ' ' + point
-        animation.tex_translate_t.head = size
-        size = size + len(animation.tex_translate_t.data)
-        for point in animation.tex_translate_t.data:
-            point = '{:.6f}'.format(point)
-            tex_translate_data.text = tex_translate_data.text + ' ' + point
-    tex_translate_data.set('size', str(size))
-
-
-def generate_reference_data(ita, animations):
+def generate_animations(ita, animations):
     tex_srt_anm_array = ET.SubElement(ita, 'tex_srt_anm_array')
-    tex_srt_anm_array.set('size', str(len(animations.animations)))
-    for animation in animations.animations:
+    tex_srt_anm_array.set('size', str(len(animations)))
+    for animation in animations:
         tex_srt_anm = ET.SubElement(tex_srt_anm_array, 'tex_srt_anm')
         tex_srt_anm.set('index', str(animation.index))
         tex_srt_anm.set('material_name', str(animation.material_name))
 
-        generate_reference(tex_srt_anm, 'tex_scale_s', animation.tex_scale_s)
-        generate_reference(tex_srt_anm, 'tex_scale_t', animation.tex_scale_t)
-        generate_reference(tex_srt_anm, 'tex_rotate', animation.tex_rotate)
-        generate_reference(tex_srt_anm, 'tex_translate_s', animation.tex_translate_s)
-        generate_reference(tex_srt_anm, 'tex_translate_t', animation.tex_translate_t)
+        for key, reference in animation.references.items():
+            generate_reference(tex_srt_anm, key, reference)
 
-
-
-def generate_reference(ita, name, data):
+def generate_reference(ita, name, reference):
     ref = ET.SubElement(ita, name)
-    ref.set('frame_step', '1')
-    ref.set('data_size', str(len(data.data)))
-    ref.set('data_head', str(data.head))
-    
-
+    ref.set('frame_step', str(reference.frame_step))
+    ref.set('data_size', str(reference.data_size))
+    ref.set('data_head', str(reference.data_head))
 
 
 def generate_body(ita, export_settings):
     global settings
     settings = export_settings
 
-    animations = NitroSRTAnimations()
-    animations.collect()
+    srt = NitroSRT()
+    srt.collect()
 
     generate_srt_info(ita)
-    generate_scale_data(ita, animations)
-    generate_rotate_data(ita, animations)
-    generate_translate_data(ita, animations)
-    generate_reference_data(ita, animations)
+    generate_data(ita, srt.scale_data)
+    generate_data(ita, srt.rotate_data)
+    generate_data(ita, srt.translate_data)
+    generate_animations(ita, srt.animations)
