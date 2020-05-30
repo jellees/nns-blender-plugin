@@ -16,6 +16,10 @@ Be sure to use nitro tga files for textures. All other formats will be ignored. 
 
 You can preview your material by switching to lookdev mode or rendered mode. This feature aids you in crafting your material but it is not a 100% accurate rendering of what it will look like on the ds. Be sure to have a vertex color layer named "Col" when using vertex colored materials, otherwise your material will be black.
 
+## Exporting texture animation
+
+You can export texture animation by animating the SRT values in the material and then enabling .ita for export.
+
 ## Troubleshooting
 
 ### Material doesn't have transparency (or wrong transparency) in blender
@@ -27,4 +31,4 @@ Under the settings tab of your material, you can choose the blend method. Please
 * Gericom for technical knowledge on NNS and tristripping
 * SGC for suggesting features
 * PK dab for testing the plugin and suggesting features
-* Ridefii for giving examples on how to make a plugin
+* Riidefi for giving examples on how to make a plugin
