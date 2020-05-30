@@ -106,7 +106,7 @@ def generate_image_nodes(material):
     elif material.nns_tex_tiling_u == "clamp":
         node_math_u = nodes.new(type='ShaderNodeMath')
         node_math_u.operation = 'MINIMUM'
-        node_math_u.inputs[1].default_value = 1.0
+        node_math_u.inputs[1].default_value = 0.99
         node_math_u.use_clamp = True
         links.new(node_sp_xyz.outputs[0], node_math_u.inputs[0])
         links.new(node_math_u.outputs[0], node_cb_xyz.inputs[0])
@@ -122,7 +122,7 @@ def generate_image_nodes(material):
     elif material.nns_tex_tiling_v == "clamp":
         node_math_v = nodes.new(type='ShaderNodeMath')
         node_math_v.operation = 'MINIMUM'
-        node_math_v.inputs[1].default_value = 1.0
+        node_math_v.inputs[1].default_value = 0.99
         node_math_v.use_clamp = True
         links.new(node_sp_xyz.outputs[1], node_math_v.inputs[0])
         links.new(node_math_v.outputs[0], node_cb_xyz.inputs[1])
