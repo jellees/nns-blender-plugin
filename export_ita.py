@@ -24,23 +24,43 @@ class NitroSRTData():
         else:
             self.data = [0.0]
     
+    def find_in_data(self, x):
+        l1, l2 = len(self.data), len(x)
+        for i in range(l1):
+            if self.data[i:i+l2] == x:
+                return i
+        return -1
+    
     def add_data(self, data):
         """
         Adds and compresses data. Returns a tuple with head and size.
         """
         head = len(self.data)
         if all(elem == data[0] for elem in data):
+            # This animation consists of one element.
+            # Try to find if the value already exist
+            # otherwise add it.
             try:
                 head = self.data.index(data[0])
             except ValueError:
                 self.data.append(data[0])
             return (head, 1)
         else:
+            # Try to find the pattern in the existing
+            # data first.
             length = len(data)
-            if self.data[-1] == data[0]:
-                data.pop(0)
-                head = head - 1
-            self.data.extend(data)
+            index = self.find_in_data(data)
+            if index != -1:
+                # Found the pattern, index is now the head.
+                head = index
+            else:
+                # Didn't find anything, try checking if the
+                # last inserted value is equal to the first
+                # value in the data.
+                if self.data[-1] == data[0]:
+                    data.pop(0)
+                    head = head - 1
+                self.data.extend(data)
             return (head, length)
 
 
