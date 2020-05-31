@@ -253,7 +253,7 @@ class NitroModelMtxPrim():
         if index not in self.mtx_list:
             self.mtx_list.append(index)
     
-    def add_primitive(self, obj, prim: Primitive, material):
+    def add_primitive(self, model, obj, prim: Primitive, material):
         if prim.type == 'triangles':
             primitive = self.get_primitive('triangles')
             primitive.sort_key = 3
@@ -543,7 +543,7 @@ class NitroModel():
             matrix = self.find_matrix(0)
             mtx_prim.add_matrix_reference(matrix.index)
             logger.log(f"Add primitive. {primitive.type}")
-            mtx_prim.add_primitive(obj, primitive, material)
+            mtx_prim.add_primitive(self, obj, primitive, material)
         
         for polygon, material in poly_mats:
             display = node.find_display(material.index)
@@ -558,7 +558,7 @@ class NitroModel():
         for texture in self.textures:
             if texture.path == path:
                 return texture
-        self.textures.append(NitroModelTexture(path, len(self.textures)))
+        self.textures.append(NitroModelTexture(self, path, len(self.textures)))
         return self.textures[-1]
 
     def find_material(self, blender_index):
