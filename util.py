@@ -1,4 +1,93 @@
+import bpy
 from mathutils import Vector
+
+
+def is_pos_s(vecfx32):
+    return (
+        (vecfx32.x & 0x3F) == 0 and
+        (vecfx32.y & 0x3F) == 0 and
+        (vecfx32.z & 0x3F) == 0
+    )
+
+
+def is_pos_diff(diff):
+    # 512 is 0.125 in FX32
+    return (
+        abs(diff.x) < 512 and
+        abs(diff.y) < 512 and
+        abs(diff.z) < 512
+    )
+
+
+def calculate_pos_scale(max_coord):
+    m = float_to_fx32(max_coord)
+    pos_scale = 0
+    while m >= 0x8000:
+        pos_scale += 1
+        m >>= 1
+    return pos_scale
+
+
+def get_object_max_min(global_matrix, obj):
+    matrix = global_matrix @ obj.matrix_world
+    bounds = [matrix @ Vector(v) for v in obj.bound_box]
+    return {
+        'min': bounds[0],
+        'max': bounds[6]
+    }
+
+
+def get_all_max_min(global_matrix):
+    min_p = Vector([float('inf'), float('inf'), float('inf')])
+    max_p = Vector([-float('inf'), -float('inf'), -float('inf')])
+    for obj in bpy.data.objects:
+        if obj.type != 'MESH':
+            continue
+        max_min = get_object_max_min(global_matrix, obj)
+        # Max
+        max_p.x = max(max_p.x, max_min['max'].x)
+        max_p.x = max(max_p.x, max_min['min'].x)
+        max_p.y = max(max_p.y, max_min['max'].y)
+        max_p.y = max(max_p.y, max_min['min'].y)
+        max_p.z = max(max_p.z, max_min['max'].z)
+        max_p.z = max(max_p.z, max_min['min'].z)
+        # Min
+        min_p.x = min(min_p.x, max_min['min'].x)
+        min_p.x = min(min_p.x, max_min['max'].x)
+        min_p.y = min(min_p.y, max_min['min'].y)
+        min_p.y = min(min_p.y, max_min['max'].y)
+        min_p.z = min(min_p.z, max_min['min'].z)
+        min_p.z = min(min_p.z, max_min['max'].z)
+
+    return {
+        'min': min_p,
+        'max': max_p
+    }
+
+
+def get_global_mat_index(obj, index):
+    if len(obj.material_slots) <= index:
+        # If an object doesn't have (enough) material slots, the polygon
+        # with the requested index shouldn't be converted.
+        return -1
+    if obj.material_slots[index].material is None:
+        # Material doesn't have any material in the slot.
+        return -1
+    name = obj.material_slots[index].material.name
+    return bpy.data.materials.find(name)
+
+
+def lin2s(x):
+        """
+        Le color correction function. From some guy on blender stackexchange.
+        http://entropymine.com/imageworsener/srgbformula/
+        """
+        a = 0.055
+        if x <= 0.0031308:
+            y = x * 12.92
+        elif 0.0031308 < x <= 1:
+            y = 1.055 * x ** (1 / 2.4) - 0.055
+        return y
 
 
 def float_to_fx32(value):

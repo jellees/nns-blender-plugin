@@ -15,6 +15,7 @@ def create_log(filepath, can_log):
 
 def log(text):
     global _logger_filepath, _can_log
+    print(text)
     if _can_log:
         f = open(_logger_filepath, 'a+')
         f.write(text + '\n')
