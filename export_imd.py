@@ -192,7 +192,7 @@ def generate_nodes(imd, model: NitroModel):
         node_t.set('brother_next', str(node.brother_next))
         node_t.set('brother_prev', str(node.brother_prev))
         node_t.set('draw_mtx', 'on' if node.draw_mtx else 'off')
-        node_t.set('billboard', 'on' if node.billboard else 'off')
+        node_t.set('billboard', node.billboard)
         node_t.set('scale', '1.000000 1.000000 1.000000')
         node_t.set('rotate', '0.000000 0.000000 0.000000')
         node_t.set('translate', '0.000000 0.000000 0.000000')

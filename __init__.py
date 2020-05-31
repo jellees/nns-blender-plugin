@@ -4,6 +4,7 @@ from bpy.props import (BoolProperty,
                        StringProperty)
 from bpy_extras.io_utils import ExportHelper
 from .nitro_material import material_register, material_unregister
+from .nns_object import object_register, object_unregister
 
 
 bl_info = {
@@ -124,6 +125,7 @@ def register():
     bpy.utils.register_class(NTR_PT_export_imd)
     bpy.utils.register_class(NTR_PT_export_ita)
     material_register()
+    object_register()
 
     bpy.types.TOPBAR_MT_file_export.append(menu_func_export)
 
@@ -133,6 +135,7 @@ def unregister():
     bpy.utils.unregister_class(NTR_PT_export_imd)
     bpy.utils.unregister_class(NTR_PT_export_ita)
     material_unregister()
+    object_unregister()
 
     bpy.types.TOPBAR_MT_file_export.remove(menu_func_export)
 

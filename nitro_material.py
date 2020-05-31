@@ -739,7 +739,7 @@ def material_register():
     bpy.types.Material.nns_srt_rotate = FloatProperty(
         name="Rotate", update=update_nodes_srt_hook, subtype='ANGLE')
 
-    print("register handler")
+    print("Register frame handler")
     bpy.app.handlers.frame_change_pre.append(frame_change_handler)
 
     bpy.utils.register_class(CreateNNSMaterial)

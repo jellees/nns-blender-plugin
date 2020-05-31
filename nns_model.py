@@ -171,10 +171,10 @@ class NitroModelMaterial():
 
 
 class NitroModelMatrix():
-    def __init__(self, index):
+    def __init__(self, index, node_idx):
         self.index = index
         self.weight = 1
-        self.node_idx = 0
+        self.node_idx = node_idx
 
 
 class NitroModelCommand():
@@ -396,7 +396,7 @@ class NitroModelNode():
         self.brother_next = -1
         self.brother_prev = -1
         self.draw_mtx = False
-        self.billboard = False
+        self.billboard = 'off'
         self.scale = (1, 1, 1)
         self.rotate = (0, 0, 0)
         self.translate = (0, 0, 0)
@@ -492,6 +492,7 @@ class NitroModel():
             elif obj.type == 'MESH':
                 node = self.find_node(obj.name)
                 node.kind = 'mesh'
+                node.billboard = obj.nns_billboard
                 self.process_mesh(node, obj)
                 children = self.process_children(node, obj.children)
                 if children:
@@ -538,10 +539,16 @@ class NitroModel():
             polygon = self.find_polygon(polygon_name)
             poly_mats.append((polygon, material))
             mtx_prim = polygon.find_mtx_prim(0)
-            # This is stupid and it should change.
-            # Perhaps a matrix should be found based on the node index?
-            matrix = self.find_matrix(0)
+
+            # For now do this here. If this node is a billboard
+            # make a matrix for this node, otherwise just use the
+            # matrix of the root node.
+            if node.billboard != 'off':
+                matrix = self.find_matrix(node.index)
+            else:
+                matrix = self.find_matrix(0)
             mtx_prim.add_matrix_reference(matrix.index)
+ 
             logger.log(f"Add primitive. {primitive.type}")
             mtx_prim.add_primitive(self, obj, primitive, material)
         
@@ -569,12 +576,12 @@ class NitroModel():
         self.materials.append(NitroModelMaterial(self, blender_index, index))
         return self.materials[-1]
 
-    def find_matrix(self, index):
+    def find_matrix(self, node_idx):
         for matrix in self.matrices:
-            if matrix.index == index:
+            if matrix.node_idx == node_idx:
                 return matrix
         index = len(self.matrices)
-        self.matrices.append(NitroModelMatrix(index))
+        self.matrices.append(NitroModelMatrix(index, node_idx))
         return self.matrices[-1]
 
     def find_polygon(self, name):
