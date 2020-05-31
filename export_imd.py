@@ -20,7 +20,7 @@ def generate_model_info(imd, model):
     model_info.set('magnify', magnification)
     model_info.set('tool_start_frame', '1')
     model_info.set('tex_matrix_mode', 'maya')
-    model_info.set('compress_node', 'unite_combine')
+    model_info.set('compress_node', 'none')
     nodes_len = str(len(model.nodes))
     model_info.set('node_size', nodes_len + ' ' + nodes_len)
     model_info.set('compress_material', 'off')
