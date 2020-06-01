@@ -372,9 +372,7 @@ class Primitive():
         self.material_index = get_global_mat_index(
             obj, polygon.material_index)
 
-        verts_local = [v.co for v in obj.data.vertices.values()]
-        matrix = global_matrix @ obj.matrix_world
-        verts_world = [matrix @ v_local for v_local in verts_local]
+        vertices = [global_matrix @ v.co for v in obj.data.vertices.values()]
 
         if len(polygon.loop_indices) == 3:
             self.type = 'triangles'
@@ -391,7 +389,7 @@ class Primitive():
         for idx in polygon.loop_indices:
             # Get vertex and convert it to VecFx32.
             vertex_index = obj.data.loops[idx].vertex_index
-            vecfx32 = VecFx32().from_floats(verts_world[vertex_index])
+            vecfx32 = VecFx32().from_floats(vertices[vertex_index])
 
             # Apply pos_scale.
             self.positions.append(vecfx32 >> pos_scale)
@@ -407,7 +405,7 @@ class Primitive():
                 self.colors.append((0, 0, 0))
 
             # Normal
-            normal = matrix @ obj.data.loops[idx].normal
+            normal = global_matrix @ obj.data.loops[idx].normal
             self.normals.append(vector_to_vecfx10(normal.normalized()))
 
             # Texture coordinates
