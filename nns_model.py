@@ -482,9 +482,31 @@ class NitroModel():
         """
         brothers = []
         for obj in objs:
-            if obj.type == 'EMPTY' or obj.type == 'ARMATURE':
+            if obj.type == 'EMPTY':
                 node = self.find_node(obj.name)
                 children = self.process_children(node, obj.children)
+                if children:
+                    node.child = children[0].index
+                node.parent = parent.index
+                brothers.append(node)
+            elif obj.type == 'ARMATURE':
+                node = self.find_node(obj.name)
+                # Process bones.
+                root_bones = []
+                if obj.data.bones:
+                    for bone in obj.data.bones:
+                        if bone.parent is None:
+                            root_bones.append(bone)
+                bones = self.process_bones(node, root_bones)
+                # Process children.
+                children = self.process_children(node, obj.children)
+                if bones:
+                    if children:
+                        bones[-1].brother_next = children[0].index
+                        children[0].brother_prev = bones[-1].index
+                        children = bones + children
+                    else:
+                        children.extend(bones)
                 if children:
                     node.child = children[0].index
                 node.parent = parent.index
@@ -507,6 +529,27 @@ class NitroModel():
                 brother.brother_next = brothers[index + 1].index
         return brothers
     
+    def process_bones(self, parent, bones):
+        brothers = []
+        for bone in bones:
+            node = self.find_node(bone.name)
+            node.kind = 'joint'
+            # Make matrix for node.
+            self.find_matrix(node.index)
+            children = self.process_bones(node, bone.children)
+            if children:
+                node.child = children[0].index
+            node.parent = parent.index
+            brothers.append(node)
+        length = len(brothers)
+        for index, brother in enumerate(brothers):
+            if index > 0:
+                brother.brother_prev = brothers[index - 1].index
+            if index < (length - 1):
+                brother.brother_next = brothers[index + 1].index
+        return brothers
+
+
     def process_mesh(self, node, obj):
         primitives = []
         for polygon in obj.data.polygons:
