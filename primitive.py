@@ -351,6 +351,7 @@ class Primitive():
             self.normals = []
             self.colors = []
             self.texcoords = []
+            self.groups = []
             self.processed = False
             self.next_candidate_count = 0
             # An array of indexes.
@@ -364,6 +365,9 @@ class Primitive():
         self.normals = []
         self.colors = []
         self.texcoords = []
+        # The group this vertex belongs to.
+        # This is not important for stripping.
+        self.groups = []
         self.processed = False
         self.next_candidate_count = 0
         # An array of indexes.
@@ -372,7 +376,7 @@ class Primitive():
         self.material_index = get_global_mat_index(
             obj, polygon.material_index)
 
-        vertices = [global_matrix @ v.co for v in obj.data.vertices.values()]
+        vertices = [v.co for v in obj.data.vertices.values()]
 
         if len(polygon.loop_indices) == 3:
             self.type = 'triangles'
@@ -394,6 +398,13 @@ class Primitive():
             # Apply pos_scale.
             self.positions.append(vecfx32 >> pos_scale)
 
+            # Store group.
+            groups = obj.data.vertices[vertex_index].groups
+            if groups:
+                self.groups.append(groups[0].group)
+            else:
+                self.groups.append(-1)
+
             # Color
             if use_colors:
                 color = obj.data.vertex_colors[0].data[idx].color
@@ -405,7 +416,7 @@ class Primitive():
                 self.colors.append((0, 0, 0))
 
             # Normal
-            normal = global_matrix @ obj.data.loops[idx].normal
+            normal = obj.data.loops[idx].normal
             self.normals.append(vector_to_vecfx10(normal.normalized()))
 
             # Texture coordinates
@@ -427,6 +438,7 @@ class Primitive():
         self.colors.append(src.colors[idx])
         self.normals.append(src.normals[idx])
         self.texcoords.append(src.texcoords[idx])
+        self.groups.append(src.groups[idx])
 
     def is_extra_data_equal(self, a, other, b):
         return (

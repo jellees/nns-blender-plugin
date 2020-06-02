@@ -1,5 +1,41 @@
 import bpy
-from mathutils import Vector
+from mathutils import Vector, Matrix
+
+
+def matToTuple (matrix):
+    output = []
+    for index in range(4):
+        output += list(matrix[index])
+    return tuple(output)
+
+
+def get_default_bone_inverse():
+    voodooMat    = Matrix()
+    voodooMat[0] = (1, 0, 0, 0)
+    voodooMat[1] = (0, 0, 1, 0)
+    voodooMat[2] = (0,-1, 0, 0)
+    voodooMat[3] = (0, 0, 0, 1)
+    voodooMat.invert()
+    return voodooMat
+
+
+def get_fixed_bone_matrix(bone):
+    voodooMat    = Matrix()
+    voodooMat[0] = (1, 0, 0, 0)
+    voodooMat[1] = (0, 0, 1, 0)
+    voodooMat[2] = (0,-1, 0, 0)
+    voodooMat[3] = (0, 0, 0, 1)
+    # Undo strange default rotation of bone by multiplying
+    # the bone times the inverse of the voodoo.
+    # mtx = matToTuple(bone.matrix_local.copy() @ voodooMat.inverted())
+    mtx = bone.matrix_local.copy() @ voodooMat.inverted()
+
+    # Add parent bone tail
+    if bone.parent:
+        mtx[3][0] += bone.parent.tail[0]
+        mtx[3][1] += bone.parent.tail[1]
+        mtx[3][2] += bone.parent.tail[2]
+    return mtx
 
 
 def is_pos_s(vecfx32):

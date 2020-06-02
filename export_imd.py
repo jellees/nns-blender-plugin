@@ -1,4 +1,5 @@
 import bpy
+import math
 from mathutils import Vector, Matrix
 from bpy_extras.io_utils import axis_conversion
 import xml.etree.ElementTree as ET
@@ -193,9 +194,12 @@ def generate_nodes(imd, model: NitroModel):
         node_t.set('brother_prev', str(node.brother_prev))
         node_t.set('draw_mtx', 'on' if node.draw_mtx else 'off')
         node_t.set('billboard', node.billboard)
-        node_t.set('scale', '1.000000 1.000000 1.000000')
-        node_t.set('rotate', '0.000000 0.000000 0.000000')
-        node_t.set('translate', '0.000000 0.000000 0.000000')
+        scale = ' '.join([str(round(x, 6)) for x in node.scale])
+        node_t.set('scale', scale)
+        rotate = ' '.join([str(round(math.degrees(x), 6)) for x in node.rotate])
+        node_t.set('rotate', rotate)
+        translate = ' '.join([str(round(x, 6)) for x in node.translate])
+        node_t.set('translate', translate)
         node_t.set('visibility',  'on' if node.visibility else 'off')
 
         node_t.set('display_size', str(len(node.displays)))

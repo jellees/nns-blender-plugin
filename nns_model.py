@@ -1,4 +1,5 @@
 import os
+from mathutils import Matrix
 import bpy
 from bpy_extras import node_shader_utils
 from .util import *
@@ -171,10 +172,11 @@ class NitroModelMaterial():
 
 
 class NitroModelMatrix():
-    def __init__(self, index, node_idx):
+    def __init__(self, index, node_idx, transform):
         self.index = index
         self.weight = 1
         self.node_idx = node_idx
+        self.transform = transform
 
 
 class NitroModelCommand():
@@ -192,6 +194,7 @@ class NitroModelPrimitive():
         self.quad_size = 0
         self.commands = []
         self._previous_vecfx32 = None
+        self._previous_mtx = -1
         # for after sort
         # quad_strip=0 triangle_strip=1 quads=2 triangles=3
         self.sort_key = 0
@@ -252,6 +255,7 @@ class NitroModelMtxPrim():
     def add_matrix_reference(self, index):
         if index not in self.mtx_list:
             self.mtx_list.append(index)
+        return self.mtx_list.index(index)
     
     def add_primitive(self, model, obj, prim: Primitive, material):
         if prim.type == 'triangles':
@@ -294,6 +298,7 @@ class NitroModelMtxPrim():
             # Normal
             if self.use_normals:
                 normal = prim.normals[idx].to_vector()
+                normal = (model.global_matrix @ normal).normalized()
                 primitive.add_command('nrm', 'xyz',
                                       f'{normal.x} {normal.y} {normal.z}')
 
@@ -305,9 +310,27 @@ class NitroModelMtxPrim():
                 t = uv.y * -tex.height + tex.height
                 primitive.add_command('tex', 'st', f'{s} {t}')
 
-            # Apply pos_scale.
-            scaled_vecfx32 = prim.positions[idx]
-            scaled_vec = scaled_vecfx32.to_vector()
+            # Find transform.
+            group = prim.groups[idx]
+            matrix = None
+            if group != -1:
+                name = obj.vertex_groups[group].name
+                matrix = model.find_matrix_by_node_name(name)
+            
+            # Add mtx command.
+            if matrix is not None and primitive._previous_mtx != matrix.index:
+                index = self.add_matrix_reference(matrix.index)
+                primitive.add_mtx(index)
+                primitive._previous_mtx = matrix.index
+
+            # Recalculate vertex.
+            scaled_vec = prim.positions[idx].to_vector()
+
+            if matrix:
+                scaled_vec = matrix.transform.inverted() @ scaled_vec
+            scaled_vec = model.global_matrix @ scaled_vec
+
+            scaled_vecfx32 = VecFx32().from_vector(scaled_vec)
 
             # Calculate difference from previous vertex.
             if not primitive.is_empty():
@@ -406,6 +429,7 @@ class NitroModelNode():
         self.polygon_size = 0
         self.triangle_size = 0
         self.quad_size = 0
+        self.transform = None
     
     def collect_statistics(self, model):
         for display in self.displays:
@@ -455,7 +479,7 @@ class NitroModel():
         self.settings = settings
     
     def collect(self):
-        root = self.find_node('root')
+        root = self.find_node('root_scene')
         root_objects = []
         for obj in bpy.context.view_layer.objects:
             if obj.parent:
@@ -470,7 +494,7 @@ class NitroModel():
             polygon.collect_statistics()
             for mtx_prim in polygon.mtx_prims:
                 mtx_prim.primitives.sort(key=lambda x: x.sort_key)
-                mtx_prim.set_initial_mtx()
+                # mtx_prim.set_initial_mtx()
         for node in self.nodes:
             node.collect_statistics(self)
         self.output_info.collect(self)
@@ -481,16 +505,20 @@ class NitroModel():
         This will make a node for every object it will find.
         """
         brothers = []
+
         for obj in objs:
             if obj.type == 'EMPTY':
                 node = self.find_node(obj.name)
+                node.transform = obj.matrix_basis
                 children = self.process_children(node, obj.children)
                 if children:
                     node.child = children[0].index
                 node.parent = parent.index
                 brothers.append(node)
+
             elif obj.type == 'ARMATURE':
                 node = self.find_node(obj.name)
+                node.transform = obj.matrix_basis
                 # Process bones.
                 root_bones = []
                 if obj.data.bones:
@@ -511,8 +539,10 @@ class NitroModel():
                     node.child = children[0].index
                 node.parent = parent.index
                 brothers.append(node)
+
             elif obj.type == 'MESH':
                 node = self.find_node(obj.name)
+                node.transform = obj.matrix_basis
                 node.kind = 'mesh'
                 node.billboard = obj.nns_billboard
                 self.process_mesh(node, obj)
@@ -521,32 +551,61 @@ class NitroModel():
                     node.child = children[0].index
                 node.parent = parent.index
                 brothers.append(node)
+
         length = len(brothers)
+
         for index, brother in enumerate(brothers):
             if index > 0:
                 brother.brother_prev = brothers[index - 1].index
             if index < (length - 1):
                 brother.brother_next = brothers[index + 1].index
+
         return brothers
     
     def process_bones(self, parent, bones):
         brothers = []
+
         for bone in bones:
             node = self.find_node(bone.name)
             node.kind = 'joint'
+
             # Make matrix for node.
-            self.find_matrix(node.index)
+            transform = bone.matrix_local
+            inverse = get_default_bone_inverse()
+            transform = transform @ inverse
+            # transform = bone.matrix_local
+            if bone.parent:
+                parent_transform = bone.parent.matrix_local @ inverse
+                transform = transform @ parent_transform.inverted()
+                # transform = transform @ get_fixed_bone_matrix(bone.parent).inverted()
+                # bone_translation = Matrix.Translation(Vector((0, bone.parent.length, 0)) + bone.head)
+                # transform = bone.parent.matrix_local @ bone_translation @ bone.matrix.to_4x4()
+            # else:
+            #     transform = transform @ transform.inverted()
+            self.find_matrix(node.index, transform.copy())
+
+            # Translate bone.
+            transform = self.global_matrix @ transform
+            trans, rot, scale = transform.decompose()
+            node.translate = trans
+            node.rotate = rot.to_euler()
+
+            # Get children.
             children = self.process_bones(node, bone.children)
             if children:
                 node.child = children[0].index
             node.parent = parent.index
+
             brothers.append(node)
+
         length = len(brothers)
+
         for index, brother in enumerate(brothers):
             if index > 0:
                 brother.brother_prev = brothers[index - 1].index
             if index < (length - 1):
                 brother.brother_next = brothers[index + 1].index
+
         return brothers
 
 
@@ -586,11 +645,11 @@ class NitroModel():
             # For now do this here. If this node is a billboard
             # make a matrix for this node, otherwise just use the
             # matrix of the root node.
-            if node.billboard != 'off':
-                matrix = self.find_matrix(node.index)
-            else:
-                matrix = self.find_matrix(0)
-            mtx_prim.add_matrix_reference(matrix.index)
+            # if node.billboard != 'off':
+            #     matrix = self.find_matrix(node.index)
+            # else:
+            #     matrix = self.find_matrix(0)
+            # mtx_prim.add_matrix_reference(matrix.index)
  
             logger.log(f"Add primitive. {primitive.type}")
             mtx_prim.add_primitive(self, obj, primitive, material)
@@ -619,13 +678,20 @@ class NitroModel():
         self.materials.append(NitroModelMaterial(self, blender_index, index))
         return self.materials[-1]
 
-    def find_matrix(self, node_idx):
+    def find_matrix(self, node_idx, matrix_):
         for matrix in self.matrices:
             if matrix.node_idx == node_idx:
                 return matrix
         index = len(self.matrices)
-        self.matrices.append(NitroModelMatrix(index, node_idx))
+        self.matrices.append(NitroModelMatrix(index, node_idx, matrix_))
         return self.matrices[-1]
+
+    def find_matrix_by_node_name(self, name):
+        node = self.find_node(name)
+        for matrix in self.matrices:
+            if matrix.node_idx == node.index:
+                return matrix
+        return None
 
     def find_polygon(self, name):
         for polygon in self.polygons:
@@ -638,7 +704,7 @@ class NitroModel():
     def find_node(self, name):
         for node in self.nodes:
             if node.name == name:
-                return display
+                return node
         index = len(self.nodes)
         self.nodes.append(NitroModelNode(index, name))
         return self.nodes[-1]
