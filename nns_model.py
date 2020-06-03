@@ -246,13 +246,11 @@ class NitroModelPrimitive():
 
 
 class NitroModelMtxPrim():
-    def __init__(self, index):
+    def __init__(self, index, parent_polygon):
         self.index = index
-        self.use_normals = False
-        self.use_colors = False
-        self.use_texcoords = False
         self.mtx_list = []
         self.primitives = []
+        self.parent_polygon = parent_polygon
 
     def add_matrix_reference(self, index):
         if index not in self.mtx_list:
@@ -278,40 +276,20 @@ class NitroModelMtxPrim():
             primitive.quad_size += int((prim.vertex_count - 2) / 2)
 
         if len(obj.data.vertex_colors) > 0 and "vc" in material.type:
-            self.use_colors = True
+            self.parent_polygon.use_clr = True
 
         if material.image_idx != -1 and "tx" in material.type and \
                 material.tex_gen_mode != "nrm":
-            self.use_texcoords = True
+            self.parent_polygon.use_tex = True
 
         if ((material.light0 == 'on' or
             material.light1 == 'on' or
             material.light2 == 'on' or
             material.light3 == 'on') and "nr" in material.type) or \
                 material.tex_gen_mode == "nrm":
-            self.use_normals = True
+            self.parent_polygon.use_nrm = True
 
         for idx in range(len(prim.positions)):
-            # Color
-            if self.use_colors:
-                r, g, b = prim.colors[idx]
-                primitive.add_command('clr', 'rgb', f'{r} {g} {b}')
-
-            # Normal
-            if self.use_normals:
-                normal = prim.normals[idx].to_vector()
-                normal = (model.global_matrix @ normal).normalized()
-                primitive.add_command('nrm', 'xyz',
-                                      f'{normal.x} {normal.y} {normal.z}')
-
-            # Texture coordinate.
-            if self.use_texcoords:
-                tex = model.textures[material.image_idx]
-                uv = prim.texcoords[idx].to_vector()
-                s = uv.x * tex.width
-                t = uv.y * -tex.height + tex.height
-                primitive.add_command('tex', 'st', f'{s} {t}')
-
             # Find transform.
             group = prim.groups[idx]
             matrix = None
@@ -324,6 +302,26 @@ class NitroModelMtxPrim():
                 index = self.add_matrix_reference(matrix.index)
                 primitive.add_mtx(index)
                 primitive._previous_mtx = matrix.index
+
+            # Color
+            if self.parent_polygon.use_clr:
+                r, g, b = prim.colors[idx]
+                primitive.add_command('clr', 'rgb', f'{r} {g} {b}')
+
+            # Normal
+            if self.parent_polygon.use_nrm:
+                normal = prim.normals[idx].to_vector()
+                # normal.normalize()
+                primitive.add_command('nrm', 'xyz',
+                                      f'{normal.x} {normal.y} {normal.z}')
+
+            # Texture coordinate.
+            if self.parent_polygon.use_tex:
+                tex = model.textures[material.image_idx]
+                uv = prim.texcoords[idx].to_vector()
+                s = uv.x * tex.width
+                t = uv.y * -tex.height + tex.height
+                primitive.add_command('tex', 'st', f'{s} {t}')
 
             # Recalculate vertex.
             scaled_vec = prim.positions[idx].to_vector()
@@ -392,7 +390,7 @@ class NitroModelPolygon():
             if prim.index == index:
                 return prim
         index = len(self.mtx_prims)
-        self.mtx_prims.append(NitroModelMtxPrim(index))
+        self.mtx_prims.append(NitroModelMtxPrim(index, self))
         return self.mtx_prims[-1]
     
     def collect_statistics(self):
@@ -611,9 +609,10 @@ class NitroModel():
 
         return brothers
 
-
     def process_mesh(self, node, obj):
         primitives = []
+
+        obj.data.calc_normals_split()
     
         for polygon in obj.data.polygons:
             if len(polygon.loop_indices) > 4:
