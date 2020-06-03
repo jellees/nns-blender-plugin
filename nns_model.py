@@ -488,7 +488,7 @@ class NitroModel():
         for obj in bpy.context.view_layer.objects:
             if obj.parent:
                 continue
-            if obj.type == 'EMPTY' or obj.type == 'ARMATURE' or obj.type == 'MESH':
+            if obj.type in ['EMPTY', 'ARMATURE', 'MESH']:
                 root_objects.append(obj)
         children = self.process_children(root, root_objects)
         root.child = children[0].index
@@ -498,7 +498,6 @@ class NitroModel():
             polygon.collect_statistics()
             for mtx_prim in polygon.mtx_prims:
                 mtx_prim.primitives.sort(key=lambda x: x.sort_key)
-                # mtx_prim.set_initial_mtx()
         for node in self.nodes:
             node.collect_statistics(self)
         self.output_info.collect(self)
@@ -627,10 +626,10 @@ class NitroModel():
             if index == -1:
                 logger.log("Polygon doesn't have material. Skipped.")
                 continue
-            # ADD pos_scale
+            
+            # Add polygon to the list of primitives.
             pos_scale = self.info.pos_scale
-            primitives.append(Primitive(
-                self.global_matrix, pos_scale, obj, polygon))
+            primitives.append(Primitive(pos_scale, obj, polygon))
 
         if self.settings['imd_use_primitive_strip']:
             quad_stripper = QuadStripper()
@@ -639,26 +638,22 @@ class NitroModel():
             tri_stripper = TriStripper()
             primitives = tri_stripper.process(primitives)
         
+        # A list of polygons and materials.
         poly_mats = []
+
+        # Make materials and polygons and add the primitives to their
+        # respective mtx_prim elements.
         for primitive in primitives:
             material = self.find_material(primitive.material_index)
             polygon_name = obj.name + '_' + str(material.index)
             polygon = self.find_polygon(polygon_name)
             poly_mats.append((polygon, material))
             mtx_prim = polygon.find_mtx_prim(0)
-
-            # For now do this here. If this node is a billboard
-            # make a matrix for this node, otherwise just use the
-            # matrix of the root node.
-            # if node.billboard != 'off':
-            #     matrix = self.find_matrix(node.index)
-            # else:
-            #     matrix = self.find_matrix(0)
-            # mtx_prim.add_matrix_reference(matrix.index)
- 
             logger.log(f"Add primitive. {primitive.type}")
             mtx_prim.add_primitive(self, obj, primitive, material)
         
+        # Hook up each polygon to the proper display depending on
+        # material index.
         for polygon, material in poly_mats:
             display = node.find_display(material.index)
             display.polygon = polygon.index
