@@ -296,6 +296,8 @@ class NitroModelMtxPrim():
             if group != -1:
                 name = obj.vertex_groups[group].name
                 matrix = model.find_matrix_by_node_name(name)
+            else:
+                matrix = model.find_matrix_by_node_name(obj.name)
             
             # Add mtx command.
             if matrix is not None and primitive._previous_mtx != matrix.index:
@@ -326,7 +328,8 @@ class NitroModelMtxPrim():
             # Recalculate vertex.
             scaled_vec = prim.positions[idx].to_vector()
 
-            if matrix:
+            # If group one is > 0, that means this vertex belongs to a bone.
+            if group != -1:
                 scaled_vec = matrix.transform.inverted() @ scaled_vec
                 scaled_vec = scaled_vec * model.settings['imd_magnification']
             else:
@@ -518,6 +521,7 @@ class NitroModel():
             euler = transform.to_euler('XYZ')
             node.rotate = [decimal.Decimal(math.degrees(e)) for e in euler]
             node.translate = transform.to_translation()
+            node.scale = obj.matrix_basis.to_scale()
             
             node.transform = obj.matrix_basis.copy()
 
@@ -690,7 +694,7 @@ class NitroModel():
         for matrix in self.matrices:
             if matrix.node_idx == node.index:
                 return matrix
-        return None
+        return self.find_matrix(node.index, Matrix.Identity(4))
 
     def find_polygon(self, name):
         for polygon in self.polygons:
