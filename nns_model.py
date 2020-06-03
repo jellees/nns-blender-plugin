@@ -1,4 +1,6 @@
 import os
+import math
+import decimal
 from mathutils import Matrix
 import bpy
 from bpy_extras import node_shader_utils
@@ -213,32 +215,32 @@ class NitroModelPrimitive():
         self.add_command('mtx', 'idx', str(idx))
 
     def add_pos_xyz(self, vec: Vector):
-        floats = [str(v) for v in vec]
+        floats = [str(round(v, 6)) for v in vec]
         self.add_command('pos_xyz', 'xyz', ' '.join(floats))
         self.vertex_size += 1
 
     def add_pos_s(self, vec: Vector):
-        floats = [str(v) for v in vec]
+        floats = [str(round(v, 6)) for v in vec]
         self.add_command('pos_s', 'xyz', ' '.join(floats))
         self.vertex_size += 1
 
     def add_pos_diff(self, vec: Vector):
-        floats = [str(v) for v in vec]
+        floats = [str(round(v, 6)) for v in vec]
         self.add_command('pos_diff', 'xyz', ' '.join(floats))
         self.vertex_size += 1
 
     def add_pos_yz(self, vec: Vector):
-        floats = [str(v) for v in [vec.y, vec.z]]
+        floats = [str(round(v, 6)) for v in [vec.y, vec.z]]
         self.add_command('pos_yz', 'yz', ' '.join(floats))
         self.vertex_size += 1
 
     def add_pos_xz(self, vec: Vector):
-        floats = [str(v) for v in [vec.x, vec.z]]
+        floats = [str(round(v, 6)) for v in [vec.x, vec.z]]
         self.add_command('pos_xz', 'xz', ' '.join(floats))
         self.vertex_size += 1
 
     def add_pos_xy(self, vec: Vector):
-        floats = [str(v) for v in [vec.x, vec.y]]
+        floats = [str(round(v, 6)) for v in [vec.x, vec.y]]
         self.add_command('pos_xy', 'xy', ' '.join(floats))
         self.vertex_size += 1
 
@@ -328,7 +330,9 @@ class NitroModelMtxPrim():
 
             if matrix:
                 scaled_vec = matrix.transform.inverted() @ scaled_vec
-            scaled_vec = model.global_matrix @ scaled_vec
+                scaled_vec = scaled_vec * model.settings['imd_magnification']
+            else:
+                scaled_vec = model.global_matrix @ scaled_vec
 
             scaled_vecfx32 = VecFx32().from_vector(scaled_vec)
 
@@ -507,27 +511,37 @@ class NitroModel():
         brothers = []
 
         for obj in objs:
+            if obj.type not in ['EMPTY', 'ARMATURE', 'MESH']:
+                continue
+
+            node = self.find_node(obj.name)
+
+            # Transform, is equal for all objects.
+            transform = self.global_matrix @ obj.matrix_basis
+            euler = transform.to_euler('XYZ')
+            node.rotate = [decimal.Decimal(math.degrees(e)) for e in euler]
+            node.translate = transform.to_translation()
+            
+            node.transform = obj.matrix_basis.copy()
+
             if obj.type == 'EMPTY':
-                node = self.find_node(obj.name)
-                node.transform = obj.matrix_basis
                 children = self.process_children(node, obj.children)
                 if children:
                     node.child = children[0].index
-                node.parent = parent.index
-                brothers.append(node)
 
             elif obj.type == 'ARMATURE':
-                node = self.find_node(obj.name)
-                node.transform = obj.matrix_basis
-                # Process bones.
+                # Process bones first.
                 root_bones = []
+
                 if obj.data.bones:
                     for bone in obj.data.bones:
                         if bone.parent is None:
                             root_bones.append(bone)
                 bones = self.process_bones(node, root_bones)
-                # Process children.
+
+                # Process children and add bones.
                 children = self.process_children(node, obj.children)
+
                 if bones:
                     if children:
                         bones[-1].brother_next = children[0].index
@@ -535,22 +549,20 @@ class NitroModel():
                         children = bones + children
                     else:
                         children.extend(bones)
+
                 if children:
                     node.child = children[0].index
-                node.parent = parent.index
-                brothers.append(node)
 
             elif obj.type == 'MESH':
-                node = self.find_node(obj.name)
-                node.transform = obj.matrix_basis
                 node.kind = 'mesh'
                 node.billboard = obj.nns_billboard
                 self.process_mesh(node, obj)
                 children = self.process_children(node, obj.children)
                 if children:
                     node.child = children[0].index
-                node.parent = parent.index
-                brothers.append(node)
+
+            node.parent = parent.index
+            brothers.append(node)
 
         length = len(brothers)
 
@@ -570,25 +582,17 @@ class NitroModel():
             node.kind = 'joint'
 
             # Make matrix for node.
-            transform = bone.matrix_local
-            inverse = get_default_bone_inverse()
-            transform = transform @ inverse
-            # transform = bone.matrix_local
-            if bone.parent:
-                parent_transform = bone.parent.matrix_local @ inverse
-                transform = transform @ parent_transform.inverted()
-                # transform = transform @ get_fixed_bone_matrix(bone.parent).inverted()
-                # bone_translation = Matrix.Translation(Vector((0, bone.parent.length, 0)) + bone.head)
-                # transform = bone.parent.matrix_local @ bone_translation @ bone.matrix.to_4x4()
-            # else:
-            #     transform = transform @ transform.inverted()
-            self.find_matrix(node.index, transform.copy())
+            self.find_matrix(node.index, bone.matrix_local.copy())
+            
+            # Transform.
+            transform = bone.matrix_local if bone else Matrix.Identity(4)
+            if bone and bone.parent:
+                transform = bone.parent.matrix_local.inverted() @ transform
 
             # Translate bone.
-            transform = self.global_matrix @ transform
-            trans, rot, scale = transform.decompose()
-            node.translate = trans
-            node.rotate = rot.to_euler()
+            euler = transform.to_euler('XYZ')
+            node.rotate = [decimal.Decimal(math.degrees(e)) for e in euler]
+            node.translate = transform.to_translation() * self.settings['imd_magnification']
 
             # Get children.
             children = self.process_bones(node, bone.children)
@@ -611,6 +615,7 @@ class NitroModel():
 
     def process_mesh(self, node, obj):
         primitives = []
+    
         for polygon in obj.data.polygons:
             if len(polygon.loop_indices) > 4:
                 logger.log("Polygon is ngon. Skipped.")

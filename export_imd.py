@@ -196,7 +196,7 @@ def generate_nodes(imd, model: NitroModel):
         node_t.set('billboard', node.billboard)
         scale = ' '.join([str(round(x, 6)) for x in node.scale])
         node_t.set('scale', scale)
-        rotate = ' '.join([str(round(math.degrees(x), 6)) for x in node.rotate])
+        rotate = ' '.join([str(round(x, 6)) for x in node.rotate])
         node_t.set('rotate', rotate)
         translate = ' '.join([str(round(x, 6)) for x in node.translate])
         node_t.set('translate', translate)
