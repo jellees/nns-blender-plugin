@@ -1,7 +1,8 @@
 import bpy
 from bpy.props import (BoolProperty,
                        FloatProperty,
-                       StringProperty)
+                       StringProperty,
+                       EnumProperty)
 from bpy_extras.io_utils import ExportHelper
 from .nitro_material import material_register, material_unregister
 from .nns_object import object_register, object_unregister
@@ -42,6 +43,7 @@ class NTR_PT_export_imd(bpy.types.Panel):
         layout.prop(operator, 'imd_export')
         layout.prop(operator, 'imd_magnification')
         layout.prop(operator, 'imd_use_primitive_strip')
+        layout.prop(operator, 'imd_compress_nodes')
 
 
 class NTR_PT_export_ita(bpy.types.Panel):
@@ -89,6 +91,13 @@ class ExportNitro(bpy.types.Operator, ExportHelper):
                                   precision=4)
     imd_use_primitive_strip = BoolProperty(name="Use primitive strip",
                                        default=True)
+    imd_compress_nodes = EnumProperty(
+        name="Compress nodes",
+        items=[
+            ("none", "None", '', 1),
+            ("unite", "Unite", '', 2),
+            ("unite_combine", "Unite and combine polygon", '', 3),
+        ])
 
     ita_export = BoolProperty(name="Export .ita")
     ita_rotate_tolerance = FloatProperty(name="Rotation tolerance",

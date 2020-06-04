@@ -313,7 +313,7 @@ class NitroModelMtxPrim():
             # Normal
             if self.parent_polygon.use_nrm:
                 normal = prim.normals[idx].to_vector()
-                # normal.normalize()
+                normal = Vector((normal.x, normal.z, normal.y))
                 primitive.add_command('nrm', 'xyz',
                                       f'{normal.x} {normal.y} {normal.z}')
 
@@ -331,11 +331,12 @@ class NitroModelMtxPrim():
             # If group one is > 0, that means this vertex belongs to a bone.
             if group != -1:
                 scaled_vec = matrix.transform.inverted() @ scaled_vec
-                scaled_vec = scaled_vec * model.settings['imd_magnification']
-            else:
-                scaled_vec = model.global_matrix @ scaled_vec
+
+            scaled_vec = model.global_matrix @ scaled_vec
 
             scaled_vecfx32 = VecFx32().from_vector(scaled_vec)
+            scaled_vecfx32 = scaled_vecfx32 >> model.info.pos_scale
+            scaled_vec = scaled_vecfx32.to_vector()
 
             # Calculate difference from previous vertex.
             if not primitive.is_empty():
@@ -484,6 +485,21 @@ class NitroModel():
         self.settings = settings
     
     def collect(self):
+        if self.settings['imd_compress_nodes'] in ['unite', 'unite_combine']:
+            self.collect_unite()
+        elif self.settings['imd_compress_nodes'] == 'none':
+            self.collect_none()
+
+        # Sort and collect statistics.
+        for polygon in self.polygons:
+            polygon.collect_statistics()
+            for mtx_prim in polygon.mtx_prims:
+                mtx_prim.primitives.sort(key=lambda x: x.sort_key)
+        for node in self.nodes:
+            node.collect_statistics(self)
+        self.output_info.collect(self)
+
+    def collect_none(self):
         root = self.find_node('root_scene')
         root_objects = []
         for obj in bpy.context.view_layer.objects:
@@ -494,14 +510,11 @@ class NitroModel():
         children = self.process_children(root, root_objects)
         root.child = children[0].index
 
-        # Sort and collect statistics.
-        for polygon in self.polygons:
-            polygon.collect_statistics()
-            for mtx_prim in polygon.mtx_prims:
-                mtx_prim.primitives.sort(key=lambda x: x.sort_key)
-        for node in self.nodes:
-            node.collect_statistics(self)
-        self.output_info.collect(self)
+    def collect_unite(self):
+        root = self.find_node('root_scene')
+        for obj in bpy.context.view_layer.objects:
+            if obj.type != 'MESH':
+                continue
     
     def process_children(self, parent, objs):
         """
@@ -517,9 +530,10 @@ class NitroModel():
             node = self.find_node(obj.name)
 
             # Transform, is equal for all objects.
-            transform = self.global_matrix @ obj.matrix_basis
-            euler = transform.to_euler('XYZ')
+            euler = obj.matrix_basis.to_euler('XYZ')
+            euler = (euler[0], euler[2], euler[1])
             node.rotate = [decimal.Decimal(math.degrees(e)) for e in euler]
+            transform = self.global_matrix @ obj.matrix_basis
             node.translate = transform.to_translation()
             node.scale = obj.matrix_basis.to_scale()
             
@@ -592,8 +606,10 @@ class NitroModel():
 
             # Translate bone.
             euler = transform.to_euler('XYZ')
+            euler = (euler[0], euler[2], euler[1])
             node.rotate = [decimal.Decimal(math.degrees(e)) for e in euler]
-            node.translate = transform.to_translation() * self.settings['imd_magnification']
+            transform = self.global_matrix @ transform
+            node.translate = transform.to_translation()
 
             # Get children.
             children = self.process_bones(node, bone.children)

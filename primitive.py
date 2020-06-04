@@ -395,8 +395,8 @@ class Primitive():
             vertex_index = obj.data.loops[idx].vertex_index
             vecfx32 = VecFx32().from_floats(vertices[vertex_index])
 
-            # Apply pos_scale.
-            self.positions.append(vecfx32 >> pos_scale)
+            # Store position.
+            self.positions.append(vecfx32)
 
             # Store group.
             groups = obj.data.vertices[vertex_index].groups
