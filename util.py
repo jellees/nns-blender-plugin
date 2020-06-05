@@ -40,7 +40,7 @@ def get_object_max_min(global_matrix, obj):
 def get_all_max_min(global_matrix):
     min_p = Vector([float('inf'), float('inf'), float('inf')])
     max_p = Vector([-float('inf'), -float('inf'), -float('inf')])
-    for obj in bpy.data.objects:
+    for obj in bpy.context.view_layer.objects:
         if obj.type != 'MESH':
             continue
         max_min = get_object_max_min(global_matrix, obj)

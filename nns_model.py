@@ -531,7 +531,7 @@ class NitroModel():
 
             # Transform, is equal for all objects.
             euler = obj.matrix_basis.to_euler('XYZ')
-            euler = (euler[0], euler[2], euler[1])
+            euler = (euler[0], euler[2], -euler[1])
             node.rotate = [decimal.Decimal(math.degrees(e)) for e in euler]
             transform = self.global_matrix @ obj.matrix_basis
             node.translate = transform.to_translation()
@@ -606,7 +606,7 @@ class NitroModel():
 
             # Translate bone.
             euler = transform.to_euler('XYZ')
-            euler = (euler[0], euler[2], euler[1])
+            euler = (euler[0], euler[2], -euler[1])
             node.rotate = [decimal.Decimal(math.degrees(e)) for e in euler]
             transform = self.global_matrix @ transform
             node.translate = transform.to_translation()
