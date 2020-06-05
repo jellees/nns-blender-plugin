@@ -344,7 +344,7 @@ class Primitive():
     Raw representation of blender data into a primitive used
     for stripping.
     """
-    def __init__(self, pos_scale=None, obj=None, polygon=None):
+    def __init__(self, obj=None, polygon=None):
         if obj is None and polygon is None:
             self.type = 'illegal'
             self.positions = []

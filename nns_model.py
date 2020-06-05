@@ -12,11 +12,16 @@ from . import nitro_tga
 
 class NitroModelInfo():
     def __init__(self, global_matrix):
-        box = get_all_max_min(global_matrix)
-        max_max = abs(max(box['max'].x, box['max'].y, box['max'].z))
-        min_min = abs(min(box['min'].x, box['min'].y, box['min'].z))
-        max_coord = max(max_max, min_min)
-        self.pos_scale = calculate_pos_scale(max_coord)
+        self.pos_scale = 0
+        self.max_coord = 0
+    
+    def add(self, vertex):
+        max_coord = max(abs(vertex.x), abs(vertex.y), abs(vertex.z))
+        if max_coord > self.max_coord:
+            self.max_coord = max_coord
+    
+    def calculate(self):
+        self.pos_scale = calculate_pos_scale(self.max_coord)
 
 
 class NitroModelBoxTest():
@@ -313,7 +318,7 @@ class NitroModelMtxPrim():
             # Normal
             if self.parent_polygon.use_nrm:
                 normal = prim.normals[idx].to_vector()
-                normal = Vector((normal.x, normal.z, normal.y))
+                normal = Vector((normal.x, normal.z, -normal.y))
                 primitive.add_command('nrm', 'xyz',
                                       f'{normal.x} {normal.y} {normal.z}')
 
@@ -326,16 +331,7 @@ class NitroModelMtxPrim():
                 primitive.add_command('tex', 'st', f'{s} {t}')
 
             # Recalculate vertex.
-            scaled_vec = prim.positions[idx].to_vector()
-
-            # If group one is > 0, that means this vertex belongs to a bone.
-            if group != -1:
-                scaled_vec = matrix.transform.inverted() @ scaled_vec
-
-            scaled_vec = model.global_matrix @ scaled_vec
-
-            scaled_vecfx32 = VecFx32().from_vector(scaled_vec)
-            scaled_vecfx32 = scaled_vecfx32 >> model.info.pos_scale
+            scaled_vecfx32 = prim.positions[idx] >> model.info.pos_scale
             scaled_vec = scaled_vecfx32.to_vector()
 
             # Calculate difference from previous vertex.
@@ -435,7 +431,7 @@ class NitroModelNode():
         self.polygon_size = 0
         self.triangle_size = 0
         self.quad_size = 0
-        self.transform = None
+        # self.transform = None
     
     def collect_statistics(self, model):
         for display in self.displays:
@@ -483,6 +479,8 @@ class NitroModel():
         self.output_info = NitroModelOutputInfo()
         self.global_matrix = global_matrix
         self.settings = settings
+        # Array with primitives and their objects.
+        self.primitives = []
     
     def collect(self):
         if self.settings['imd_compress_nodes'] in ['unite', 'unite_combine']:
@@ -509,6 +507,14 @@ class NitroModel():
                 root_objects.append(obj)
         children = self.process_children(root, root_objects)
         root.child = children[0].index
+        self.apply_transformations()
+        self.info.calculate()
+        for item in self.primitives:
+            self.compile_primitives(
+                item['primitives'],
+                item['obj'],
+                item['node'],
+            )
 
     def collect_unite(self):
         root = self.find_node('root_scene')
@@ -516,6 +522,43 @@ class NitroModel():
             if obj.type != 'MESH':
                 continue
     
+    def compile_primitives(self, primitives, obj, node):
+        # A list of polygons and materials.
+        poly_mats = []
+        # Make materials and polygons and add the primitives to their
+        # respective mtx_prim elements.
+        for primitive in primitives:
+            material = self.find_material(primitive.material_index)
+            polygon_name = obj.name + '_' + str(material.index)
+            polygon = self.find_polygon(polygon_name)
+            poly_mats.append((polygon, material))
+            mtx_prim = polygon.find_mtx_prim(0)
+            logger.log(f"Add primitive. {primitive.type}")
+            mtx_prim.add_primitive(self, obj, primitive, material)
+        # Hook up each polygon to the proper display depending on
+        # material index.
+        for polygon, material in poly_mats:
+            display = node.find_display(material.index)
+            display.polygon = polygon.index
+
+    def apply_transformations(self):
+        for item in self.primitives:
+            obj = item['obj']
+            for primitive in item['primitives']:
+                for idx in range(len(primitive.positions)):
+                    group = primitive.groups[idx]
+                    matrix = None
+                    if group != -1:
+                        name = obj.vertex_groups[group].name
+                        matrix = self.find_matrix_by_node_name(name)
+                    vertex = primitive.positions[idx].to_vector()
+                    if matrix:
+                        vertex = matrix.transform.inverted() @ vertex
+                    vertex = self.global_matrix @ vertex
+                    self.info.add(vertex)
+                    vecfx32_vertex = VecFx32().from_vector(vertex)
+                    primitive.positions[idx] = vecfx32_vertex
+
     def process_children(self, parent, objs):
         """
         Recursively go through every child of every object.
@@ -537,7 +580,7 @@ class NitroModel():
             node.translate = transform.to_translation()
             node.scale = obj.matrix_basis.to_scale()
             
-            node.transform = obj.matrix_basis.copy()
+            # node.transform = obj.matrix_basis.copy()
 
             if obj.type == 'EMPTY':
                 children = self.process_children(node, obj.children)
@@ -647,8 +690,7 @@ class NitroModel():
                 continue
             
             # Add polygon to the list of primitives.
-            pos_scale = self.info.pos_scale
-            primitives.append(Primitive(pos_scale, obj, polygon))
+            primitives.append(Primitive(obj, polygon))
 
         if self.settings['imd_use_primitive_strip']:
             quad_stripper = QuadStripper()
@@ -657,25 +699,11 @@ class NitroModel():
             tri_stripper = TriStripper()
             primitives = tri_stripper.process(primitives)
         
-        # A list of polygons and materials.
-        poly_mats = []
-
-        # Make materials and polygons and add the primitives to their
-        # respective mtx_prim elements.
-        for primitive in primitives:
-            material = self.find_material(primitive.material_index)
-            polygon_name = obj.name + '_' + str(material.index)
-            polygon = self.find_polygon(polygon_name)
-            poly_mats.append((polygon, material))
-            mtx_prim = polygon.find_mtx_prim(0)
-            logger.log(f"Add primitive. {primitive.type}")
-            mtx_prim.add_primitive(self, obj, primitive, material)
-        
-        # Hook up each polygon to the proper display depending on
-        # material index.
-        for polygon, material in poly_mats:
-            display = node.find_display(material.index)
-            display.polygon = polygon.index
+        self.primitives.append({
+            'obj': obj,
+            'node': node,
+            'primitives': primitives
+        })
 
     def add_palette(self, name, data, size):
         self.palettes.append(
