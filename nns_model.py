@@ -378,6 +378,17 @@ class NitroModelMtxPrim():
 
     def set_initial_mtx(self):
         self.primitives[0].insert_mtx(0, 0)
+    
+    def optimize(self):
+        previous_mtx = None
+        for primitive in self.primitives:
+            for command in primitive.commands:
+                if command.type != 'mtx':
+                    continue
+                if previous_mtx == command.data:
+                    primitive.commands.remove(command)
+                else:
+                    previous_mtx = command.data
 
 
 class NitroModelPolygon():
@@ -409,6 +420,10 @@ class NitroModelPolygon():
                 self.polygon_size += size
                 self.triangle_size += primitive.triangle_size
                 self.quad_size += primitive.quad_size
+
+    def optimize(self):
+        for mtx_prim in self.mtx_prims:
+            mtx_prim.optimize()
 
 
 class NitroModelDisplay():
@@ -498,6 +513,8 @@ class NitroModel():
         elif self.settings['imd_compress_nodes'] == 'unite_combine':
             self.collect_unite_combine()
 
+        self.optimize_polygons()
+
         # Sort and collect statistics.
         for polygon in self.polygons:
             polygon.collect_statistics()
@@ -586,6 +603,10 @@ class NitroModel():
         for polygon, material in poly_mats:
             display = node.find_display(material.index, polygon.index)
             display.polygon = polygon.index
+
+    def optimize_polygons(self):
+        for polygon in self.polygons:
+            polygon.optimize()
 
     def apply_transformations(self):
         for item in self.primitives:
