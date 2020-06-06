@@ -55,7 +55,7 @@ class NitroModelTexture():
         # Color 0 Mode
         transp = tga['nitro_data']['color_0_transp']
         if self.format in ('palette4', 'palette16', 'palette256'):
-            self.color0_mode = 'transparent' if transp else 'color'
+            self.color0_mode = 'transparency' if transp else 'color'
 
         # Get Bitmap Data
         self.bitmap_data = nitro_tga.get_bitmap_data(tga)
