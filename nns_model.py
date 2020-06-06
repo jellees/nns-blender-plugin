@@ -491,10 +491,12 @@ class NitroModel():
         self.primitives = []
     
     def collect(self):
-        if self.settings['imd_compress_nodes'] in ['unite', 'unite_combine']:
-            self.collect_unite()
-        elif self.settings['imd_compress_nodes'] == 'none':
+        if self.settings['imd_compress_nodes'] == 'none':
             self.collect_none()
+        elif self.settings['imd_compress_nodes'] == 'unite':
+            self.collect_unite()
+        elif self.settings['imd_compress_nodes'] == 'unite_combine':
+            self.collect_unite_combine()
 
         # Sort and collect statistics.
         for polygon in self.polygons:
@@ -538,7 +540,34 @@ class NitroModel():
                 item['obj'],
                 item['node'],
             )
-    
+
+    def collect_unite_combine(self):
+        root = self.find_node('root_scene')
+        for obj in bpy.context.view_layer.objects:
+            if obj.type != 'MESH':
+                continue
+            self.process_mesh(root, obj)
+        self.apply_transformations()
+        self.info.calculate()
+        for item in self.primitives:
+            self.compile_primitives_combined(
+                item['primitives'],
+                item['obj'],
+                item['node'],
+            )
+
+    def compile_primitives_combined(self, primitives, obj, node):
+        poly_mats = []
+        for primitive in primitives:
+            material = self.find_material(primitive.material_index)
+            polygon = self.find_polygon('polygon' + str(material.index))
+            poly_mats.append((polygon, material))
+            mtx_prim = polygon.find_mtx_prim(0)
+            mtx_prim.add_primitive(self, obj, primitive, material)
+        for polygon, material in poly_mats:
+            display = node.find_display(material.index, polygon.index)
+            display.polygon = polygon.index
+
     def compile_primitives(self, primitives, obj, node):
         # A list of polygons and materials.
         poly_mats = []
