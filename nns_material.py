@@ -482,8 +482,9 @@ def update_nodes_srt_hook(self, context):
 
 @persistent
 def frame_change_handler(scene):
-    material = bpy.context.active_object.active_material
-    update_nodes_srt(material)
+    if bpy.context.active_object.active_material:
+        material = bpy.context.active_object.active_material
+        update_nodes_srt(material)
 
 
 def create_nns_material(obj):
