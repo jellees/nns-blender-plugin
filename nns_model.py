@@ -313,6 +313,14 @@ class NitroModelMtxPrim():
                 primitive.add_mtx(index)
                 primitive._previous_mtx = matrix.index
 
+            # Texture coordinate.
+            if self.parent_polygon.use_tex:
+                tex = model.textures[material.image_idx]
+                uv = prim.texcoords[idx].to_vector()
+                s = uv.x * tex.width
+                t = uv.y * -tex.height + tex.height
+                primitive.add_command('tex', 'st', f'{s} {t}')
+
             # Color
             if self.parent_polygon.use_clr:
                 r, g, b = prim.colors[idx]
@@ -329,14 +337,6 @@ class NitroModelMtxPrim():
                     normal = normal.to_vector()
                 primitive.add_command('nrm', 'xyz',
                                       f'{normal.x} {normal.y} {normal.z}')
-
-            # Texture coordinate.
-            if self.parent_polygon.use_tex:
-                tex = model.textures[material.image_idx]
-                uv = prim.texcoords[idx].to_vector()
-                s = uv.x * tex.width
-                t = uv.y * -tex.height + tex.height
-                primitive.add_command('tex', 'st', f'{s} {t}')
 
             # Recalculate vertex.
             scaled_vecfx32 = prim.positions[idx] >> model.info.pos_scale
