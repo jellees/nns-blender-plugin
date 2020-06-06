@@ -17,7 +17,7 @@ def read_tga_header(f):
 
 def read_nitro_tga_id(f):
     return {
-        'version': f.read(16).decode('utf-8').replace('/x00', ''),
+        'version': f.read(16).decode('utf-8').replace('\x00', ''),
         'nitro_data_offset': int.from_bytes(f.read(4), byteorder='little')
     }
 
