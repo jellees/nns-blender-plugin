@@ -318,7 +318,12 @@ class NitroModelMtxPrim():
             # Normal
             if self.parent_polygon.use_nrm:
                 normal = prim.normals[idx].to_vector()
-                normal = Vector((normal.x, normal.z, -normal.y))
+                if group == -1:
+                    normal = vector_to_vecfx10(Vector((normal.x, normal.z, -normal.y)))
+                    normal = normal.to_vector()
+                else:
+                    normal = vector_to_vecfx10(Vector((normal.x, -normal.y, -normal.z)))
+                    normal = normal.to_vector()
                 primitive.add_command('nrm', 'xyz',
                                       f'{normal.x} {normal.y} {normal.z}')
 

@@ -99,7 +99,7 @@ def fx32_to_float(value):
 
 
 def float_to_fx10(value):
-    return max(min(int(round(value * 512)), 511), -511)
+    return max(min(int(round(value * 512)), 511), -512)
 
 
 def fx10_to_float(value):
