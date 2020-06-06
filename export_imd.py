@@ -1,7 +1,6 @@
 import bpy
 import math
-from mathutils import Vector, Matrix
-from bpy_extras.io_utils import axis_conversion
+from mathutils import Vector
 import xml.etree.ElementTree as ET
 import json
 from .nns_model import NitroModel
@@ -228,18 +227,10 @@ def generate_output_info(imd, model):
     output_info.set('quad_size', str(output.quad_size))
 
 
-def generate_body(imd, export_settings):
+def generate_body(imd, model, export_settings):
     global settings
     settings = export_settings
 
-    global_matrix = (
-        Matrix.Scale(settings['imd_magnification'], 4) @ axis_conversion(
-            to_forward='-Z',
-            to_up='Y',
-        ).to_4x4())
-
-    model = NitroModel(global_matrix, settings)
-    model.collect()
     generate_model_info(imd, model)
     generate_box_test(imd, model)
     generate_textures(imd, model)

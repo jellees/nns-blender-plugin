@@ -1,7 +1,9 @@
-import bpy
 import xml.etree.ElementTree as ET
 from xml.dom import minidom
 from . import local_logger as logger
+from bpy_extras.io_utils import axis_conversion
+from mathutils import Matrix
+from .nns_model import NitroModel
 
 
 def generate_header(imd, data_name):
@@ -16,13 +18,13 @@ def generate_header(imd, data_name):
     generator.set('version', '0.0.3')
 
 
-def generate_imd(settings):
+def generate_imd(settings, model):
     from . import export_imd
 
     imd = ET.Element('imd')
     generate_header(imd, 'Model Data')
     body = ET.SubElement(imd, 'body')
-    export_imd.generate_body(body, settings)
+    export_imd.generate_body(body, model, settings)
 
     output = ""
     if settings['pretty_print']:
@@ -54,9 +56,44 @@ def generate_ita(settings):
         f.write(output)
 
 
+def generate_ica(settings, model):
+    from . import export_ica
+
+    ica = ET.Element('ica')
+    generate_header(ica, 'Character Animation Data')
+    body = ET.SubElement(ica, 'body')
+    export_ica.generate_body(body, model, settings)
+
+    output = ""
+    if settings['pretty_print']:
+        output = minidom.parseString(ET.tostring(ica))
+        output = output.toprettyxml(indent='   ')
+    else:
+        output = ET.tostring(ica, encoding='unicode')
+
+    with open(settings['filepath'] + '.ica', 'w') as f:
+        f.write(output)
+
+
 def save(context, settings):
+
     logger.create_log(settings['filepath'], settings['generate_log'])
+
+    global_matrix = (
+        Matrix.Scale(settings['imd_magnification'], 4) @ axis_conversion(
+            to_forward='-Z',
+            to_up='Y',
+        ).to_4x4())
+
+    model = None
+
     if settings['imd_export']:
-        generate_imd(settings)
+        model = NitroModel(global_matrix, settings)
+        model.collect()
+
+    if settings['imd_export']:
+        generate_imd(settings, model)
     if settings['ita_export']:
         generate_ita(settings)
+
+    generate_ica(settings, model)

@@ -169,6 +169,7 @@ def generate_animations(ita, animations):
         for key, reference in animation.references.items():
             generate_reference(tex_srt_anm, key, reference)
 
+
 def generate_reference(ita, name, reference):
     ref = ET.SubElement(ita, name)
     ref.set('frame_step', str(reference.frame_step))
