@@ -298,7 +298,10 @@ class NitroModelMtxPrim():
             # Find transform.
             group = prim.groups[idx]
             matrix = None
-            if group != -1:
+            if model.settings['imd_compress_nodes'] in ['unite', 'unite_combine']:
+                matrix = model.find_matrix_by_node_name('root_scene')
+                group = -1
+            elif group != -1:
                 name = obj.vertex_groups[group].name
                 matrix = model.find_matrix_by_node_name(name)
             else:
@@ -409,10 +412,10 @@ class NitroModelPolygon():
 
 
 class NitroModelDisplay():
-    def __init__(self, index, material):
+    def __init__(self, index, material, polygon):
         self.index = index
         self.material = material
-        self.polygon = -1
+        self.polygon = polygon
         self.priority = 0
 
 
@@ -446,12 +449,12 @@ class NitroModelNode():
             self.triangle_size += polygon.triangle_size
             self.quad_size += polygon.quad_size
 
-    def find_display(self, material_index):
+    def find_display(self, material_index, polygon_index):
         for display in self.displays:
-            if display.material == material_index:
+            if display.material == material_index and display.polygon == polygon_index:
                 return display
         index = len(self.displays)
-        self.displays.append(NitroModelDisplay(index, material_index))
+        self.displays.append(NitroModelDisplay(index, material_index, polygon_index))
         return self.displays[-1]
 
 
@@ -526,6 +529,15 @@ class NitroModel():
         for obj in bpy.context.view_layer.objects:
             if obj.type != 'MESH':
                 continue
+            self.process_mesh(root, obj)
+        self.apply_transformations()
+        self.info.calculate()
+        for item in self.primitives:
+            self.compile_primitives(
+                item['primitives'],
+                item['obj'],
+                item['node'],
+            )
     
     def compile_primitives(self, primitives, obj, node):
         # A list of polygons and materials.
@@ -543,7 +555,7 @@ class NitroModel():
         # Hook up each polygon to the proper display depending on
         # material index.
         for polygon, material in poly_mats:
-            display = node.find_display(material.index)
+            display = node.find_display(material.index, polygon.index)
             display.polygon = polygon.index
 
     def apply_transformations(self):
@@ -551,14 +563,18 @@ class NitroModel():
             obj = item['obj']
             for primitive in item['primitives']:
                 for idx in range(len(primitive.positions)):
-                    group = primitive.groups[idx]
-                    matrix = None
-                    if group != -1:
-                        name = obj.vertex_groups[group].name
-                        matrix = self.find_matrix_by_node_name(name)
                     vertex = primitive.positions[idx].to_vector()
-                    if matrix:
-                        vertex = matrix.transform.inverted() @ vertex
+                    # Only do if there may be bones.
+                    if self.settings['imd_compress_nodes'] in ['unite', 'unite_combine']:
+                        vertex = obj.matrix_world @ vertex
+                    else:
+                        matrix = None
+                        group = primitive.groups[idx]
+                        if group != -1:
+                            name = obj.vertex_groups[group].name
+                            matrix = self.find_matrix_by_node_name(name)
+                        if matrix:
+                            vertex = matrix.transform.inverted() @ vertex
                     vertex = self.global_matrix @ vertex
                     self.info.add(vertex)
                     vecfx32_vertex = VecFx32().from_vector(vertex)
