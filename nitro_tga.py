@@ -17,7 +17,7 @@ def read_tga_header(f):
 
 def read_nitro_tga_id(f):
     return {
-        'version': f.read(16).decode('utf-8').replace('\x00', ''),
+        'version': f.read(16).decode('utf-8').replace('/x00', ''),
         'nitro_data_offset': int.from_bytes(f.read(4), byteorder='little')
     }
 
@@ -37,8 +37,6 @@ def read_nitro_tga_data(f, offset):
     while f.tell() + 12 <= end_of_file:
         sig = f.read(8).decode('ascii')
         length = int.from_bytes(f.read(4), byteorder='little')
-
-        color_0_transp = False
 
         if sig == 'nns_frmt':
             tex_format = f.read(length - 12).decode('ascii')
