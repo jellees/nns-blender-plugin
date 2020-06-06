@@ -4,7 +4,7 @@ from bpy.props import (BoolProperty,
                        StringProperty,
                        EnumProperty)
 from bpy_extras.io_utils import ExportHelper
-from .nitro_material import material_register, material_unregister
+from .nns_material import material_register, material_unregister
 from .nns_object import object_register, object_unregister
 
 

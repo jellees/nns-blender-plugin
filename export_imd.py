@@ -4,7 +4,6 @@ from mathutils import Vector, Matrix
 from bpy_extras.io_utils import axis_conversion
 import xml.etree.ElementTree as ET
 import json
-# from . import nitro_model
 from .nns_model import NitroModel
 from .util import VecFx32
 
@@ -21,7 +20,7 @@ def generate_model_info(imd, model):
     model_info.set('magnify', magnification)
     model_info.set('tool_start_frame', '1')
     model_info.set('tex_matrix_mode', 'maya')
-    model_info.set('compress_node', 'none')
+    model_info.set('compress_node', settings['imd_compress_nodes'])
     nodes_len = str(len(model.nodes))
     model_info.set('node_size', nodes_len + ' ' + nodes_len)
     model_info.set('compress_material', 'off')

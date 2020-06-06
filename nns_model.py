@@ -7,7 +7,7 @@ from bpy_extras import node_shader_utils
 from .util import *
 from .primitive import *
 from . import local_logger as logger
-from . import nitro_tga
+from . import nns_tga
 
 
 class NitroModelInfo():
@@ -43,7 +43,7 @@ class NitroModelTexture():
         self.name = str(os.path.splitext(os.path.basename(path))[0])[0:15]
 
         # Load Nitro TGA Data from path
-        tga = nitro_tga.read_nitro_tga(path)
+        tga = nns_tga.read_nitro_tga(path)
 
         # Set TexImage properties
         self.format = tga['nitro_data']['tex_format']
@@ -58,13 +58,13 @@ class NitroModelTexture():
             self.color0_mode = 'transparency' if transp else 'color'
 
         # Get Bitmap Data
-        self.bitmap_data = nitro_tga.get_bitmap_data(tga)
-        self.bitmap_size = nitro_tga.get_bitmap_size(tga)
+        self.bitmap_data = nns_tga.get_bitmap_data(tga)
+        self.bitmap_size = nns_tga.get_bitmap_size(tga)
 
         # Get Tex4x4 Palette Index Data
         if self.format == 'tex4x4':
-            self.tex4x4_palette_idx_data = nitro_tga.get_pltt_idx_data(tga)
-            self.tex4x4_palette_idx_size = nitro_tga.get_pltt_idx_size(tga)
+            self.tex4x4_palette_idx_data = nns_tga.get_pltt_idx_data(tga)
+            self.tex4x4_palette_idx_size = nns_tga.get_pltt_idx_size(tga)
 
         # Store the palette index that model.add_palette returns in here or
         # leave it -1.
@@ -73,8 +73,8 @@ class NitroModelTexture():
         # Get Palette Data
         if self.format != 'direct':
             self.palette_name = tga['nitro_data']['palette_name'][0:15]
-            plt_data = nitro_tga.get_palette_data(tga)
-            plt_size = nitro_tga.get_palette_size(tga)
+            plt_data = nns_tga.get_palette_data(tga)
+            plt_size = nns_tga.get_palette_size(tga)
             palette = model.add_palette(self.palette_name, plt_data, plt_size)
             self.palette_idx = palette.index
 
