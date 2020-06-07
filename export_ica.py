@@ -67,8 +67,8 @@ class NitroBCAData():
 
 class NitroBCAReference():
     def __init__(self):
-        self.data_head = 0
-        self.data_size = 1
+        self.data_head = -1
+        self.data_size = -1
         self.frame_step = 1
 
 
@@ -119,36 +119,35 @@ class NitroBCA():
         # Set the proper data for each non-animated node.
         for animation in self.animations:
             node = self.model.nodes[animation.index]
-            # Scale.
-            if animation.references['scale_x'].data_size == 1:
-                result = self.scale_data.add_data([node.scale[0]])
-                animation.set_reference('scale_x', result[0], result[1], 1)
-            if animation.references['scale_y'].data_size == 1:
-                result = self.scale_data.add_data([node.scale[1]])
-                animation.set_reference('scale_y', result[0], result[1], 1)
-            if animation.references['scale_z'].data_size == 1:
-                result = self.scale_data.add_data([node.scale[2]])
-                animation.set_reference('scale_z', result[0], result[1], 1)
-            # Rotation.
-            if animation.references['rotate_x'].data_size == 1:
-                result = self.rotate_data.add_data([node.rotate[0]])
-                animation.set_reference('rotate_x', result[0], result[1], 1)
-            if animation.references['rotate_y'].data_size == 1:
-                result = self.rotate_data.add_data([node.rotate[1]])
-                animation.set_reference('rotate_y', result[0], result[1], 1)
-            if animation.references['rotate_z'].data_size == 1:
-                result = self.rotate_data.add_data([node.rotate[2]])
-                animation.set_reference('rotate_z', result[0], result[1], 1)
-            # Rotation.
-            if animation.references['translate_x'].data_size == 1:
-                result = self.translate_data.add_data([node.translate[0]])
-                animation.set_reference('translate_x', result[0], result[1], 1)
-            if animation.references['translate_y'].data_size == 1:
-                result = self.translate_data.add_data([node.translate[1]])
-                animation.set_reference('translate_y', result[0], result[1], 1)
-            if animation.references['translate_z'].data_size == 1:
-                result = self.translate_data.add_data([node.translate[2]])
-                animation.set_reference('translate_z', result[0], result[1], 1)
+            scale = {
+                'scale_x': round(node.scale[0], 6),
+                'scale_y': round(node.scale[1], 6),
+                'scale_z': round(node.scale[2], 6)
+            }
+            for key in scale:
+                if animation.references[key].data_head:
+                    result = self.scale_data.add_data([scale[key]])
+                    animation.set_reference(key, result[0], result[1], 1)
+
+            rotate = {
+                'rotate_x': round(node.rotate[0], 6),
+                'rotate_y': round(node.rotate[1], 6),
+                'rotate_z': round(node.rotate[2], 6)
+            }
+            for key in rotate:
+                if animation.references[key].data_head:
+                    result = self.rotate_data.add_data([rotate[key]])
+                    animation.set_reference(key, result[0], result[1], 1)
+
+            translate = {
+                'translate_x': round(node.translate[0], 6),
+                'translate_y': round(node.translate[1], 6),
+                'translate_z': round(node.translate[2], 6)
+            }
+            for key in translate:
+                if animation.references[key].data_head:
+                    result = self.translate_data.add_data([translate[key]])
+                    animation.set_reference(key, result[0], result[1], 1)
 
     def process_bone(self, action, bone):
         node = self.model.find_node(bone.name)
@@ -223,7 +222,7 @@ class NitroBCA():
                         value *= self.model.settings['imd_magnification']
                         if index == 2:
                             value = -value
-                    frames.append(value)
+                    frames.append(round(value, 6))
         return frames
 
     def get_rotation_frames(self, action, bone):
@@ -236,9 +235,9 @@ class NitroBCA():
         self.info.set_frame_size(int(frame_range[1] - frame_range[0]))
         for i in range(int(frame_range[0]), int(frame_range[1])):
             rotation = self.get_quaternion(action, bone, i).to_euler()
-            frames['rotate_x'].append(math.degrees(rotation[0]))
-            frames['rotate_y'].append(math.degrees(rotation[2]))
-            frames['rotate_z'].append(math.degrees(-rotation[1]))
+            frames['rotate_x'].append(round(math.degrees(rotation[0]), 6))
+            frames['rotate_y'].append(round(math.degrees(rotation[2]), 6))
+            frames['rotate_z'].append(round(math.degrees(-rotation[1]), 6))
         return frames
 
     def get_quaternion(self, action, bone, frame):
