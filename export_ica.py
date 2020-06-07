@@ -159,6 +159,14 @@ class NitroBCA():
             for idx, reference in enumerate(references):
                 frames = self.get_frames(action, bone, 'scale', idx)
                 if frames:
+                    start_value = 0
+                    if reference == 'scale_x':
+                        start_value = node.scale[0]
+                    if reference == 'scale_y':
+                        start_value = node.scale[1]
+                    if reference == 'scale_z':
+                        start_value = node.scale[2]
+                    frames = [x + start_value for x in frames]
                     result = self.scale_data.add_data(frames)
                     animation = self.find_animation(node.index)
                     animation.set_reference(reference, result[0], result[1], 1)
@@ -166,6 +174,12 @@ class NitroBCA():
         # Get rotation frames.
         if self.do_keyframes_exist(action, bone, 'rotation_quaternion'):
             frames = self.get_rotation_frames(action, bone)
+            frames['rotate_x'] = [
+                x + float(node.rotate[0]) for x in frames['rotate_x']]
+            frames['rotate_y'] = [
+                x + float(node.rotate[1]) for x in frames['rotate_y']]
+            frames['rotate_z'] = [
+                x + float(node.rotate[2]) for x in frames['rotate_z']]
             animation = self.find_animation(node.index)
             for key in frames:
                 result = self.rotate_data.add_data(frames[key])
@@ -173,10 +187,18 @@ class NitroBCA():
 
         # Get location frames.
         if self.do_keyframes_exist(action, bone, 'location'):
-            references = ['rotate_x', 'rotate_z', 'rotate_y']
+            references = ['translate_x', 'translate_z', 'translate_y']
             for idx, reference in enumerate(references):
                 frames = self.get_frames(action, bone, 'location', idx)
                 if frames:
+                    start_value = 0
+                    if reference == 'translate_x':
+                        start_value = node.translate[0]
+                    if reference == 'translate_y':
+                        start_value = node.translate[1]
+                    if reference == 'translate_z':
+                        start_value = node.translate[2]
+                    frames = [x + start_value for x in frames]
                     result = self.translate_data.add_data(frames)
                     animation = self.find_animation(node.index)
                     animation.set_reference(reference, result[0], result[1], 1)
