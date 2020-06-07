@@ -125,7 +125,7 @@ class NitroBCA():
                 'scale_z': round(node.scale[2], 6)
             }
             for key in scale:
-                if animation.references[key].data_head:
+                if animation.references[key].data_head == -1:
                     result = self.scale_data.add_data([scale[key]])
                     animation.set_reference(key, result[0], result[1], 1)
 
@@ -135,7 +135,7 @@ class NitroBCA():
                 'rotate_z': round(node.rotate[2], 6)
             }
             for key in rotate:
-                if animation.references[key].data_head:
+                if animation.references[key].data_head == -1:
                     result = self.rotate_data.add_data([rotate[key]])
                     animation.set_reference(key, result[0], result[1], 1)
 
@@ -145,7 +145,7 @@ class NitroBCA():
                 'translate_z': round(node.translate[2], 6)
             }
             for key in translate:
-                if animation.references[key].data_head:
+                if animation.references[key].data_head == -1:
                     result = self.translate_data.add_data([translate[key]])
                     animation.set_reference(key, result[0], result[1], 1)
 
