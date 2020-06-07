@@ -14,12 +14,12 @@ class NitroModelInfo():
     def __init__(self, global_matrix):
         self.pos_scale = 0
         self.max_coord = 0
-    
+
     def add(self, vertex):
         max_coord = max(abs(vertex.x), abs(vertex.y), abs(vertex.z))
         if max_coord > self.max_coord:
             self.max_coord = max_coord
-    
+
     def calculate(self):
         self.pos_scale = calculate_pos_scale(self.max_coord)
 
@@ -261,7 +261,7 @@ class NitroModelMtxPrim():
         if index not in self.mtx_list:
             self.mtx_list.append(index)
         return self.mtx_list.index(index)
-    
+
     def add_primitive(self, model, obj, prim: Primitive, material):
         if prim.type == 'triangles':
             primitive = self.get_primitive('triangles')
@@ -378,7 +378,7 @@ class NitroModelMtxPrim():
 
     def set_initial_mtx(self):
         self.primitives[0].insert_mtx(0, 0)
-    
+
     def optimize(self):
         previous_mtx = None
         for primitive in self.primitives:
@@ -403,7 +403,7 @@ class NitroModelPolygon():
         self.polygon_size = 0
         self.triangle_size = 0
         self.quad_size = 0
-    
+
     def find_mtx_prim(self, index):
         for prim in self.mtx_prims:
             if prim.index == index:
@@ -411,7 +411,7 @@ class NitroModelPolygon():
         index = len(self.mtx_prims)
         self.mtx_prims.append(NitroModelMtxPrim(index, self))
         return self.mtx_prims[-1]
-    
+
     def collect_statistics(self):
         for mtx_prim in self.mtx_prims:
             for primitive in mtx_prim.primitives:
@@ -454,8 +454,7 @@ class NitroModelNode():
         self.polygon_size = 0
         self.triangle_size = 0
         self.quad_size = 0
-        # self.transform = None
-    
+
     def collect_statistics(self, model):
         for display in self.displays:
             polygon = model.polygons[display.polygon]
@@ -466,10 +465,12 @@ class NitroModelNode():
 
     def find_display(self, material_index, polygon_index):
         for display in self.displays:
-            if display.material == material_index and display.polygon == polygon_index:
+            if (display.material == material_index
+               and display.polygon == polygon_index):
                 return display
         index = len(self.displays)
-        self.displays.append(NitroModelDisplay(index, material_index, polygon_index))
+        self.displays.append(NitroModelDisplay(
+            index, material_index, polygon_index))
         return self.displays[-1]
 
 
@@ -513,8 +514,6 @@ class NitroModel():
         elif self.settings['imd_compress_nodes'] == 'unite_combine':
             self.collect_unite_combine()
 
-        self.optimize_polygons()
-
         # Sort and collect statistics.
         for polygon in self.polygons:
             polygon.collect_statistics()
@@ -522,6 +521,7 @@ class NitroModel():
                 mtx_prim.primitives.sort(key=lambda x: x.sort_key)
         for node in self.nodes:
             node.collect_statistics(self)
+        self.optimize_polygons()
         self.output_info.collect(self)
 
     def collect_none(self):
@@ -652,8 +652,6 @@ class NitroModel():
             scale = obj.matrix_basis.to_scale()
             node.scale = (scale[0], scale[2], scale[1])
 
-            # node.transform = obj.matrix_basis.copy()
-
             if obj.type == 'EMPTY':
                 children = self.process_children(node, obj.children)
                 if children:
@@ -703,7 +701,7 @@ class NitroModel():
                 brother.brother_next = brothers[index + 1].index
 
         return brothers
-    
+
     def process_bones(self, parent, bones):
         brothers = []
 
@@ -713,7 +711,7 @@ class NitroModel():
 
             # Make matrix for node.
             self.find_matrix(node.index, bone.matrix_local.copy())
-            
+
             # Transform.
             transform = bone.matrix_local if bone else Matrix.Identity(4)
             if bone and bone.parent:
