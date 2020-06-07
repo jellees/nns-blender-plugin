@@ -9,7 +9,7 @@ from .nns_object import object_register, object_unregister
 
 
 bl_info = {
-    "name": "Nitro Intermediate (.imd, .ita)",
+    "name": "Nitro Intermediate (.imd, .ita, .ica)",
     "author": "Jelle Streekstra, Gabriele Mercurio",
     "version": (0, 0, 3),
     "blender": (2, 80, 0),
@@ -71,6 +71,28 @@ class NTR_PT_export_ita(bpy.types.Panel):
         layout.prop(operator, 'ita_translate_tolerance')
 
 
+class NTR_PT_export_ica(bpy.types.Panel):
+    bl_space_type = 'FILE_BROWSER'
+    bl_region_type = 'TOOL_PROPS'
+    bl_label = "Intermediate Character Animation (.ica)"
+    bl_parent_id = "FILE_PT_operator"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    @classmethod
+    def poll(cls, context):
+        sfile = context.space_data
+        operator = sfile.active_operator
+
+        return operator.bl_idname == "EXPORT_OT_nitro"
+
+    def draw(self, context):
+        layout = self.layout
+        sfile = context.space_data
+        operator = sfile.active_operator
+
+        layout.prop(operator, 'ica_export')
+
+
 class ExportNitro(bpy.types.Operator, ExportHelper):
     bl_idname = "export.nitro"
     bl_label = "Export Nitro"
@@ -87,10 +109,10 @@ class ExportNitro(bpy.types.Operator, ExportHelper):
 
     imd_export = BoolProperty(name="Export .imd", default=True)
     imd_magnification = FloatProperty(name="Magnification",
-                                  default=0.0625,
-                                  precision=4)
+                                      default=0.0625,
+                                      precision=4)
     imd_use_primitive_strip = BoolProperty(name="Use primitive strip",
-                                       default=True)
+                                           default=True)
     imd_compress_nodes = EnumProperty(
         name="Compress nodes",
         items=[
@@ -101,14 +123,16 @@ class ExportNitro(bpy.types.Operator, ExportHelper):
 
     ita_export = BoolProperty(name="Export .ita")
     ita_rotate_tolerance = FloatProperty(name="Rotation tolerance",
-                                      default=0.100000,
-                                      precision=6)
+                                         default=0.100000,
+                                         precision=6)
     ita_scale_tolerance = FloatProperty(name="Scale tolerance",
-                                      default=0.100000,
-                                      precision=6)
+                                        default=0.100000,
+                                        precision=6)
     ita_translate_tolerance = FloatProperty(name="Translation tolerance",
-                                      default=0.010000,
-                                      precision=6)
+                                            default=0.010000,
+                                            precision=6)
+
+    ica_export = BoolProperty(name="Export .ica")
 
     def execute(self, context):
         from . import export_nitro
@@ -116,7 +140,7 @@ class ExportNitro(bpy.types.Operator, ExportHelper):
         settings = self.as_keywords()
         export_nitro.save(context, settings)
         return {'FINISHED'}
-    
+
     def draw(self, context):
         layout = self.layout
         sfile = context.space_data
@@ -126,13 +150,16 @@ class ExportNitro(bpy.types.Operator, ExportHelper):
 
 
 def menu_func_export(self, context):
-    self.layout.operator(ExportNitro.bl_idname, text="Nitro Intermediate (.imd, .ita)")
+    self.layout.operator(
+        ExportNitro.bl_idname,
+        text="Nitro Intermediate (.imd, .ita, .ica)")
 
 
 def register():
     bpy.utils.register_class(ExportNitro)
     bpy.utils.register_class(NTR_PT_export_imd)
     bpy.utils.register_class(NTR_PT_export_ita)
+    bpy.utils.register_class(NTR_PT_export_ica)
     material_register()
     object_register()
 
@@ -143,6 +170,7 @@ def unregister():
     bpy.utils.unregister_class(ExportNitro)
     bpy.utils.unregister_class(NTR_PT_export_imd)
     bpy.utils.unregister_class(NTR_PT_export_ita)
+    bpy.utils.unregister_class(NTR_PT_export_ica)
     material_unregister()
     object_unregister()
 

@@ -87,7 +87,7 @@ def save(context, settings):
 
     model = None
 
-    if settings['imd_export']:
+    if settings['imd_export'] or settings['ica_export']:
         model = NitroModel(global_matrix, settings)
         model.collect()
 
@@ -95,5 +95,5 @@ def save(context, settings):
         generate_imd(settings, model)
     if settings['ita_export']:
         generate_ita(settings)
-
-    generate_ica(settings, model)
+    if settings['ica_export']:
+        generate_ica(settings, model)
