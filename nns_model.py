@@ -504,7 +504,7 @@ class NitroModel():
         self.settings = settings
         # Array with primitives and their objects.
         self.primitives = []
-    
+
     def collect(self):
         if self.settings['imd_compress_nodes'] == 'none':
             self.collect_none()
@@ -649,8 +649,9 @@ class NitroModel():
             node.rotate = [decimal.Decimal(math.degrees(e)) for e in euler]
             transform = self.global_matrix @ obj.matrix_basis
             node.translate = transform.to_translation()
-            node.scale = obj.matrix_basis.to_scale()
-            
+            scale = obj.matrix_basis.to_scale()
+            node.scale = (scale[0], scale[2], scale[1])
+
             # node.transform = obj.matrix_basis.copy()
 
             if obj.type == 'EMPTY':
