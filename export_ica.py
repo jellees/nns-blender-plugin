@@ -186,18 +186,13 @@ class NitroBCA():
 
         # Get location frames.
         if self.do_keyframes_exist(action, bone, 'location'):
-            references = ['translate_x', 'translate_z', 'translate_y']
+            # For some random and unknown reason, for bones, y is up in
+            # blender. Unlike objects, for which z is up.
+            references = ['translate_x', 'translate_y', 'translate_z']
             for idx, reference in enumerate(references):
                 frames = self.get_frames(action, bone, 'location', idx)
                 if frames:
-                    start_value = 0
-                    if reference == 'translate_x':
-                        start_value = node.translate[0]
-                    if reference == 'translate_y':
-                        start_value = node.translate[1]
-                    if reference == 'translate_z':
-                        start_value = node.translate[2]
-                    frames = [x + start_value for x in frames]
+                    frames = [x + node.translate[idx] for x in frames]
                     result = self.translate_data.add_data(frames)
                     animation = self.find_animation(node.index)
                     animation.set_reference(reference, result[0], result[1], 1)
@@ -210,10 +205,10 @@ class NitroBCA():
         return False
 
     def get_frames(self, action, bone, name, index):
-        name = 'pose.bones["' + bone.name + '"].' + name
+        path_name = 'pose.bones["' + bone.name + '"].' + name
         frames = []
         for curve in action.fcurves:
-            if curve.data_path == name and curve.array_index == index:
+            if curve.data_path == path_name and curve.array_index == index:
                 frame_range = action.frame_range
                 self.info.set_frame_size(int(frame_range[1] - frame_range[0]))
                 for i in range(int(frame_range[0]), int(frame_range[1])):
