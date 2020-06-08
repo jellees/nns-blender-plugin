@@ -165,7 +165,7 @@ class NitroBCA():
                         start_value = node.scale[1]
                     if reference == 'scale_z':
                         start_value = node.scale[2]
-                    frames = [x + start_value for x in frames]
+                    frames = [x * start_value for x in frames]
                     result = self.scale_data.add_data(frames)
                     animation = self.find_animation(node.index)
                     animation.set_reference(reference, result[0], result[1], 1)
