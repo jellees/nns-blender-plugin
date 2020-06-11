@@ -116,7 +116,18 @@ class NitroBCA():
             frame_old = scene.frame_current
             for frame in range(scene.frame_start, scene.frame_end + 1):
                 scene.frame_set(frame)
-                mtxs.append([b.matrix.copy() for b in obj.pose.bones])
+
+                transforms = []
+                for b in obj.pose.bones:
+                    transform = b.matrix.copy()
+                    if b.parent:
+                        transform = b.parent.matrix.inverted() @ transform
+                    transforms.append(transform)
+                mtxs.append(transforms)
+
+                # Althought this was used in the sm64ds plugin, it doesn't
+                # work. You need to inverse multiply the parent logically.
+                # mtxs.append([b.matrix.copy() for b in obj.pose.bones])
             scene.frame_set(frame_old)
 
             self.info.set_frame_size(len(mtxs))
