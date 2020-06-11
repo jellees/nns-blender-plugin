@@ -1,7 +1,7 @@
 import bpy
 from mathutils import Quaternion
 import xml.etree.ElementTree as ET
-import math
+from math import degrees
 from .nns_model import NitroModel
 
 
@@ -111,10 +111,17 @@ class NitroBCA():
         for obj in bpy.context.view_layer.objects:
             if obj.type != 'ARMATURE':
                 continue
-            if obj.animation_data and obj.animation_data.action:
-                action = obj.animation_data.action
-                for bone in obj.data.bones:
-                    self.process_bone(action, bone)
+            scene = bpy.context.scene
+            mtxs = []
+            frame_old = scene.frame_current
+            for frame in range(scene.frame_start, scene.frame_end + 1):
+                scene.frame_set(frame)
+                mtxs.append([b.matrix.copy() for b in obj.pose.bones])
+            scene.frame_set(frame_old)
+
+            self.info.set_frame_size(len(mtxs))
+            for i, bone in enumerate(obj.data.bones):
+                self.process_bone(bone, [m[i] for m in mtxs])
 
         # Set the proper data for each non-animated node.
         for animation in self.animations:
@@ -149,99 +156,47 @@ class NitroBCA():
                     result = self.translate_data.add_data([translate[key]])
                     animation.set_reference(key, result[0], result[1], 1)
 
-    def process_bone(self, action, bone):
+    def process_bone(self, bone, transforms):
         node = self.model.find_node(bone.name)
+        animation = self.find_animation(node.index)
 
-        # Get scale frames.
-        if self.do_keyframes_exist(action, bone, 'scale'):
-            references = ['scale_x', 'scale_z', 'scale_y']
-            for idx, reference in enumerate(references):
-                frames = self.get_frames(action, bone, 'scale', idx)
-                if frames:
-                    start_value = 0
-                    if reference == 'scale_x':
-                        start_value = node.scale[0]
-                    if reference == 'scale_y':
-                        start_value = node.scale[1]
-                    if reference == 'scale_z':
-                        start_value = node.scale[2]
-                    frames = [x * start_value for x in frames]
-                    result = self.scale_data.add_data(frames)
-                    animation = self.find_animation(node.index)
-                    animation.set_reference(reference, result[0], result[1], 1)
+        mag = self.model.settings['imd_magnification']
 
-        # Get rotation frames.
-        if self.do_keyframes_exist(action, bone, 'rotation_quaternion'):
-            frames = self.get_rotation_frames(action, bone)
-            frames['rotate_x'] = [
-                x + float(node.rotate[0]) for x in frames['rotate_x']]
-            frames['rotate_y'] = [
-                x + float(node.rotate[1]) for x in frames['rotate_y']]
-            frames['rotate_z'] = [
-                x + float(node.rotate[2]) for x in frames['rotate_z']]
-            animation = self.find_animation(node.index)
-            for key in frames:
-                result = self.rotate_data.add_data(frames[key])
-                animation.set_reference(key, result[0], result[1], 1)
+        scales = {'scale_x': [], 'scale_y': [], 'scale_z': []}
+        rotations = {'rotate_x': [], 'rotate_y': [], 'rotate_z': []}
+        trans = {'translate_x': [], 'translate_y': [], 'translate_z': []}
 
-        # Get location frames.
-        if self.do_keyframes_exist(action, bone, 'location'):
-            # For some random and unknown reason, for bones, y is up in
-            # blender. Unlike objects, for which z is up.
-            references = ['translate_x', 'translate_y', 'translate_z']
-            for idx, reference in enumerate(references):
-                frames = self.get_frames(action, bone, 'location', idx)
-                if frames:
-                    frames = [x + node.translate[idx] for x in frames]
-                    result = self.translate_data.add_data(frames)
-                    animation = self.find_animation(node.index)
-                    animation.set_reference(reference, result[0], result[1], 1)
+        # Get frames.
+        for transform in transforms:
+            scale = transform.to_scale()
+            scales['scale_x'].append(round(scale[0], 6))
+            scales['scale_y'].append(round(scale[1], 6))
+            scales['scale_z'].append(round(scale[2], 6))
 
-    def do_keyframes_exist(self, action, bone, name):
-        name = 'pose.bones["' + bone.name + '"].' + name
-        for curve in action.fcurves:
-            if curve.data_path == name:
-                return True
-        return False
+            rotate = transform.to_euler('XYZ')
+            rotations['rotate_x'].append(round(degrees(rotate[0]), 6))
+            rotations['rotate_y'].append(round(degrees(rotate[2]), 6))
+            rotations['rotate_z'].append(round(degrees(-rotate[1]), 6))
 
-    def get_frames(self, action, bone, name, index):
-        path_name = 'pose.bones["' + bone.name + '"].' + name
-        frames = []
-        for curve in action.fcurves:
-            if curve.data_path == path_name and curve.array_index == index:
-                frame_range = action.frame_range
-                self.info.set_frame_size(int(frame_range[1] - frame_range[0]))
-                for i in range(int(frame_range[0]), int(frame_range[1])):
-                    value = curve.evaluate(i)
-                    if name == 'location':
-                        value *= self.model.settings['imd_magnification']
-                        if index == 2:
-                            value = -value
-                    frames.append(round(value, 6))
-        return frames
+            translate = transform.to_translation()
+            trans['translate_x'].append(round(translate[0] * mag, 6))
+            trans['translate_y'].append(round(translate[2] * mag, 6))
+            trans['translate_z'].append(round(-translate[1] * mag, 6))
 
-    def get_rotation_frames(self, action, bone):
-        frames = {
-            'rotate_x': [],
-            'rotate_y': [],
-            'rotate_z': [],
-        }
-        frame_range = action.frame_range
-        self.info.set_frame_size(int(frame_range[1] - frame_range[0]))
-        for i in range(int(frame_range[0]), int(frame_range[1])):
-            rotation = self.get_quaternion(action, bone, i).to_euler()
-            frames['rotate_x'].append(round(math.degrees(rotation[0]), 6))
-            frames['rotate_y'].append(round(math.degrees(rotation[2]), 6))
-            frames['rotate_z'].append(round(math.degrees(-rotation[1]), 6))
-        return frames
+        # Set scale frames.
+        for key in scales:
+            result = self.scale_data.add_data(scales[key])
+            animation.set_reference(key, result[0], result[1], 1)
 
-    def get_quaternion(self, action, bone, frame):
-        name = 'pose.bones["' + bone.name + '"].rotation_quaternion'
-        values = [0, 0, 0, 0]
-        for curve in action.fcurves:
-            if curve.data_path == name:
-                values[curve.array_index] = curve.evaluate(frame)
-        return Quaternion(values)
+        # Set rotation frames.
+        for key in rotations:
+            result = self.rotate_data.add_data(rotations[key])
+            animation.set_reference(key, result[0], result[1], 1)
+
+        # Set translation frames.
+        for key in trans:
+            result = self.translate_data.add_data(trans[key])
+            animation.set_reference(key, result[0], result[1], 1)
 
     def find_animation(self, index) -> NitroBCAAnimation:
         for animation in self.animations:
