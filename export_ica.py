@@ -117,22 +117,24 @@ class NitroBCA():
             for frame in range(scene.frame_start, scene.frame_end + 1):
                 scene.frame_set(frame)
 
-                transforms = []
-                for b in obj.pose.bones:
-                    transform = b.matrix.copy()
-                    if b.parent:
-                        transform = b.parent.matrix.inverted() @ transform
-                    transforms.append(transform)
+                transforms = {}
+                for pose in obj.pose.bones:
+                    transform = pose.matrix.copy()
+                    if pose.parent:
+                        inv = pose.parent.matrix.inverted()
+                        transform = inv @ transform
+                    transforms[pose.bone.name] = transform
                 mtxs.append(transforms)
 
                 # Althought this was used in the sm64ds plugin, it doesn't
-                # work. You need to inverse multiply the parent logically.
+                # work. You need to inverse multiply it with the parent
+                # logically.
                 # mtxs.append([b.matrix.copy() for b in obj.pose.bones])
             scene.frame_set(frame_old)
 
             self.info.set_frame_size(len(mtxs))
             for i, bone in enumerate(obj.data.bones):
-                self.process_bone(bone, [m[i] for m in mtxs])
+                self.process_bone(bone, [m[bone.name] for m in mtxs])
 
         # Set the proper data for each non-animated node.
         for animation in self.animations:
