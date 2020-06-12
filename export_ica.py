@@ -8,9 +8,6 @@ from .nns_model import NitroModel
 settings = None
 
 
-lmao = "XDDDDDDDD"
-
-
 class NitroBCAInfo():
     def __init__(self):
         self.frame_size = 0
