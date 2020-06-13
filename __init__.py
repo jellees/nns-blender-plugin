@@ -66,9 +66,9 @@ class NTR_PT_export_ita(bpy.types.Panel):
         operator = sfile.active_operator
 
         layout.prop(operator, 'ita_export')
-        layout.prop(operator, 'ita_rotate_tolerance')
-        layout.prop(operator, 'ita_scale_tolerance')
-        layout.prop(operator, 'ita_translate_tolerance')
+        # layout.prop(operator, 'ita_rotate_tolerance')
+        # layout.prop(operator, 'ita_scale_tolerance')
+        # layout.prop(operator, 'ita_translate_tolerance')
 
 
 class NTR_PT_export_ica(bpy.types.Panel):

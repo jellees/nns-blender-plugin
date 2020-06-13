@@ -1,6 +1,7 @@
 import bpy
 from bpy.props import EnumProperty
 
+
 class NTR_PT_object(bpy.types.Panel):
     bl_label = "NNS Object Options"
     bl_idname = "OBJECT_PT_nns"
@@ -10,12 +11,14 @@ class NTR_PT_object(bpy.types.Panel):
     bl_options = {'HIDE_HEADER'}
 
     def draw(self, context):
-        layout = self.layout
-        obj = context.object
-        layout = layout.box()
-        title = layout.column()
-        title.box().label(text="NNS Object Options")
-        layout.prop(obj, "nns_billboard")
+        # layout = self.layout
+        # obj = context.object
+        # layout = layout.box()
+        # title = layout.column()
+        # title.box().label(text="NNS Object Options")
+        # layout.prop(obj, "nns_billboard")
+        pass
+
 
 def object_register():
     billboard_items = [
@@ -27,6 +30,7 @@ def object_register():
         name="Billboard settings", items=billboard_items)
 
     bpy.utils.register_class(NTR_PT_object)
+
 
 def object_unregister():
     bpy.utils.unregister_class(NTR_PT_object)
