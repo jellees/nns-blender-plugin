@@ -198,18 +198,40 @@ class NitroBCA():
 
         # Set scale frames.
         for key in scales:
-            result = self.scale_data.add_data(scales[key])
-            animation.set_reference(key, result[0], result[1], 1)
+            data, frame_step = self.process_curve(scales[key])
+            result = self.scale_data.add_data(data)
+            animation.set_reference(key, result[0], result[1], frame_step)
 
         # Set rotation frames.
         for key in rotations:
-            result = self.rotate_data.add_data(rotations[key])
-            animation.set_reference(key, result[0], result[1], 1)
+            data, frame_step = self.process_curve(rotations[key])
+            result = self.rotate_data.add_data(data)
+            animation.set_reference(key, result[0], result[1], frame_step)
 
         # Set translation frames.
         for key in trans:
-            result = self.translate_data.add_data(trans[key])
-            animation.set_reference(key, result[0], result[1], 1)
+            data, frame_step = self.process_curve(trans[key])
+            result = self.translate_data.add_data(data)
+            animation.set_reference(key, result[0], result[1], frame_step)
+
+    def process_curve(self, data):
+        result = []
+        frame_step = 1
+
+        if settings['ica_frame_step'] == "1":
+            result = data
+        elif settings['ica_frame_step'] == "2":
+            frame_step = 2
+            for i, v in enumerate(data):
+                if i % frame_step == 0 or len(data) - i < frame_step:
+                    result.append(v)
+        elif settings['ica_frame_step'] == "4":
+            frame_step = 4
+            for i, v in enumerate(data):
+                if i % frame_step == 0 or len(data) - i < frame_step:
+                    result.append(v)
+
+        return (result, frame_step)
 
     def find_animation(self, index) -> NitroBCAAnimation:
         for animation in self.animations:

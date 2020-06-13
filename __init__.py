@@ -91,6 +91,7 @@ class NTR_PT_export_ica(bpy.types.Panel):
         operator = sfile.active_operator
 
         layout.prop(operator, 'ica_export')
+        layout.prop(operator, 'ica_frame_step')
 
 
 class ExportNitro(bpy.types.Operator, ExportHelper):
@@ -133,6 +134,13 @@ class ExportNitro(bpy.types.Operator, ExportHelper):
                                             precision=6)
 
     ica_export = BoolProperty(name="Export .ica")
+    ica_frame_step = EnumProperty(
+        name="Frame step mode",
+        items=[
+            ("1", "1", '', 1),
+            ("2", "2", '', 2),
+            ("4", "4", '', 3),
+        ])
 
     def execute(self, context):
         from . import export_nitro
