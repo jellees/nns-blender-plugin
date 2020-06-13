@@ -198,23 +198,29 @@ class NitroBCA():
 
         # Set scale frames.
         for key in scales:
-            data, frame_step = self.process_curve(scales[key])
+            data, frame_step = self.process_curve(
+                scales[key],
+                settings['ica_scale_tolerance'])
             result = self.scale_data.add_data(data)
             animation.set_reference(key, result[0], result[1], frame_step)
 
         # Set rotation frames.
         for key in rotations:
-            data, frame_step = self.process_curve(rotations[key])
+            data, frame_step = self.process_curve(
+                rotations[key],
+                settings['ica_rotate_tolerance'])
             result = self.rotate_data.add_data(data)
             animation.set_reference(key, result[0], result[1], frame_step)
 
         # Set translation frames.
         for key in trans:
-            data, frame_step = self.process_curve(trans[key])
+            data, frame_step = self.process_curve(
+                trans[key],
+                settings['ica_translate_tolerance'])
             result = self.translate_data.add_data(data)
             animation.set_reference(key, result[0], result[1], frame_step)
 
-    def process_curve(self, data):
+    def process_curve(self, data, tolerance):
         result = []
         frame_step = 1
 
@@ -230,6 +236,17 @@ class NitroBCA():
             for i, v in enumerate(data):
                 if i % frame_step == 0 or len(data) - i < frame_step:
                     result.append(v)
+
+        # Calculate tolerance.
+        min_value = result[0]
+        max_value = result[0]
+        for v in result:
+            min_value = min(min_value, v)
+            max_value = max(max_value, v)
+        value_range = max_value - min_value
+        if value_range < tolerance:
+            frame_step = 1
+            result = [result[0]]
 
         return (result, frame_step)
 

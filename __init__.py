@@ -92,6 +92,9 @@ class NTR_PT_export_ica(bpy.types.Panel):
 
         layout.prop(operator, 'ica_export')
         layout.prop(operator, 'ica_frame_step')
+        layout.prop(operator, 'ica_rotate_tolerance')
+        layout.prop(operator, 'ica_scale_tolerance')
+        layout.prop(operator, 'ica_translate_tolerance')
 
 
 class ExportNitro(bpy.types.Operator, ExportHelper):
@@ -141,6 +144,15 @@ class ExportNitro(bpy.types.Operator, ExportHelper):
             ("2", "2", '', 2),
             ("4", "4", '', 3),
         ])
+    ica_rotate_tolerance = FloatProperty(name="Rotation tolerance",
+                                         default=0.100000,
+                                         precision=6)
+    ica_scale_tolerance = FloatProperty(name="Scale tolerance",
+                                        default=0.100000,
+                                        precision=6)
+    ica_translate_tolerance = FloatProperty(name="Translation tolerance",
+                                            default=0.010000,
+                                            precision=6)
 
     def execute(self, context):
         from . import export_nitro
