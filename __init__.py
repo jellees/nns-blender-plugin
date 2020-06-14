@@ -107,17 +107,17 @@ class ExportNitro(bpy.types.Operator, ExportHelper):
         options={'HIDDEN'},
         )
 
-    pretty_print = BoolProperty(name="Pretty print", default=True)
+    pretty_print: BoolProperty(name="Pretty print", default=True)
 
-    generate_log = BoolProperty(name="Generate log file", default=False)
+    generate_log: BoolProperty(name="Generate log file", default=False)
 
-    imd_export = BoolProperty(name="Export .imd", default=True)
-    imd_magnification = FloatProperty(name="Magnification",
-                                      default=0.0625,
-                                      precision=4)
-    imd_use_primitive_strip = BoolProperty(name="Use primitive strip",
-                                           default=True)
-    imd_compress_nodes = EnumProperty(
+    imd_export: BoolProperty(name="Export .imd", default=True)
+    imd_magnification: FloatProperty(name="Magnification",
+                                     default=0.0625,
+                                     precision=4)
+    imd_use_primitive_strip: BoolProperty(name="Use primitive strip",
+                                          default=True)
+    imd_compress_nodes: EnumProperty(
         name="Compress nodes",
         items=[
             ("none", "None", '', 1),
@@ -125,34 +125,34 @@ class ExportNitro(bpy.types.Operator, ExportHelper):
             ("unite_combine", "Unite and combine polygon", '', 3),
         ])
 
-    ita_export = BoolProperty(name="Export .ita")
-    ita_rotate_tolerance = FloatProperty(name="Rotation tolerance",
-                                         default=0.100000,
-                                         precision=6)
-    ita_scale_tolerance = FloatProperty(name="Scale tolerance",
+    ita_export: BoolProperty(name="Export .ita")
+    ita_rotate_tolerance: FloatProperty(name="Rotation tolerance",
                                         default=0.100000,
                                         precision=6)
-    ita_translate_tolerance = FloatProperty(name="Translation tolerance",
-                                            default=0.010000,
-                                            precision=6)
+    ita_scale_tolerance: FloatProperty(name="Scale tolerance",
+                                       default=0.100000,
+                                       precision=6)
+    ita_translate_tolerance: FloatProperty(name="Translation tolerance",
+                                           default=0.010000,
+                                           precision=6)
 
-    ica_export = BoolProperty(name="Export .ica")
-    ica_frame_step = EnumProperty(
+    ica_export: BoolProperty(name="Export .ica")
+    ica_frame_step: EnumProperty(
         name="Frame step mode",
         items=[
             ("1", "1", '', 1),
             ("2", "2", '', 2),
             ("4", "4", '', 3),
         ])
-    ica_rotate_tolerance = FloatProperty(name="Rotation tolerance",
-                                         default=0.100000,
-                                         precision=6)
-    ica_scale_tolerance = FloatProperty(name="Scale tolerance",
+    ica_rotate_tolerance: FloatProperty(name="Rotation tolerance",
                                         default=0.100000,
                                         precision=6)
-    ica_translate_tolerance = FloatProperty(name="Translation tolerance",
-                                            default=0.010000,
-                                            precision=6)
+    ica_scale_tolerance: FloatProperty(name="Scale tolerance",
+                                       default=0.100000,
+                                       precision=6)
+    ica_translate_tolerance: FloatProperty(name="Translation tolerance",
+                                           default=0.010000,
+                                           precision=6)
 
     def execute(self, context):
         from . import export_nitro
