@@ -626,6 +626,15 @@ class NitroModel():
                     self.info.add(vertex)
                     vecfx32_vertex = VecFx32().from_vector(vertex)
                     primitive.positions[idx] = vecfx32_vertex
+                for idx in range(len(primitive.normals)):
+                    group = primitive.groups[idx]
+                    if group != -1:
+                        name = obj.vertex_groups[group].name
+                        matrix = self.find_matrix_by_node_name(name)
+                        normal = primitive.normals[idx].to_vector()
+                        quat = matrix.transform.inverted().to_quaternion()
+                        normal = quat @ normal
+                        primitive.normals[idx] = vector_to_vecfx10(normal)
 
     def process_children(self, parent, objs):
         """
