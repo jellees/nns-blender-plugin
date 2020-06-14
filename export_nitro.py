@@ -15,7 +15,7 @@ def generate_header(imd, data_name):
 
     generator = ET.SubElement(head, 'generator')
     generator.set('name', 'Nitro plugin for Blender 2.8')
-    generator.set('version', '0.0.3')
+    generator.set('version', '0.1.0')
 
 
 def generate_imd(settings, model):
