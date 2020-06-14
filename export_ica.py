@@ -188,13 +188,13 @@ class NitroBCA():
 
             rotate = transform.to_euler('XYZ')
             rotations['rotate_x'].append(round(degrees(rotate[0]), 6))
-            rotations['rotate_y'].append(round(degrees(rotate[2]), 6))
-            rotations['rotate_z'].append(round(degrees(-rotate[1]), 6))
+            rotations['rotate_y'].append(round(degrees(rotate[1]), 6))
+            rotations['rotate_z'].append(round(degrees(rotate[2]), 6))
 
             translate = transform.to_translation()
             trans['translate_x'].append(round(translate[0] * mag, 6))
-            trans['translate_y'].append(round(translate[2] * mag, 6))
-            trans['translate_z'].append(round(-translate[1] * mag, 6))
+            trans['translate_y'].append(round(translate[1] * mag, 6))
+            trans['translate_z'].append(round(translate[2] * mag, 6))
 
         # Set scale frames.
         for key in scales:
@@ -258,8 +258,8 @@ class NitroBCA():
         return self.animations[-1]
 
 
-def generate_srt_info(ita, info, model):
-    node_anm_info = ET.SubElement(ita, 'node_anm_info')
+def generate_anm_info(ica, info, model):
+    node_anm_info = ET.SubElement(ica, 'node_anm_info')
     node_anm_info.set('frame_size', str(info.frame_size))
     node_anm_info.set('scaling_rule', 'standard')
     node_anm_info.set('magnify', str(settings['imd_magnification']))
@@ -271,15 +271,12 @@ def generate_srt_info(ita, info, model):
     node_anm_info.set('node_size',
                       str(len(model.nodes)) + ' ' + str(len(model.nodes)))
     node_anm_info.set('frame_step_mode', '1')
-    # scale_tolerance = '{:.6f}'.format(settings['ita_scale_tolerance'])
-    # node_anm_info.set('tolerance_tex_scale', scale_tolerance)
-    # rotate_tolerance = '{:.6f}'.format(settings['ita_rotate_tolerance'])
-    # node_anm_info.set('tolerance_tex_rotate', rotate_tolerance)
-    # translate_tolerance = '{:.6f}'.format(settings['ita_translate_tolerance'])
-    # node_anm_info.set('tolerance_tex_translate', translate_tolerance)
-    node_anm_info.set('tolerance_scale', '0.000100')
-    node_anm_info.set('tolerance_rotate', '0.000100')
-    node_anm_info.set('tolerance_translate', '0.000100')
+    scale_tolerance = '{:.6f}'.format(settings['ica_scale_tolerance'])
+    node_anm_info.set('tolerance_scale', scale_tolerance)
+    rotate_tolerance = '{:.6f}'.format(settings['ica_rotate_tolerance'])
+    node_anm_info.set('tolerance_rotate', rotate_tolerance)
+    translate_tolerance = '{:.6f}'.format(settings['ica_translate_tolerance'])
+    node_anm_info.set('tolerance_translate', translate_tolerance)
 
 
 def generate_data(ica, bca_data: NitroBCAData):
@@ -314,7 +311,7 @@ def generate_body(ica, model, export_settings):
     bca = NitroBCA(model)
     bca.collect()
 
-    generate_srt_info(ica, bca.info, model)
+    generate_anm_info(ica, bca.info, model)
     generate_data(ica, bca.scale_data)
     generate_data(ica, bca.rotate_data)
     generate_data(ica, bca.translate_data)
