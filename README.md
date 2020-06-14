@@ -16,6 +16,15 @@ Be sure to use nitro tga files for textures. All other formats will be ignored. 
 
 You can preview your material by switching to lookdev mode or rendered mode. This feature aids you in crafting your material but it is not a 100% accurate rendering of what it will look like on the ds. Be sure to have a vertex color layer named "Col" when using vertex colored materials, otherwise your material will be black.
 
+## Exporting bones and animation
+
+You can export your rigged model and the current active animation by enabling "export .ica" in the export window. You can influence the size-quality ratio by changing the tolerance and frame step mode. Be sure to set the node compression to none, otherwise no bones will be exported.
+
+Please keep these points in mind when making a rig and animation:
+* Make sure that each vertex is only part of one vertex group.
+* Do not use extreme transforms on your mesh or armature (Like using a scale of 0.00002 for example). Apply them if needed.
+* The length of the animation is set by the playback length of the scene.
+
 ## Exporting texture animation
 
 You can export texture animation by animating the SRT values in the material and then enabling .ita for export.
