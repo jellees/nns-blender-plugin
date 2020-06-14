@@ -4,6 +4,7 @@ import decimal
 from mathutils import Matrix
 import bpy
 from bpy_extras import node_shader_utils
+from bpy_extras.io_utils import axis_conversion
 from .util import *
 from .primitive import *
 from . import local_logger as logger
@@ -613,9 +614,11 @@ class NitroModel():
             for primitive in item['primitives']:
                 for idx in range(len(primitive.positions)):
                     vertex = primitive.positions[idx].to_vector()
-                    # Only do if there may be bones.
                     if self.settings['imd_compress_nodes'] in ['unite', 'unite_combine']:
-                        vertex = obj.matrix_world @ vertex
+                        transform = axis_conversion(
+                            to_forward='-Z', to_up='Y').to_4x4()
+                        transform = obj.matrix_world @ transform
+                        vertex = transform @ vertex
                     else:
                         matrix = None
                         group = primitive.groups[idx]
@@ -629,14 +632,23 @@ class NitroModel():
                     vecfx32_vertex = VecFx32().from_vector(vertex)
                     primitive.positions[idx] = vecfx32_vertex
                 for idx in range(len(primitive.normals)):
-                    group = primitive.groups[idx]
-                    if group != -1:
-                        name = obj.vertex_groups[group].name
-                        matrix = self.find_matrix_by_node_name(name)
+                    if self.settings['imd_compress_nodes'] in ['unite', 'unite_combine']:
                         normal = primitive.normals[idx].to_vector()
-                        quat = matrix.transform.inverted().to_quaternion()
+                        transform = axis_conversion(
+                            to_forward='-Z', to_up='Y').to_4x4()
+                        transform = obj.matrix_world @ transform
+                        quat = transform.to_quaternion()
                         normal = quat @ normal
                         primitive.normals[idx] = vector_to_vecfx10(normal)
+                    else:
+                        group = primitive.groups[idx]
+                        if group != -1:
+                            name = obj.vertex_groups[group].name
+                            matrix = self.find_matrix_by_node_name(name)
+                            normal = primitive.normals[idx].to_vector()
+                            quat = matrix.transform.inverted().to_quaternion()
+                            normal = quat @ normal
+                            primitive.normals[idx] = vector_to_vecfx10(normal)
 
     def process_children(self, parent, objs):
         """
