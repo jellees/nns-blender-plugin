@@ -159,6 +159,7 @@ class ExportNitro(bpy.types.Operator, ExportHelper):
 
         settings = self.as_keywords()
         export_nitro.save(context, settings)
+        self.report({'INFO'}, 'NNS: Exported scene.')
         return {'FINISHED'}
 
     def draw(self, context):

@@ -512,7 +512,7 @@ class CreateNNSMaterial(bpy.types.Operator):
             self.report({'ERROR'}, 'No active object selected.')
         else:
             create_nns_material(obj)
-            self.report({'INFO'}, 'Created new NNS material.')
+            self.report({'INFO'}, 'NNS: Created new material.')
         return {'FINISHED'}
 
 
