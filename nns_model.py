@@ -137,13 +137,17 @@ class NitroModelMaterial():
         if material.is_nns:
             self.alpha = material.nns_alpha
             self.diffuse = ' '.join(
-                [str(int(lin2s(x) * 31)) for x in material.nns_diffuse])
+                [str(int(round(lin2s(x) * 31)))
+                 for x in material.nns_diffuse])
             self.specular = ' '.join(
-                [str(int(lin2s(x) * 31)) for x in material.nns_specular])
+                [str(int(round(lin2s(x) * 31)))
+                 for x in material.nns_specular])
             self.ambient = ' '.join(
-                [str(int(lin2s(x) * 31)) for x in material.nns_ambient])
+                [str(int(round(lin2s(x) * 31)))
+                 for x in material.nns_ambient])
             self.emission = ' '.join(
-                [str(int(lin2s(x) * 31)) for x in material.nns_emission])
+                [str(int(round(lin2s(x) * 31)))
+                 for x in material.nns_emission])
             if material.nns_image is not None \
                     and "tx" in material.nns_mat_type:
                 filepath = material.nns_image.filepath
@@ -158,12 +162,12 @@ class NitroModelMaterial():
             wrap = node_shader_utils.PrincipledBSDFWrapper(material)
             self.alpha = int(wrap.alpha * 31)
             self.diffuse = ' '.join([
-                str(int(lin2s(wrap.base_color[0]) * 31)),
-                str(int(lin2s(wrap.base_color[1]) * 31)),
-                str(int(lin2s(wrap.base_color[2]) * 31))
+                str(int(round(lin2s(wrap.base_color[0]) * 31))),
+                str(int(round(lin2s(wrap.base_color[1]) * 31))),
+                str(int(round(lin2s(wrap.base_color[2]) * 31)))
             ])
             self.specular = ' '.join(
-                [str(int(wrap.specular * 31)) for _ in range(3)])
+                [str(int(round(wrap.specular * 31))) for _ in range(3)])
             self.ambient = '31 31 31'
             self.emission = '0 0 0'
 
@@ -330,8 +334,6 @@ class NitroModelMtxPrim():
             # Normal
             if self.parent_polygon.use_nrm:
                 normal = prim.normals[idx].to_vector()
-                # normal = vector_to_vecfx10(normal)
-                # normal = normal.to_vector()
                 primitive.add_command('nrm', 'xyz',
                                       f'{normal.x} {normal.y} {normal.z}')
 

@@ -408,9 +408,9 @@ class Primitive():
             # Color
             if use_colors:
                 color = obj.data.vertex_colors[0].data[idx].color
-                r = int(color[0] * 31)
-                g = int(color[1] * 31)
-                b = int(color[2] * 31)
+                r = int(round(color[0] * 31))
+                g = int(round(color[1] * 31))
+                b = int(round(color[2] * 31))
                 self.colors.append((r, g, b))
             else:
                 self.colors.append((0, 0, 0))
