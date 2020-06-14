@@ -1,5 +1,5 @@
 import bpy
-from mathutils import Vector, Matrix
+from mathutils import Vector
 
 
 def is_pos_s(vecfx32):
@@ -28,8 +28,8 @@ def calculate_pos_scale(max_coord):
     return pos_scale
 
 
-def get_object_max_min(global_matrix, obj):
-    matrix = global_matrix @ obj.matrix_world
+def get_object_max_min(obj):
+    matrix = obj.matrix_world
     bounds = [matrix @ Vector(v) for v in obj.bound_box]
     return {
         'min': bounds[0],
@@ -37,13 +37,13 @@ def get_object_max_min(global_matrix, obj):
     }
 
 
-def get_all_max_min(global_matrix):
+def get_all_max_min():
     min_p = Vector([float('inf'), float('inf'), float('inf')])
     max_p = Vector([-float('inf'), -float('inf'), -float('inf')])
     for obj in bpy.context.view_layer.objects:
         if obj.type != 'MESH':
             continue
-        max_min = get_object_max_min(global_matrix, obj)
+        max_min = get_object_max_min(obj)
         # Max
         max_p.x = max(max_p.x, max_min['max'].x)
         max_p.x = max(max_p.x, max_min['min'].x)
@@ -78,16 +78,15 @@ def get_global_mat_index(obj, index):
 
 
 def lin2s(x):
-        """
-        Le color correction function. From some guy on blender stackexchange.
-        http://entropymine.com/imageworsener/srgbformula/
-        """
-        a = 0.055
-        if x <= 0.0031308:
-            y = x * 12.92
-        elif 0.0031308 < x <= 1:
-            y = 1.055 * x ** (1 / 2.4) - 0.055
-        return y
+    """
+    Le color correction function. From some guy on blender stackexchange.
+    http://entropymine.com/imageworsener/srgbformula/
+    """
+    if x <= 0.0031308:
+        y = x * 12.92
+    elif 0.0031308 < x <= 1:
+        y = 1.055 * x ** (1 / 2.4) - 0.055
+    return y
 
 
 def float_to_fx32(value):

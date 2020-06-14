@@ -11,7 +11,7 @@ from . import nns_tga
 
 
 class NitroModelInfo():
-    def __init__(self, global_matrix):
+    def __init__(self):
         self.pos_scale = 0
         self.max_coord = 0
 
@@ -25,8 +25,8 @@ class NitroModelInfo():
 
 
 class NitroModelBoxTest():
-    def __init__(self, global_matrix):
-        box = get_all_max_min(global_matrix)
+    def __init__(self):
+        box = get_all_max_min()
         self.xyz = box['min']
         self.whd = box['max'] - box['min']
 
@@ -298,7 +298,8 @@ class NitroModelMtxPrim():
             # Find transform.
             group = prim.groups[idx]
             matrix = None
-            if model.settings['imd_compress_nodes'] in ['unite', 'unite_combine']:
+            if (model.settings['imd_compress_nodes']
+               in ['unite', 'unite_combine']):
                 matrix = model.find_matrix_by_node_name('root_scene')
                 group = -1
             elif group != -1:
@@ -306,7 +307,7 @@ class NitroModelMtxPrim():
                 matrix = model.find_matrix_by_node_name(name)
             else:
                 matrix = model.find_matrix_by_node_name(obj.name)
-            
+
             # Add mtx command.
             if matrix is not None and primitive._previous_mtx != matrix.index:
                 index = self.add_matrix_reference(matrix.index)
@@ -329,12 +330,8 @@ class NitroModelMtxPrim():
             # Normal
             if self.parent_polygon.use_nrm:
                 normal = prim.normals[idx].to_vector()
-                if group == -1:
-                    normal = vector_to_vecfx10(Vector((normal.x, normal.z, -normal.y)))
-                    normal = normal.to_vector()
-                else:
-                    normal = vector_to_vecfx10(Vector((normal.x, -normal.y, -normal.z)))
-                    normal = normal.to_vector()
+                # normal = vector_to_vecfx10(normal)
+                # normal = normal.to_vector()
                 primitive.add_command('nrm', 'xyz',
                                       f'{normal.x} {normal.y} {normal.z}')
 
@@ -480,7 +477,7 @@ class NitroModelOutputInfo():
         self.polygon_size = 0
         self.triangle_size = 0
         self.quad_size = 0
-    
+
     def collect(self, model):
         for polygon in model.polygons:
             self.vertex_size += polygon.vertex_size
@@ -491,9 +488,9 @@ class NitroModelOutputInfo():
 
 
 class NitroModel():
-    def __init__(self, global_matrix, settings):
-        self.info = NitroModelInfo(global_matrix)
-        self.box_test = NitroModelBoxTest(global_matrix)
+    def __init__(self, settings):
+        self.info = NitroModelInfo()
+        self.box_test = NitroModelBoxTest()
         self.textures = []
         self.palettes = []
         self.materials = []
@@ -501,7 +498,6 @@ class NitroModel():
         self.polygons = []
         self.nodes = []
         self.output_info = NitroModelOutputInfo()
-        self.global_matrix = global_matrix
         self.settings = settings
         # Array with primitives and their objects.
         self.primitives = []
@@ -526,6 +522,7 @@ class NitroModel():
 
     def collect_none(self):
         root = self.find_node('root_scene')
+        root.rotate = (-90, 0, 0)
         root_objects = []
         for obj in bpy.context.view_layer.objects:
             if obj.parent:
@@ -625,7 +622,7 @@ class NitroModel():
                             matrix = self.find_matrix_by_node_name(name)
                         if matrix:
                             vertex = matrix.transform.inverted() @ vertex
-                    vertex = self.global_matrix @ vertex
+                    vertex = vertex * self.settings['imd_magnification']
                     self.info.add(vertex)
                     vecfx32_vertex = VecFx32().from_vector(vertex)
                     primitive.positions[idx] = vecfx32_vertex
@@ -645,12 +642,10 @@ class NitroModel():
 
             # Transform, is equal for all objects.
             euler = obj.matrix_basis.to_euler('XYZ')
-            euler = (euler[0], euler[2], -euler[1])
             node.rotate = [decimal.Decimal(math.degrees(e)) for e in euler]
-            transform = self.global_matrix @ obj.matrix_basis
-            node.translate = transform.to_translation()
-            scale = obj.matrix_basis.to_scale()
-            node.scale = (scale[0], scale[2], scale[1])
+            mag = self.settings['imd_magnification']
+            node.translate = obj.matrix_basis.to_translation() * mag
+            node.scale = obj.matrix_basis.to_scale()
 
             if obj.type == 'EMPTY':
                 children = self.process_children(node, obj.children)
@@ -719,10 +714,10 @@ class NitroModel():
 
             # Translate bone.
             euler = transform.to_euler('XYZ')
-            euler = (euler[0], euler[2], -euler[1])
             node.rotate = [decimal.Decimal(math.degrees(e)) for e in euler]
-            transform = self.global_matrix @ transform
-            node.translate = transform.to_translation()
+            mag = self.settings['imd_magnification']
+            node.translate = transform.to_translation() * mag
+            # TODO: scale for bones.
 
             # Get children.
             children = self.process_bones(node, bone.children)
@@ -746,7 +741,7 @@ class NitroModel():
         primitives = []
 
         obj.data.calc_normals_split()
-    
+
         for polygon in obj.data.polygons:
             if len(polygon.loop_indices) > 4:
                 logger.log("Polygon is ngon. Skipped.")
@@ -758,7 +753,7 @@ class NitroModel():
             if index == -1:
                 logger.log("Polygon doesn't have material. Skipped.")
                 continue
-            
+
             # Add polygon to the list of primitives.
             primitives.append(Primitive(obj, polygon))
 
@@ -768,7 +763,7 @@ class NitroModel():
 
             tri_stripper = TriStripper()
             primitives = tri_stripper.process(primitives)
-        
+
         self.primitives.append({
             'obj': obj,
             'node': node,

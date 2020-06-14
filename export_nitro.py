@@ -79,16 +79,10 @@ def save(context, settings):
 
     logger.create_log(settings['filepath'], settings['generate_log'])
 
-    global_matrix = (
-        Matrix.Scale(settings['imd_magnification'], 4) @ axis_conversion(
-            to_forward='-Z',
-            to_up='Y',
-        ).to_4x4())
-
     model = None
 
     if settings['imd_export'] or settings['ica_export']:
-        model = NitroModel(global_matrix, settings)
+        model = NitroModel(settings)
         model.collect()
 
     if settings['imd_export']:
