@@ -28,7 +28,7 @@ def generate_imd(settings, model):
 
     output = ""
     if settings['pretty_print']:
-        output = minidom.parseString(ET.tostring(imd))
+        output = minidom.parseString(ET.tostring(imd, encoding='unicode'))
         output = output.toprettyxml(indent='   ')
     else:
         output = ET.tostring(imd, encoding='unicode')
@@ -47,7 +47,7 @@ def generate_ita(settings):
 
     output = ""
     if settings['pretty_print']:
-        output = minidom.parseString(ET.tostring(ita))
+        output = minidom.parseString(ET.tostring(ita, encoding='unicode'))
         output = output.toprettyxml(indent='   ')
     else:
         output = ET.tostring(ita, encoding='unicode')
@@ -66,7 +66,7 @@ def generate_ica(settings, model):
 
     output = ""
     if settings['pretty_print']:
-        output = minidom.parseString(ET.tostring(ica))
+        output = minidom.parseString(ET.tostring(ica, encoding='unicode'))
         output = output.toprettyxml(indent='   ')
     else:
         output = ET.tostring(ica, encoding='unicode')
