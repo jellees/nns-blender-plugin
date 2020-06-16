@@ -100,6 +100,7 @@ class NTR_PT_export_ica(bpy.types.Panel):
 class ExportNitro(bpy.types.Operator, ExportHelper):
     bl_idname = "export.nitro"
     bl_label = "Export Nitro"
+    bl_options = {'PRESET'}
 
     filename_ext = ""
     filter_glob: StringProperty(
