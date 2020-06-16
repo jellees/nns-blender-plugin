@@ -13,9 +13,9 @@ bl_info = {
     "author": "Jelle Streekstra, Gabriele Mercurio",
     "version": (0, 1, 0),
     "blender": (2, 80, 0),
-    "location": "File > Import-Export",
+    "location": "File > Export",
     "description": "Export intermediate files for Nitro system",
-    "category": "Import-Export"
+    "category": "Export"
 }
 
 
@@ -103,7 +103,7 @@ class ExportNitro(bpy.types.Operator, ExportHelper):
 
     filename_ext = ""
     filter_glob: StringProperty(
-        default="*.imd;*.ita",
+        default="*.imd;*.ita;*.ica",
         options={'HIDDEN'},
         )
 
