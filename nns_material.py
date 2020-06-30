@@ -728,7 +728,7 @@ def material_register():
     bpy.types.Material.nns_alpha = IntProperty(
         name="Alpha", min=0, max=31, default=31, update=update_nodes_alpha)
     bpy.types.Material.nns_tex_scale = FloatVectorProperty(
-        size=2, name="Texture scale")
+        size=2, name="Texture scale", default=(1, 1))
     bpy.types.Material.nns_tex_rotate = FloatProperty(name="Texture rotation")
     bpy.types.Material.nns_tex_translate = FloatVectorProperty(
         size=2, name="Texture translation")
