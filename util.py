@@ -219,6 +219,8 @@ class VecFx32(object):
             ).format(self.__class__, type(other))
 
     def __eq__(self, other):
+        if other is None:
+            return False
         return (
             self.x == other.x
             and self.y == other.y

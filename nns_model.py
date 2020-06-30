@@ -207,6 +207,9 @@ class NitroModelPrimitive():
         self.commands = []
         self._previous_vecfx32 = None
         self._previous_mtx = -1
+        self._previous_nrm = None
+        self._previous_tex = None
+        self._previous_clr = None
         # for after sort
         # quad_strip=0 triangle_strip=1 quads=2 triangles=3
         self.sort_key = 0
@@ -318,9 +321,12 @@ class NitroModelMtxPrim():
                 index = self.add_matrix_reference(matrix.index)
                 primitive.add_mtx(index)
                 primitive._previous_mtx = matrix.index
+                primitive._previous_nrm = None
 
             # Texture coordinate.
-            if self.parent_polygon.use_tex:
+            if (self.parent_polygon.use_tex
+               and primitive._previous_tex != prim.texcoords[idx]):
+                primitive._previous_tex = prim.texcoords[idx]
                 tex = model.textures[material.image_idx]
                 uv = prim.texcoords[idx].to_vector()
                 s = uv.x * tex.width
@@ -328,12 +334,16 @@ class NitroModelMtxPrim():
                 primitive.add_command('tex', 'st', f'{s} {t}')
 
             # Color
-            if self.parent_polygon.use_clr:
+            if (self.parent_polygon.use_clr
+               and primitive._previous_clr != prim.colors[idx]):
+                primitive._previous_clr = prim.colors[idx]
                 r, g, b = prim.colors[idx]
                 primitive.add_command('clr', 'rgb', f'{r} {g} {b}')
 
             # Normal
-            if self.parent_polygon.use_nrm:
+            if (self.parent_polygon.use_nrm
+               and primitive._previous_nrm != prim.normals[idx]):
+                primitive._previous_nrm = prim.normals[idx]
                 normal = prim.normals[idx].to_vector()
                 primitive.add_command('nrm', 'xyz',
                                       f'{normal.x} {normal.y} {normal.z}')
