@@ -10,7 +10,7 @@ settings = None
 class NitroSRTInfo():
     def __init__(self):
         self.frame_size = 0
-    
+
     def set_frame_size(self, size):
         if size > self.frame_size:
             self.frame_size = size
@@ -23,14 +23,14 @@ class NitroSRTData():
             self.data = [1.0]
         else:
             self.data = [0.0]
-    
+
     def find_in_data(self, x):
         l1, l2 = len(self.data), len(x)
         for i in range(l1):
             if self.data[i:i+l2] == x:
                 return i
         return -1
-    
+
     def add_data(self, data):
         """
         Adds and compresses data. Returns a tuple with head and size.
@@ -82,7 +82,7 @@ class NitroSRTAnimation():
             'tex_translate_s': NitroSRTReference(),
             'tex_translate_t': NitroSRTReference()
         }
-    
+
     def set_reference(self, name, head, size, step):
         reference = self.references[name]
         reference.data_head = head
@@ -97,13 +97,14 @@ class NitroSRT():
         self.rotate_data = NitroSRTData('tex_rotate_data')
         self.translate_data = NitroSRTData('tex_translate_data')
         self.animations = []
-    
+
     def collect(self):
         for mat in bpy.data.materials:
-            if mat.nns_srt_translate.data.animation_data is not None:
-                action = mat.nns_srt_translate.data.animation_data.action
+            anim_data = mat.nns_srt_translate.data.animation_data
+            if anim_data is not None and anim_data.action is not None:
+                action = anim_data.action
                 self.process_action(mat.name, action)
-    
+
     def process_action(self, material_name, action):
         for curve in action.fcurves:
             data = []
@@ -123,7 +124,7 @@ class NitroSRT():
                 result = self.translate_data.add_data(data)
                 name = 'tex_translate_t' if curve.array_index else 'tex_translate_s'
                 animation.set_reference(name, result[0], result[1], 1)
-    
+
     def find_animation(self, material_name):
         for animation in self.animations:
             if animation.material_name == material_name:
