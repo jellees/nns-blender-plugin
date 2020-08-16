@@ -2,6 +2,18 @@ import bpy
 from mathutils import Vector
 
 
+def get_color_from_obj(obj, idx):
+    """
+    This function exists because we cannot trust blender to have the vertex colors
+    to be aligned with the vertex loops. Possibly this happens when you import a
+    wrong model.
+    """
+    if len(obj.data.vertex_colors[0].data) <= idx:
+        return (0, 0, 0)
+    else:
+        obj.data.vertex_colors[0].data[idx].color
+
+
 def is_pos_s(vecfx32):
     return (
         (vecfx32.x & 0x3F) == 0 and
@@ -127,6 +139,8 @@ class Vecfx10():
         ])
 
     def __eq__(self, other):
+        if other is None:
+            return False
         return (
             self.x == other.x
             and self.y == other.y

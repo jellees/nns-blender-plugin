@@ -407,7 +407,9 @@ class Primitive():
 
             # Color
             if use_colors:
-                color = obj.data.vertex_colors[0].data[idx].color
+                # Use special function to get color because the vertex colors
+                # may not align with the vertex loops.
+                color = get_color_from_obj(obj, idx)
                 r = int(round(color[0] * 31))
                 g = int(round(color[1] * 31))
                 b = int(round(color[2] * 31))
