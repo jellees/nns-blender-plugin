@@ -11,7 +11,7 @@ def get_color_from_obj(obj, idx):
     if len(obj.data.vertex_colors[0].data) <= idx:
         return (0, 0, 0)
     else:
-        obj.data.vertex_colors[0].data[idx].color
+        return obj.data.vertex_colors[0].data[idx].color
 
 
 def is_pos_s(vecfx32):
