@@ -11,7 +11,7 @@ from .nns_object import object_register, object_unregister
 bl_info = {
     "name": "Nitro Intermediate (.imd, .ita, .ica)",
     "author": "Jelle Streekstra, Gabriele Mercurio",
-    "version": (0, 1, 0),
+    "version": (0, 1, 1),
     "blender": (2, 80, 0),
     "location": "File > Export",
     "description": "Export intermediate files for Nitro system",
