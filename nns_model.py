@@ -316,6 +316,9 @@ class NitroModelMtxPrim():
             else:
                 matrix = model.find_matrix_by_node_name(obj.name)
 
+            node = model.find_node_by_index(matrix.node_idx)
+            node.draw_mtx = True
+
             # Add mtx command.
             if matrix is not None and primitive._previous_mtx != matrix.index:
                 index = self.add_matrix_reference(matrix.index)
@@ -458,6 +461,7 @@ class NitroModelNode():
         self.scale = (1, 1, 1)
         self.rotate = (0, 0, 0)
         self.translate = (0, 0, 0)
+        self.mtx = None
         self.visibility = True
         self.displays = []
         self.vertex_size = 0
@@ -516,7 +520,7 @@ class NitroModel():
         self.primitives = []
 
     def collect(self):
-        if self.settings['imd_compress_nodes'] == 'none':
+        if self.settings['imd_compress_nodes'] in ['none', 'cull', 'merge']:
             self.collect_none()
         elif self.settings['imd_compress_nodes'] == 'unite':
             self.collect_unite()
@@ -552,6 +556,36 @@ class NitroModel():
                 item['obj'],
                 item['node'],
             )
+
+        if self.settings['imd_compress_nodes'] in ['cull', 'merge']:
+            self.cull_nodes()
+
+    def cull_nodes(self):
+        root = self.find_node('root_scene')
+        while True:
+            node = self.get_childless_node()
+            if node is not None:
+                root.displays = node.displays
+                self.remove_node(node)
+            else:
+                break
+        child = self.find_node_by_index(root.child)
+        if child.brother_next == -1:
+            mtx = Matrix.Rotation(math.radians(-90), 4, 'X')
+            mtx = mtx @ child.mtx
+            euler = mtx.to_euler('XYZ')
+            child.rotate = [decimal.Decimal(math.degrees(e)) for e in euler]
+            mag = self.settings['imd_magnification']
+            child.translate = mtx.to_translation() * mag
+            child.scale = mtx.to_scale()
+
+            child.displays = root.displays
+            child.parent = -1
+            self.nodes.remove(root)
+        idx = 0
+        for node in self.nodes:
+            self.node_replace_index(node, idx)
+            idx += 1
 
     def collect_unite(self):
         root = self.find_node('root_scene')
@@ -627,7 +661,7 @@ class NitroModel():
                     if self.settings['imd_compress_nodes'] in ['unite', 'unite_combine']:
                         transform = axis_conversion(
                             to_forward='-Z', to_up='Y').to_4x4()
-                        transform = obj.matrix_world @ transform
+                        transform = transform @ obj.matrix_world
                         vertex = transform @ vertex
                     else:
                         matrix = None
@@ -646,7 +680,7 @@ class NitroModel():
                         normal = primitive.normals[idx].to_vector()
                         transform = axis_conversion(
                             to_forward='-Z', to_up='Y').to_4x4()
-                        transform = obj.matrix_world @ transform
+                        transform = transform @ obj.matrix_world
                         quat = transform.to_quaternion()
                         normal = quat @ normal
                         primitive.normals[idx] = vector_to_vecfx10(normal)
@@ -679,6 +713,8 @@ class NitroModel():
             mag = self.settings['imd_magnification']
             node.translate = obj.matrix_basis.to_translation() * mag
             node.scale = obj.matrix_basis.to_scale()
+            # Also store the matrix for culling and merging.
+            node.mtx = obj.matrix_basis
 
             if obj.type == 'EMPTY':
                 children = self.process_children(node, obj.children)
@@ -838,6 +874,50 @@ class NitroModel():
                 return matrix
         return self.find_matrix(node.index, Matrix.Identity(4))
 
+    def get_childless_node(self):
+        for node in self.nodes:
+            if node.child == -1 and not self.node_has_matrix(node):
+                return node
+        return None
+
+    def remove_node(self, node):
+        for other in self.nodes:
+            if other.child == node.index:
+                if node.brother_next == -1:
+                    other.child = -1
+                else:
+                    other.child = node.brother_next
+            if other.brother_next == node.index:
+                other.brother_next = node.brother_next
+            if other.brother_prev == node.index:
+                other.brother_prev = node.brother_prev
+            if other.parent == node.index:
+                raise Exception("Attempting to delete a parent node")
+        self.nodes.remove(node)
+
+    def node_replace_index(self, node, index):
+        for other in self.nodes:
+            if other.index == node.index:
+                continue
+            if other.child == node.index:
+                other.child = index
+            if other.brother_next == node.index:
+                other.brother_next = index
+            if other.brother_prev == node.index:
+                other.brother_prev = index
+            if other.parent == node.index:
+                other.parent = index
+        for matrix in self.matrices:
+            if matrix.node_idx == node.index:
+                matrix.node_idx = index
+        node.index = index
+
+    def node_has_matrix(self, node):
+        for matrix in self.matrices:
+            if matrix.node_idx == node.index:
+                return True
+        return False
+
     def find_polygon(self, name):
         for polygon in self.polygons:
             if polygon.name == name:
@@ -853,3 +933,9 @@ class NitroModel():
         index = len(self.nodes)
         self.nodes.append(NitroModelNode(index, name))
         return self.nodes[-1]
+
+    def find_node_by_index(self, index):
+        for node in self.nodes:
+            if node.index == index:
+                return node
+        return None

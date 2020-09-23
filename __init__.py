@@ -122,8 +122,10 @@ class ExportNitro(bpy.types.Operator, ExportHelper):
         name="Compress nodes",
         items=[
             ("none", "None", '', 1),
-            ("unite", "Unite", '', 2),
-            ("unite_combine", "Unite and combine polygon", '', 3),
+            ("cull", "Cull", '', 2),
+            ("merge", "Merge", '', 3),
+            ("unite", "Unite", '', 4),
+            ("unite_combine", "Unite and combine polygon", '', 5),
         ])
 
     ita_export: BoolProperty(name="Export .ita")
