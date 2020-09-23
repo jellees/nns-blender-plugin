@@ -469,6 +469,12 @@ class NitroModelNode():
         self.triangle_size = 0
         self.quad_size = 0
 
+    def set_scale_rot_trans(self, mag):
+        euler = self.mtx.to_euler('XYZ')
+        self.rotate = [decimal.Decimal(math.degrees(e)) for e in euler]
+        self.translate = self.mtx.to_translation() * mag
+        self.scale = self.mtx.to_scale()
+
     def collect_statistics(self, model):
         for display in self.displays:
             polygon = model.polygons[display.polygon]
@@ -572,13 +578,8 @@ class NitroModel():
         child = self.find_node_by_index(root.child)
         if child.brother_next == -1:
             mtx = Matrix.Rotation(math.radians(-90), 4, 'X')
-            mtx = mtx @ child.mtx
-            euler = mtx.to_euler('XYZ')
-            child.rotate = [decimal.Decimal(math.degrees(e)) for e in euler]
-            mag = self.settings['imd_magnification']
-            child.translate = mtx.to_translation() * mag
-            child.scale = mtx.to_scale()
-
+            child.mtx = mtx @ child.mtx
+            child.set_scale_rot_trans(self.settings['imd_magnification'])
             child.displays = root.displays
             child.parent = -1
             self.nodes.remove(root)
@@ -708,13 +709,9 @@ class NitroModel():
             node = self.find_node(obj.name)
 
             # Transform, is equal for all objects.
-            euler = obj.matrix_basis.to_euler('XYZ')
-            node.rotate = [decimal.Decimal(math.degrees(e)) for e in euler]
-            mag = self.settings['imd_magnification']
-            node.translate = obj.matrix_basis.to_translation() * mag
-            node.scale = obj.matrix_basis.to_scale()
             # Also store the matrix for culling and merging.
             node.mtx = obj.matrix_basis
+            node.set_scale_rot_trans(self.settings['imd_magnification'])
 
             if obj.type == 'EMPTY':
                 children = self.process_children(node, obj.children)
