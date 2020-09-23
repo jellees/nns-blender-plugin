@@ -745,6 +745,11 @@ class NitroModel():
             elif obj.type == 'MESH':
                 node.kind = 'mesh'
                 node.billboard = obj.nns_billboard
+                if node.billboard in ['on', 'y_on']:
+                    # Not sure if this is a good fix.
+                    mtx = Matrix.Rotation(math.radians(-90), 4, 'X')
+                    node.mtx = node.mtx @ mtx
+                    node.set_scale_rot_trans(self.settings['imd_magnification'])
                 self.process_mesh(node, obj)
                 children = self.process_children(node, obj.children)
                 if children:
