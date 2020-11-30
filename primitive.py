@@ -467,6 +467,7 @@ class Primitive():
                         return first_j < j or (first_j == 2 and j == 0)
                     return first_j > j or (first_j == 0 and j == 2)
                 equal_count += 1
+        return False
 
     def is_suitable_tstrip_candidate_edge(self, candidate, a, b):
         equal_count = 0
