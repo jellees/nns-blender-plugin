@@ -34,22 +34,26 @@ def generate_srt_nodes(material, input):
 
     node_sub = nodes.new(type='ShaderNodeVectorMath')
     node_sub.operation = 'SUBTRACT'
-    node_sub.location = (-100,0)
-    node_sub.inputs[1].default_value = (0.5, 0.5, 0.5)
-    
+    node_sub.location = (-100, 0)
+
+    if material.nns_tex_gen_mode == "nrm":
+        node_sub.inputs[1].default_value = (0, 0, 0)
+    else:
+        node_sub.inputs[1].default_value = (0.5, 0.5, 0.5)
+
     node_rt_mapping = nodes.new(type='ShaderNodeMapping')
     node_rt_mapping.name = 'nns_node_rt'
-    node_rt_mapping.location = (0,0)
+    node_rt_mapping.location = (0, 0)
     node_rt_mapping.inputs[3].default_value = (1, 1, 1)
 
     node_add = nodes.new(type='ShaderNodeVectorMath')
     node_add.operation = 'ADD'
-    node_add.location = (100,0)
+    node_add.location = (100, 0)
     node_add.inputs[1].default_value = (0.5, 0.5, 0.5)
-    
+
     node_s_mapping = nodes.new(type='ShaderNodeMapping')
     node_s_mapping.name = 'nns_node_s'
-    node_s_mapping.location = (200,0)
+    node_s_mapping.location = (200, 0)
     node_s_mapping.inputs[3].default_value = (1, 1, 1)
 
     links.new(input.outputs[0], node_sub.inputs[0])
@@ -71,7 +75,7 @@ def generate_image_nodes(material):
         try:
             node_image.image = material.nns_image
         except Exception:
-            raise NameError("Cannot load image %s" % path)
+            raise NameError("Cannot load image")
 
     # Make this ahead of time. Must always be filled.
     node_srt = None
@@ -83,6 +87,7 @@ def generate_image_nodes(material):
         node_vec_trans.convert_to = 'CAMERA'
         node_vec_trans.vector_type = 'NORMAL'
         node_mapping = nodes.new(type='ShaderNodeMapping')
+        node_mapping.inputs[3].default_value = (0.5, 0.5, 0.5)
         links.new(node_geo.outputs[1], node_vec_trans.inputs[0])
         links.new(node_vec_trans.outputs[0], node_mapping.inputs[0])
         node_srt = generate_srt_nodes(material, node_mapping)
@@ -90,7 +95,7 @@ def generate_image_nodes(material):
         node_uvmap = nodes.new(type='ShaderNodeUVMap')
         node_uvmap.uv_map = "UVMap"
         node_srt = generate_srt_nodes(material, node_uvmap)
-    
+
     node_sp_xyz = nodes.new(type='ShaderNodeSeparateXYZ')
     links.new(node_srt.outputs[0], node_sp_xyz.inputs[0])
 
@@ -407,7 +412,7 @@ def update_nodes_image(self, context):
                 node_image = material.node_tree.nodes.get('nns_node_image')
                 node_image.image = material.nns_image
             except Exception:
-                raise NameError("Cannot load image %s" % path)
+                raise NameError("Cannot load image")
 
 
 def update_nodes_alpha(self, context):
@@ -708,14 +713,14 @@ def material_register():
     ]
     bpy.types.Material.nns_tex_gen_st_src = EnumProperty(
         name="Tex gen ST source", items=tex_gen_st_src_items)
-    bpy.types.Material.nns_tex_effect_mtx_0 = FloatVectorProperty(size=2,
-                                                                  name='')
-    bpy.types.Material.nns_tex_effect_mtx_1 = FloatVectorProperty(size=2,
-                                                                  name='')
-    bpy.types.Material.nns_tex_effect_mtx_2 = FloatVectorProperty(size=2,
-                                                                  name='')
-    bpy.types.Material.nns_tex_effect_mtx_3 = FloatVectorProperty(size=2,
-                                                                  name='')
+    bpy.types.Material.nns_tex_effect_mtx_0 = FloatVectorProperty(
+        size=2, name='', default=(1, 0))
+    bpy.types.Material.nns_tex_effect_mtx_1 = FloatVectorProperty(
+        size=2, name='', default=(0, 1))
+    bpy.types.Material.nns_tex_effect_mtx_2 = FloatVectorProperty(
+        size=2, name='')
+    bpy.types.Material.nns_tex_effect_mtx_3 = FloatVectorProperty(
+        size=2, name='')
     tex_tiling_items = [
         ("repeat", "Repeat", '', 1),
         ("flip", "Flip", '', 2),
@@ -732,7 +737,7 @@ def material_register():
     bpy.types.Material.nns_tex_rotate = FloatProperty(name="Texture rotation")
     bpy.types.Material.nns_tex_translate = FloatVectorProperty(
         size=2, name="Texture translation")
-    
+
     bpy.types.Material.nns_srt_translate = FloatVectorProperty(
         size=2, name="Translate", update=update_nodes_srt_hook)
     bpy.types.Material.nns_srt_scale = FloatVectorProperty(
