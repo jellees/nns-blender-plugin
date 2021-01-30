@@ -26,6 +26,8 @@ def read_nitro_tga_data(f, offset):
     color_0_transp = False
     pltt_idx_data = None
     optpix_data = None
+    palette_name = ''
+    palette = None
 
     # Get the end of the file
     f.seek(0, 2)
