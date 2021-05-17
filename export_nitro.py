@@ -4,6 +4,7 @@ from . import local_logger as logger
 from bpy_extras.io_utils import axis_conversion
 from mathutils import Matrix
 from .nns_model import NitroModel
+import os
 
 
 def generate_header(imd, data_name):
@@ -76,6 +77,8 @@ def generate_ica(settings, model):
 
 
 def save(context, settings):
+
+    settings['filepath'] = os.path.splitext(settings['filepath'])[0]
 
     logger.create_log(settings['filepath'], settings['generate_log'])
 
