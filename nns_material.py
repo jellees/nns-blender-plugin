@@ -4,7 +4,8 @@ from bpy.props import (BoolProperty,
                        EnumProperty,
                        IntProperty,
                        FloatVectorProperty,
-                       PointerProperty)
+                       PointerProperty,
+                       CollectionProperty)
 from bpy.types import Image
 from bpy.app.handlers import persistent
 
@@ -521,6 +522,92 @@ class CreateNNSMaterial(bpy.types.Operator):
         return {'FINISHED'}
 
 
+class NTRTexReference(bpy.types.PropertyGroup):
+    image: PointerProperty(
+            name='Texture',
+            type=Image)
+
+
+class NTR_OT_NewTexReference(bpy.types.Operator):
+    bl_idname = "nns_texframe_reference.new_texref"
+    bl_label = "Add a new texture reference"
+
+    def execute(self, context):
+        context.material.nns_texframe_reference.add()
+
+        return{'FINISHED'}
+
+
+class NTR_OT_DeleteTexReference(bpy.types.Operator):
+    bl_idname = "nns_texframe_reference.delete_texref"
+    bl_label = "Deletes a texture reference"
+
+    @classmethod
+    def poll(cls, context):
+        return context.material.nns_texframe_reference
+
+    def execute(self, context):
+        my_list = context.material.nns_texframe_reference
+        index = context.material.nns_texframe_reference_index
+
+        my_list.remove(index)
+        context.material.nns_texframe_reference_index = min(
+            max(0, index - 1), len(my_list) - 1)
+
+        return{'FINISHED'}
+
+
+class NTR_UL_texframe(bpy.types.UIList):
+    def draw_item(self, context, layout, data, item, icon, active_data,
+                  active_propname):
+        if self.layout_type in {'DEFAULT', 'COMPACT'}:
+            if item.image:
+                layout.label(text=item.image.name, translate=False,
+                             icon_value=layout.icon(item.image))
+            else:
+                layout.label(text="", translate=False, icon='FILE_IMAGE')
+        elif self.layout_type in {'GRID'}:
+            layout.alignment = 'CENTER'
+            layout.label(text="", icon_value=icon)
+
+
+class NTR_PT_material_texframe(bpy.types.Panel):
+    bl_label = "NNS Material texframes"
+    bl_idname = "MATERIAL_TEXFRAME_PT_nns"
+    bl_space_type = 'PROPERTIES'
+    bl_region_type = 'WINDOW'
+    bl_context = "material"
+    bl_options = {'HIDE_HEADER'}
+
+    def draw(self, context):
+        layout = self.layout
+        mat = context.material
+
+        if mat is None:
+            pass
+        elif not(mat.use_nodes and mat.is_nns):
+            pass
+        elif "tx" in mat.nns_mat_type:
+            layout = layout.box()
+            title = layout.column()
+            title.box().label(text="NNS Material texture pattern")
+            layout.template_list("NTR_UL_texframe", "",
+                                 mat, "nns_texframe_reference",
+                                 mat, "nns_texframe_reference_index")
+
+            row = layout.row()
+            row.operator('nns_texframe_reference.new_texref', text='New')
+            row.operator('nns_texframe_reference.delete_texref', text='Delete')
+
+            if (mat.nns_texframe_reference_index >= 0
+               and mat.nns_texframe_reference):
+                idx = mat.nns_texframe_reference_index
+                item = mat.nns_texframe_reference[idx]
+
+                row = layout.row()
+                row.template_ID(item, "image", open="image.open")
+
+
 class NTR_PT_material_keyframe(bpy.types.Panel):
     bl_label = "NNS Material Keyframes"
     bl_idname = "MATERIAL_KEYFRAME_PT_nns"
@@ -638,6 +725,15 @@ class NTR_PT_material(bpy.types.Panel):
 
 
 def material_register():
+
+    bpy.utils.register_class(NTRTexReference)
+    bpy.utils.register_class(NTR_OT_NewTexReference)
+    bpy.utils.register_class(NTR_OT_DeleteTexReference)
+    bpy.types.Material.nns_texframe_reference = CollectionProperty(
+        type=NTRTexReference)
+    bpy.types.Material.nns_texframe_reference_index = IntProperty(
+        name="Active texture reference index", default=0)
+
     bpy.types.Material.is_nns = BoolProperty(default=False)
     mat_type_items = [
         ("df", "Solid color", '', 1),
@@ -751,9 +847,17 @@ def material_register():
     bpy.utils.register_class(CreateNNSMaterial)
     bpy.utils.register_class(NTR_PT_material)
     bpy.utils.register_class(NTR_PT_material_keyframe)
+    bpy.utils.register_class(NTR_UL_texframe)
+    bpy.utils.register_class(NTR_PT_material_texframe)
 
 
 def material_unregister():
+    bpy.utils.unregister_class(NTRTexReference)
+    bpy.utils.unregister_class(NTR_OT_NewTexReference)
+    bpy.utils.unregister_class(NTR_OT_DeleteTexReference)
+
     bpy.utils.unregister_class(CreateNNSMaterial)
     bpy.utils.unregister_class(NTR_PT_material)
     bpy.utils.unregister_class(NTR_PT_material_keyframe)
+    bpy.utils.unregister_class(NTR_UL_texframe)
+    bpy.utils.unregister_class(NTR_PT_material_texframe)
