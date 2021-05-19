@@ -528,7 +528,7 @@ class NTRTexReference(bpy.types.PropertyGroup):
             type=Image)
 
 
-class NTR_OT_NewTexReference(bpy.types.Operator):
+class NewTexReference(bpy.types.Operator):
     bl_idname = "nns_texframe_reference.new_texref"
     bl_label = "Add a new texture reference"
 
@@ -538,7 +538,7 @@ class NTR_OT_NewTexReference(bpy.types.Operator):
         return{'FINISHED'}
 
 
-class NTR_OT_DeleteTexReference(bpy.types.Operator):
+class DeleteTexReference(bpy.types.Operator):
     bl_idname = "nns_texframe_reference.delete_texref"
     bl_label = "Deletes a texture reference"
 
@@ -727,8 +727,8 @@ class NTR_PT_material(bpy.types.Panel):
 def material_register():
 
     bpy.utils.register_class(NTRTexReference)
-    bpy.utils.register_class(NTR_OT_NewTexReference)
-    bpy.utils.register_class(NTR_OT_DeleteTexReference)
+    bpy.utils.register_class(NewTexReference)
+    bpy.utils.register_class(DeleteTexReference)
     bpy.types.Material.nns_texframe_reference = CollectionProperty(
         type=NTRTexReference)
     bpy.types.Material.nns_texframe_reference_index = IntProperty(
@@ -853,8 +853,8 @@ def material_register():
 
 def material_unregister():
     bpy.utils.unregister_class(NTRTexReference)
-    bpy.utils.unregister_class(NTR_OT_NewTexReference)
-    bpy.utils.unregister_class(NTR_OT_DeleteTexReference)
+    bpy.utils.unregister_class(NewTexReference)
+    bpy.utils.unregister_class(DeleteTexReference)
 
     bpy.utils.unregister_class(CreateNNSMaterial)
     bpy.utils.unregister_class(NTR_PT_material)
