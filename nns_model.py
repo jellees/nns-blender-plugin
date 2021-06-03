@@ -291,8 +291,9 @@ class NitroModelMtxPrim():
         if len(obj.data.vertex_colors) > 0 and "vc" in material.type:
             self.parent_polygon.use_clr = True
 
-        if material.image_idx != -1 and "tx" in material.type and \
-                material.tex_gen_mode != "nrm":
+        if material.image_idx != -1 and "tx" in material.type \
+                and material.tex_gen_mode != "nrm" \
+                and material.tex_gen_st_src != "material":
             self.parent_polygon.use_tex = True
 
         if ((material.light0 == 'on' or
