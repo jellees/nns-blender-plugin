@@ -84,7 +84,7 @@ def generate_image_nodes(material):
     if material.nns_tex_gen_mode == "nrm":
         node_geo = nodes.new(type='ShaderNodeNewGeometry')
         node_vec_trans = nodes.new(type='ShaderNodeVectorTransform')
-        node_vec_trans.convert_from = 'OBJECT'
+        node_vec_trans.convert_from = 'WORLD'
         node_vec_trans.convert_to = 'CAMERA'
         node_vec_trans.vector_type = 'NORMAL'
         node_mapping = nodes.new(type='ShaderNodeMapping')
