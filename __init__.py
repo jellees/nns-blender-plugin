@@ -97,6 +97,28 @@ class NTR_PT_export_ica(bpy.types.Panel):
         layout.prop(operator, 'ica_translate_tolerance')
 
 
+class NTR_PT_export_itp(bpy.types.Panel):
+    bl_space_type = 'FILE_BROWSER'
+    bl_region_type = 'TOOL_PROPS'
+    bl_label = "Intermediate Texture Pattern (.itp)"
+    bl_parent_id = "FILE_PT_operator"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    @classmethod
+    def poll(cls, context):
+        sfile = context.space_data
+        operator = sfile.active_operator
+
+        return operator.bl_idname == "EXPORT_OT_nitro"
+
+    def draw(self, context):
+        layout = self.layout
+        sfile = context.space_data
+        operator = sfile.active_operator
+
+        layout.prop(operator, 'itp_export')
+
+
 class ExportNitro(bpy.types.Operator, ExportHelper):
     bl_idname = "export.nitro"
     bl_label = "Export Nitro"
@@ -104,7 +126,7 @@ class ExportNitro(bpy.types.Operator, ExportHelper):
 
     filename_ext = ""
     filter_glob: StringProperty(
-        default="*.imd;*.ita;*.ica",
+        default="*.imd;*.ita;*.ica,*.itp",
         options={'HIDDEN'},
         )
 
@@ -157,6 +179,8 @@ class ExportNitro(bpy.types.Operator, ExportHelper):
                                            default=0.010000,
                                            precision=6)
 
+    itp_export: BoolProperty(name="Export .itp")
+
     def execute(self, context):
         from . import export_nitro
 
@@ -176,7 +200,7 @@ class ExportNitro(bpy.types.Operator, ExportHelper):
 def menu_func_export(self, context):
     self.layout.operator(
         ExportNitro.bl_idname,
-        text="Nitro Intermediate (.imd, .ita, .ica)")
+        text="Nitro Intermediate (.imd, .ita, .ica, .itp)")
 
 
 def register():
@@ -184,6 +208,7 @@ def register():
     bpy.utils.register_class(NTR_PT_export_imd)
     bpy.utils.register_class(NTR_PT_export_ita)
     bpy.utils.register_class(NTR_PT_export_ica)
+    bpy.utils.register_class(NTR_PT_export_itp)
     material_register()
     object_register()
 
@@ -195,6 +220,7 @@ def unregister():
     bpy.utils.unregister_class(NTR_PT_export_imd)
     bpy.utils.unregister_class(NTR_PT_export_ita)
     bpy.utils.unregister_class(NTR_PT_export_ica)
+    bpy.utils.unregister_class(NTR_PT_export_itp)
     material_unregister()
     object_unregister()
 
