@@ -134,8 +134,6 @@ class ExportNitro(bpy.types.Operator, ExportHelper):
 
     generate_log: BoolProperty(name="Generate log file", default=False)
 
-    half_colors: BoolProperty(name="Divide vertex colors by 2", default=False)
-
     imd_export: BoolProperty(name="Export .imd", default=True)
     imd_magnification: FloatProperty(name="Magnification",
                                      default=0.0625,
@@ -197,7 +195,6 @@ class ExportNitro(bpy.types.Operator, ExportHelper):
         operator = sfile.active_operator
         layout.prop(operator, 'pretty_print')
         layout.prop(operator, 'generate_log')
-        layout.prop(operator, 'half_colors')
 
 
 def menu_func_export(self, context):

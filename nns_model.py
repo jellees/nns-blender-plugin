@@ -342,10 +342,6 @@ class NitroModelMtxPrim():
                and primitive._previous_clr != prim.colors[idx]):
                 primitive._previous_clr = prim.colors[idx]
                 r, g, b = prim.colors[idx]
-                if model.settings['half_colors']:
-                    r /= 2
-                    g /= 2
-                    b /= 2
                 primitive.add_command('clr', 'rgb', f'{r} {g} {b}')
 
             # Normal
