@@ -10,6 +10,22 @@ from bpy.types import Image
 from bpy.app.handlers import persistent
 
 
+def generate_output_node(material, input):
+    nodes = material.node_tree.nodes
+    links = material.node_tree.links
+    node_output = nodes.new(type='ShaderNodeOutputMaterial')
+    if material.nns_hdr_add_self:
+        add_shader1 = nodes.new(type='ShaderNodeAddShader')
+        add_shader2 = nodes.new(type='ShaderNodeAddShader')
+        links.new(input.outputs[0], add_shader1.inputs[0])
+        links.new(input.outputs[0], add_shader1.inputs[1])
+        links.new(add_shader1.outputs[0], add_shader2.inputs[0])
+        links.new(add_shader1.outputs[0], add_shader2.inputs[1])
+        links.new(add_shader2.outputs[0], node_output.inputs[0])
+    else:
+        links.new(input.outputs[0], node_output.inputs[0])
+
+
 def generate_culling_nodes(material):
     nodes = material.node_tree.nodes
     links = material.node_tree.links
@@ -177,9 +193,13 @@ def generate_mod_vc_nodes(material):
         1.0
     )
 
+    if "vc" in material.nns_mat_type:
+        node_attr = nodes.new(type='ShaderNodeAttribute')
+        node_attr.attribute_name = 'Col'
+        links.new(node_attr.outputs[0], node_multiply.inputs[2])
+
     node_bsdf = nodes.new(type='ShaderNodeBsdfTransparent')
     node_mix_shader = nodes.new(type='ShaderNodeMixShader')
-    node_output = nodes.new(type='ShaderNodeOutputMaterial')
 
     links.new(node_mix.outputs[0], node_multiply.inputs[1])
     links.new(node_multiply.outputs[0], node_mix_shader.inputs[2])
@@ -192,12 +212,7 @@ def generate_mod_vc_nodes(material):
         links.new(node_face.outputs[0], node_mix_shader.inputs[0])
 
     links.new(node_bsdf.outputs[0], node_mix_shader.inputs[1])
-    links.new(node_mix_shader.outputs[0], node_output.inputs[0])
-
-    if "vc" in material.nns_mat_type:
-        node_attr = nodes.new(type='ShaderNodeAttribute')
-        node_attr.attribute_name = 'Col'
-        links.new(node_attr.outputs[0], node_multiply.inputs[2])
+    generate_output_node(material, node_mix_shader)
 
 
 def generate_decal_vc_nodes(material):
@@ -220,11 +235,8 @@ def generate_decal_vc_nodes(material):
     node_mix_shader = nodes.new(type='ShaderNodeMixShader')
     node_trans_bsdf = nodes.new(type='ShaderNodeBsdfTransparent')
 
-    node_output = nodes.new(type='ShaderNodeOutputMaterial')
-
     links.new(node_mix_2.outputs[0], node_mix_shader.inputs[2])
     links.new(node_trans_bsdf.outputs[0], node_mix_shader.inputs[1])
-    links.new(node_mix_shader.outputs[0], node_output.inputs[0])
 
     if "vc" in material.nns_mat_type:
         node_attr = nodes.new(type='ShaderNodeAttribute')
@@ -263,6 +275,8 @@ def generate_decal_vc_nodes(material):
         links.new(node_mix_rgb.outputs[0], node_face.inputs[2])
         links.new(node_face.outputs[0], node_mix_shader.inputs[0])
 
+    generate_output_node(material, node_mix_shader)
+
 
 def generate_image_only_nodes(material):
     nodes = material.node_tree.nodes
@@ -280,7 +294,6 @@ def generate_image_only_nodes(material):
     )
     node_bsdf = nodes.new(type='ShaderNodeBsdfTransparent')
     node_mix_shader = nodes.new(type='ShaderNodeMixShader')
-    node_output = nodes.new(type='ShaderNodeOutputMaterial')
     node_image = generate_image_nodes(material)
 
     links.new(node_image.outputs[0], node_mix_shader.inputs[2])
@@ -294,7 +307,7 @@ def generate_image_only_nodes(material):
         links.new(node_face.outputs[0], node_mix_shader.inputs[0])
 
     links.new(node_bsdf.outputs[0], node_mix_shader.inputs[1])
-    links.new(node_mix_shader.outputs[0], node_output.inputs[0])
+    generate_output_node(material, node_mix_shader)
 
 
 def generate_solid_color_nodes(material):
@@ -326,8 +339,6 @@ def generate_solid_color_nodes(material):
     )
     node_mix_shader = nodes.new(type='ShaderNodeMixShader')
     node_mix_shader.location = (200, 0)
-    node_output = nodes.new(type='ShaderNodeOutputMaterial')
-    node_output.location = (400, 0)
 
     if material.nns_display_face == "both":
         links.new(node_mix_rgb.outputs[0], node_mix_shader.inputs[0])
@@ -338,7 +349,7 @@ def generate_solid_color_nodes(material):
 
     links.new(node_bsdf.outputs[0], node_mix_shader.inputs[1])
     links.new(node_mix_df.outputs[0], node_mix_shader.inputs[2])
-    links.new(node_mix_shader.outputs[0], node_output.inputs[0])
+    generate_output_node(material, node_mix_shader)
 
 def generate_normal_lightning_color_nodes():
     pass
@@ -362,7 +373,6 @@ def generate_only_vc_nodes(material):
     node_vc = nodes.new(type='ShaderNodeVertexColor')
     node_vc.layer_name = 'Col'
     node_mix_shader = nodes.new(type='ShaderNodeMixShader')
-    node_output = nodes.new(type='ShaderNodeOutputMaterial')
 
     if material.nns_display_face == "both":
         links.new(node_mix_rgb.outputs[0], node_mix_shader.inputs[0])
@@ -373,7 +383,7 @@ def generate_only_vc_nodes(material):
 
     links.new(node_bsdf.outputs[0], node_mix_shader.inputs[1])
     links.new(node_vc.outputs[0], node_mix_shader.inputs[2])
-    links.new(node_mix_shader.outputs[0], node_output.inputs[0])
+    generate_output_node(material, node_mix_shader)
 
 
 def generate_nodes(material):
@@ -640,6 +650,28 @@ class NTR_PT_material_keyframe(bpy.types.Panel):
             layout.row(align=True).prop(mat, "nns_srt_translate")
 
 
+class NTR_PT_material_visual(bpy.types.Panel):
+    bl_label = "NNS Material visual options"
+    bl_idname = "MATERIAL_VISUAL_PT_nns"
+    bl_space_type = 'PROPERTIES'
+    bl_region_type = 'WINDOW'
+    bl_context = "material"
+    bl_options = {'HIDE_HEADER'}
+
+    @classmethod
+    def poll(cls, context):
+        return context.material
+
+    def draw(self, context):
+        layout = self.layout
+        mat = context.material
+
+        layout = layout.box()
+        title = layout.column()
+        title.box().label(text="NNS Material Visual Options")
+        layout.prop(mat, "nns_hdr_add_self")
+
+
 class NTR_PT_material(bpy.types.Panel):
     bl_label = "NNS Material Options"
     bl_idname = "MATERIAL_PT_nns"
@@ -737,6 +769,8 @@ def material_register():
     bpy.types.Material.nns_texframe_reference_index = IntProperty(
         name="Active texture reference index", default=0)
 
+    bpy.types.Material.nns_hdr_add_self = BoolProperty(
+        default=False, name="HDR shaders", update=update_nodes_mode)
     bpy.types.Material.is_nns = BoolProperty(default=False)
     mat_type_items = [
         ("df", "Solid color", '', 1),
@@ -848,6 +882,7 @@ def material_register():
     bpy.app.handlers.frame_change_pre.append(frame_change_handler)
 
     bpy.utils.register_class(CreateNNSMaterial)
+    bpy.utils.register_class(NTR_PT_material_visual)
     bpy.utils.register_class(NTR_PT_material)
     bpy.utils.register_class(NTR_PT_material_keyframe)
     bpy.utils.register_class(NTR_UL_texframe)
@@ -860,6 +895,7 @@ def material_unregister():
     bpy.utils.unregister_class(DeleteTexReference)
 
     bpy.utils.unregister_class(CreateNNSMaterial)
+    bpy.utils.unregister_class(NTR_PT_material_visual)
     bpy.utils.unregister_class(NTR_PT_material)
     bpy.utils.unregister_class(NTR_PT_material_keyframe)
     bpy.utils.unregister_class(NTR_UL_texframe)
