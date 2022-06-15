@@ -1,0 +1,63 @@
+def create_node(mat,name,nodeType,location):
+    nodes = mat.node_tree.nodes
+    newnode = nodes.new(type=nodeType)
+    newnode.label=name
+    newnode.bl_label=name
+    newnode.location=location
+    return newnode
+
+def create_light_nodes(mat,isLightEnabled,LightVector,LightSpecular,Matcolors,location,lightIndex):
+    nodes = material.node_tree.nodes
+    links = material.node_tree.links
+    
+    #transform inputs
+    #normals to camera space
+    NormalVecNode = create_node(mat,"normal vector(N)",'ShaderNodeNewGeometry',location)
+    VecTrans = create_node(mat,"normal vector(N)",'ShaderNodeNewGeometry',location)
+    VecTrans.convert_from="WORLD"
+    VecTrans.convert_to="CAMERA"
+    links.new(NormalVecNode[1],VecTrans[0])
+    
+    #LightVector in camera space
+    VecMult1=create_node(mat,"inverse light angle","ShaderNodeVectorMath",location)
+    VecMult1.operation="MULTIPLY"
+    
+    VecNorm=create_node(mat,"Normalize","ShaderNodeVectorMath",location)
+    VecNorm.operation="NORMALIZE"
+    
+    links.new(VecMult1[0],VecNorm[0]
+    
+    SepXYZ1=create_node(mat,"","ShaderNodeSeparateXYZ",location)
+    CombXYZ1=create_node(mat,"","ShaderNodeCombineXYZ",location)
+    
+    links.new(VecNorm[0],SepXYZ1[0])
+    links.new(SepXYZ1[0],CombXYZ1[0])
+    links.new(SepXYZ1[1],CombXYZ1[2])
+    links.new(SepXYZ1[2],CombXYZ1[1])
+    
+    LightVec=CombXYZ1
+    
+    #ld : Diffuse reflection shininess
+    #ls : Specular reflection shininess
+    
+    #calculation of ld
+    
+    DotProd1=create_node(mat,"","ShaderNodeVectorMath",location)
+    DotProd1.operation="DOT_PRODUCT"
+    
+    links.new(VecTrans[0],DotProd1[0])
+    links.new(LightVec[0],DotProd1[1])
+    
+    Clamp1=create_node(mat,"","ShaderNodeClamp",location)
+    pass
+
+
+def generate_normal_lightning_color_nodes(material):
+    mat = material
+    nodes = mat.node_tree.nodes
+    links = mat.node_tree.links
+    
+    Matcolors = (mat.nns_diffuse,mat.nns_ambient,mat.nns_specular,mat.nns_emission)
+    for lightIndex in range(4):
+        
+     
