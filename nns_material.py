@@ -373,22 +373,23 @@ def create_light_nodes(mat,isLightEnabled,LightVector,LightSpecular,Matcolors,lo
     
     #LightVector in camera space
     VecMult1=create_node(mat,"inverse light angle","ShaderNodeVectorMath",location)
+    VecMult1.inputs[1].default_value=LightVector
+    VecMult1.inputs[2].default_value=(-1,-1,-1)
     VecMult1.operation="MULTIPLY"
     
     VecNorm=create_node(mat,"Normalize","ShaderNodeVectorMath",location)
     VecNorm.operation="NORMALIZE"
     
-    links.new(VecMult1[0],VecNorm[0]
+    links.new(VecMult1.outputs[0],VecNorm.inputs[0]
     
     SepXYZ1=create_node(mat,"","ShaderNodeSeparateXYZ",location)
     CombXYZ1=create_node(mat,"","ShaderNodeCombineXYZ",location)
     
-    links.new(VecNorm[0],SepXYZ1[0])
-    links.new(SepXYZ1[0],CombXYZ1[0])
-    links.new(SepXYZ1[1],CombXYZ1[2])
-    links.new(SepXYZ1[2],CombXYZ1[1])
+    links.new(VecNorm.outputs[0],SepXYZ1.inputs[0])
+    links.new(SepXYZ1.outputs[0],CombXYZ1.inputs[0])
+    links.new(SepXYZ1.outputs[1],CombXYZ1.inputs[2])
+    links.new(SepXYZ1.outputs[2],CombXYZ1.inputs[1])
     
-    LightVec=CombXYZ1
     
     #ld : Diffuse reflection shininess
     #ls : Specular reflection shininess
@@ -398,10 +399,21 @@ def create_light_nodes(mat,isLightEnabled,LightVector,LightSpecular,Matcolors,lo
     DotProd1=create_node(mat,"","ShaderNodeVectorMath",location)
     DotProd1.operation="DOT_PRODUCT"
     
-    links.new(VecTrans[0],DotProd1[0])
-    links.new(LightVec[0],DotProd1[1])
+    links.new(VecTrans.outputs[0],DotProd1.inputs[0])
+    links.new(CombXYZ1.outputs[0],DotProd1.inputs[1])
     
     Clamp1=create_node(mat,"","ShaderNodeClamp",location)
+    Clamp1.inputs[0].default_value=0.0
+    Clamp1.inputs[1].default_value=1.0
+    
+    ld=create_node(mat,"","ShaderNodeMath",location)
+    ld.inputs[1].default_value=1.50
+    
+    links.new(DotProd1.outputs[0],Clamp1.inputs[0])
+    links.new(Clamp1.outputs[0],ld.inputs[0])
+    
+    
+    
     pass
 
 
