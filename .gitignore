@@ -1,3 +1,5 @@
 /__pycache__
 /.vscode
 io_scene_nns.zip
+io_scene_nns/
+.idea/
