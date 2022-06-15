@@ -340,7 +340,40 @@ def generate_solid_color_nodes(material):
     links.new(node_mix_df.outputs[0], node_mix_shader.inputs[2])
     links.new(node_mix_shader.outputs[0], node_output.inputs[0])
 
-def generate_normal_lightning_color_nodes():
+def create_node(mat,name,nodeType,location):
+    nodes = mat.node_tree.nodes
+    newnode = nodes.new(type=nodeType)
+    newnode.label=name
+    newnode.bl_label=name
+    newnode.location=location
+    return newnode
+
+def create_link(mat,node1,node2,node1OutputIndex,node2InputIndex):
+    links = mat.node_tree.links
+    links.new(node1[node1OutputIndex],node2[node2InputIndex])
+
+def create_light_nodes(mat,isLightEnabled,LightVector,LightSpecular,Matcolors,location):
+    nodes = material.node_tree.nodes
+    links = material.node_tree.links
+    
+    NormalVecNode = create_node(mat,"normal vector(N)",'ShaderNodeNewGeometry',location)
+    VecTrans = create_node(mat,"normal vector(N)",'ShaderNodeNewGeometry',location)
+    VecTrans.convert_from="WORLD"
+    VecTrans.convert_to="CAMERA"
+    create_link(mat,NormalVecNode,VecTrans,1,0)
+    
+    pass
+
+
+def generate_normal_lightning_color_nodes(material):
+    mat = material
+    nodes = mat.node_tree.nodes
+    links = mat.node_tree.links
+    
+    Matcolors = (mat.nns_diffuse,mat.nns_ambient,mat.nns_specular,mat.nns_emission)
+    for lightIndex in range(4):
+        
+        pass
     pass
 
 def generate_only_vc_nodes(material):
