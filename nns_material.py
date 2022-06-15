@@ -340,6 +340,8 @@ def generate_solid_color_nodes(material):
     links.new(node_mix_df.outputs[0], node_mix_shader.inputs[2])
     links.new(node_mix_shader.outputs[0], node_output.inputs[0])
 
+def generate_normal_lightning_color_nodes():
+    pass
 
 def generate_only_vc_nodes(material):
     nodes = material.node_tree.nodes
@@ -382,6 +384,7 @@ def generate_nodes(material):
         links.clear()
 
         if material.nns_mat_type == "tx":
+            print("tx")
             generate_image_only_nodes(material)
         elif material.nns_mat_type == "df":
             generate_solid_color_nodes(material)
