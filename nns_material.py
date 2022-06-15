@@ -50,7 +50,7 @@ def generate_srt_nodes(material, input):
     links = material.node_tree.links
 
     node_sub = nodes.new(type='ShaderNodeVectorMath')
-    node_sub.operation = 'SUBTRACT'
+    node_sub.operation = 'SUBTSRACT'
     node_sub.location = (-100, 0)
 
     if material.nns_tex_gen_mode == "nrm":
@@ -377,15 +377,15 @@ def create_light_nodes(mat,isLightEnabled,LightVector,LightSpecular,Matcolors,lo
     VecMult1.inputs[2].default_value=(-1,-1,-1)
     VecMult1.operation="MULTIPLY"
     
-    VecNorm=create_node(mat,"Normalize","ShaderNodeVectorMath",location)
-    VecNorm.operation="NORMALIZE"
+    VecNorm1=create_node(mat,"Normalize","ShaderNodeVectorMath",location)
+    VecNorm1.operation="NORMALIZE"
     
-    links.new(VecMult1.outputs[0],VecNorm.inputs[0]
+    links.new(VecMult1.outputs[0],VecNorm1.inputs[0]
     
     SepXYZ1=create_node(mat,"","ShaderNodeSeparateXYZ",location)
     CombXYZ1=create_node(mat,"","ShaderNodeCombineXYZ",location)
     
-    links.new(VecNorm.outputs[0],SepXYZ1.inputs[0])
+    links.new(VecNorm1.outputs[0],SepXYZ1.inputs[0])
     links.new(SepXYZ1.outputs[0],CombXYZ1.inputs[0])
     links.new(SepXYZ1.outputs[1],CombXYZ1.inputs[2])
     links.new(SepXYZ1.outputs[2],CombXYZ1.inputs[1])
@@ -394,7 +394,7 @@ def create_light_nodes(mat,isLightEnabled,LightVector,LightSpecular,Matcolors,lo
     #ld : Diffuse reflection shininess
     #ls : Specular reflection shininess
     
-    #calculation of ld
+    #calculation of ld 
     
     DotProd1=create_node(mat,"","ShaderNodeVectorMath",location)
     DotProd1.operation="DOT_PRODUCT"
@@ -412,7 +412,75 @@ def create_light_nodes(mat,isLightEnabled,LightVector,LightSpecular,Matcolors,lo
     links.new(DotProd1.outputs[0],Clamp1.inputs[0])
     links.new(Clamp1.outputs[0],ld.inputs[0])
     
+    #half angle vector
     
+    VecAdd1=create_node(mat,"","ShaderNodeVectorMath",location)
+    VecAdd1.operation="ADD"
+    VecAdd1.inputs[1].default_value=(0,0.99,0)
+    
+    VecNorm2=(mat,"","ShaderNodeVectorMath",location)
+    VecNorm2.operation="NORMALIZE"
+    
+    links.new(CombXYZ1.outputs[0],VecAdd1.inputs[0])
+    links.new(VecAdd1.outputs[0]],VecNorm2.inputs[0])
+    
+    #calculation of ls (may not be 100% accurate due to me not knowing how to search for tables in the ida db but it's accurate enough for preview purpose)
+    #may be updated if i find a better approwimation or get the exact formula
+    
+    DotProd2=create_node(mat,"","ShaderNodeVectorMath",location)
+    DotProd2.operation="DOT_PRODUCT"
+    
+    Sign1=create_node(mat,"","ShaderNodeMath",location)
+    Sign1.operation="SIGN"
+    Sign1.use_clamp=True
+    
+    Pow1=create_node(mat,"","ShaderNodeMath",location)
+    Pow1.operation="POWER"
+    Pow1.inputs[1].default_value=2.0
+    
+    links.new(VecNorm2.outputs[0],DotProd2.inputs[0])
+    links.new(VecTrans.outputs[0],DotProd2.inputs[1])
+    
+    Mult1=create_node(mat,"","ShaderNodeMath",location)
+    Mult1.operation="MULTIPLY"
+    Mult1.inputs[1].default_value=2.0
+    
+    Sub1=create_node(mat,"","ShaderNodeMath",location)
+    Sub1.operation="SUBSTRACT"
+    Sub1.inputs[1].default_value=1.0
+    Sub1.use_clamp=True
+    
+    links.new(Pow1.outputs[0],Mult1.inputs[0])
+    links.new(Mult1.outputs[0],Sub2.inputs[0])
+    
+    #specular corrective mask
+    Geo1=create_node(mat,"","ShaderNodeNewGeometry",location)
+    
+    Sub2=create_node(mat,"","ShaderNodeMath",location)
+    Sub2.operation="SUBSTRACT"
+    Sub2.inputs[0].default_value=1.0
+    
+    Mult2=create_node(mat,"","ShaderNodeMath",location)
+    Mult2.operation="MULTIPLY"
+    
+    links.new(Geo1.outputs[6],Sub2.inputs[1])
+    links.new(Sub2.outputs[0],Mult2.inputs[0])
+    links.new(Sign1.outputs[0],Mult2.inputs[1])
+    
+    #end of mask
+    #applying the mask
+    
+    Mult3=create_node(mat,"","ShaderNodeMath",location)
+    Mult3.operation="MULTIPLY"
+    links.new(Mult2.outputs[0],Mult3.inputs[0])
+    links.new(Sub1.outputs[0],Mult3.inputs[1])
+    
+    Pow2=create_node(mat,"","ShaderNodeMath",location)
+    Pow2.operation="POWER"
+    Pow2.inputs[1].default_value=2.0
+    links.new(Mult3.outputs[0],Pow2.inputs[0]
+    
+     #Diffuse color
     
     pass
 
@@ -435,7 +503,6 @@ def generate_normal_lightning_color_nodes(material):
     
     Matcolors = (mat.nns_diffuse,mat.nns_ambient,mat.nns_specular,mat.nns_emission)
     for lightIndex in range(4):
-        
         pass
     pass
 
