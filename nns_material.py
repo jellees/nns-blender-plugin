@@ -350,7 +350,7 @@ def generate_solid_color_nodes(material):
     links.new(node_bsdf.outputs[0], node_mix_shader.inputs[1])
     links.new(node_mix_df.outputs[0], node_mix_shader.inputs[2])
     generate_output_node(material, node_mix_shader)
-
+    
 def create_node(mat,name,nodeType,location):
     nodes = mat.node_tree.nodes
     newnode = nodes.new(type=nodeType)
@@ -359,7 +359,14 @@ def create_node(mat,name,nodeType,location):
     newnode.location=location
     return newnode
 
-def create_light_nodes(mat,isLightEnabled,LightVector,LightSpecular,LightCol,Matcols,location,lightIndex):
+def create_light_nodes(mat,LightInfo,Matcols,location):
+    
+    isLightEnabled=LightInfo["isLightEnabled"]
+    LightVector=LightInfo["LightVector"]
+    LightSpecular=LightInfo["LightSpecular"]
+    LightCol=LightInfo["LightCol"]
+    LightIndex=LightInfo["LightIndex"]
+    
     nodes = material.node_tree.nodes
     links = material.node_tree.links
     
@@ -527,17 +534,17 @@ def create_light_nodes(mat,isLightEnabled,LightVector,LightSpecular,LightCol,Mat
 
         #multiply with light color
         
-        ColMult1=create_node(mat,"Result","ShaderNodeMixRGB",location)
+        ColMult1=create_node(mat,"Result "+str(LightIndex),"ShaderNodeMixRGB",location)
         ColMult1.operation="MULTIPLY"
         ColMult1.inputs[0].default_value=1.0
         ColMult1.inputs[2].default_value=LightCol
         
         links.new(ColAdd2.outputs[0],ColMult1.inputs[1])
-        LightResult=ColMult1
+        LightNode=ColMult1
     
     else: #if light is disabled
-        LightResult=create_node(mat,"Result","ShaderNodeRGB",location)
-        LightResult.outputs[0].default_value=(0,0,0,1)
+        LightNode=create_node(mat,"Result "+str(LightIndex),"ShaderNodeRGB",location)
+        LightNode.outputs[0].default_value=(0,0,0,1)
         
     return LightResult
 
@@ -545,22 +552,73 @@ def generate_normal_lightning_color_nodes(material):
     mat = material
     nodes = mat.node_tree.nodes
     links = mat.node_tree.links
-    
-    Matcolors = (mat.nns_diffuse,mat.nns_ambient,mat.nns_specular,mat.nns_emission)
-    for lightIndex in range(4):
-        pass
-     
 
+    Matcols = {"df": (material.nns_diffuse[0],
+                            material.nns_diffuse[1],
+                            material.nns_diffuse[2],
+                            1.0),
+                    "amb":(material.nns_ambient[0],
+                            material.nns_ambient[1],
+                            material.nns_ambient[2],
+                            1.0),
+                    "spec":(material.nns_specular[0],
+                            material.nns_specular[1],
+                            material.nns_specular[2],
+                            1.0),
+                    "em":(material.nns_emission[0],
+                            material.nns_emission[1],
+                            material.nns_emission[2],
+                            1.0)}
 
-def generate_normal_lightning_color_nodes(material):
-    mat = material
-    nodes = mat.node_tree.nodes
-    links = mat.node_tree.links
+    Light0={"LightVector":(0,0,-1),"LightCol":(1,1,1,1),"LightSpecular":0.5,"isLightEnabled":material.nns_light0.default,"LightIndex":0}
+    Light1={"LightVector":(0,0.5,-0.5),"LightCol":(1,1,1,1),"LightSpecular":1,"isLightEnabled":material.nns_light1.default,"LightIndex":1}
+    Light2={"LightVector":(0,0,-1),"LightCol":(1,0,0,1),"LightSpecular":0.5,"isLightEnabled":material.nns_light2.default,"LightIndex":2}
+    Light3={"LightVector":(0,0,1),"LightCol":(1,1,0,1),"LightSpecular":0,"isLightEnabled":material.nns_light3.default,"LightIndex":3}
     
-    Matcolors = {"df":mat.nns_diffuse,"amb":mat.nns_ambient,"spec":mat.nns_specular,"em":mat.nns_emission}
-    for lightIndex in range(4):
-        pass
-    pass
+    Lights=(Light0,Light1,Light2,Light3)
+    
+    if Light0["isLightEnabled"] or Light1["isLightEnabled"] or Light2["isLightEnabled"] or Light3["isLightEnabled"]:
+        
+        #add all the results of the light0, 1, 2 and 3 calculations
+        
+        LColAdd1=create_node(mat,"","ShaderNodeMixRGB",(-450,-300))
+        LColAdd1.operation="ADD"
+        LColAdd1.inputs[0].default_value=1.0
+        
+        LColAdd2=create_node(mat,"","ShaderNodeMixRGB",(-300,-300))
+        LColAdd2.operation="ADD"
+        LColAdd2.inputs[0].default_value=1.0
+        
+        LColAdd3=create_node(mat,"","ShaderNodeMixRGB",(-150,-300))
+        LColAdd3.operation="ADD"
+        LColAdd3.inputs[0].default_value=1.0
+        
+        LColAdd4=create_node(mat,"","ShaderNodeMixRGB",(0,-300))
+        LColAdd4.operation="ADD"
+        LColAdd4.inputs[0].default_value=1.0
+        LColAdd4.inputs[2].default_value=mat.nns_emission
+        
+        links.new(LColAdd1.outputs[0],LColAdd2.inputs[1])
+        links.new(LColAdd2.outputs[0],LColAdd3.inputs[1])
+        links.new(LColAdd3.outputs[0],LColAdd4.inputs[1])
+        
+        for i in range(4):
+            LightNode=create_light_nodes(mat,light,Matcols,(-i*150,-400))
+            if i==0 or i==1:
+                links.new(LightNode.outputs[0],LColAdd1[i+1])
+            elif i==2:
+                links.new(LightNode.outputs[0],LColAdd2[2])
+            else:
+                links.new(LightNode.outputs[0],LColAdd3[2])
+        
+        links.new(LColAdd3.outputs[0],LColAdd4.inputs[1])
+        LightTotalResult=LColAdd4
+    
+    else: #if no light is enabled use diffuse color
+        LightTotalResult=create_node(mat,"","ShaderNodeRGB",(0,-300))
+        LightTotalResult.outputs[0].default_value=Matcols["df"]
+    
+    return LightTotalResult
 
 def generate_only_vc_nodes(material):
     nodes = material.node_tree.nodes
