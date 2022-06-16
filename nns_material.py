@@ -596,14 +596,14 @@ def generate_normal_lightning_color_nodes(material):
         LColAdd4=create_node(mat,"","ShaderNodeMixRGB",(0,-300))
         LColAdd4.blend_type="ADD"
         LColAdd4.inputs[0].default_value=1.0
-        LColAdd4.inputs[2].default_value=mat.nns_emission
+        LColAdd4.inputs[2].default_value=Matcol["em"]
         
         links.new(LColAdd1.outputs[0],LColAdd2.inputs[1])
         links.new(LColAdd2.outputs[0],LColAdd3.inputs[1])
         links.new(LColAdd3.outputs[0],LColAdd4.inputs[1])
         
         for i in range(4):
-            LightNode=create_light_nodes(mat,light,Matcols,(-i*150,-400))
+            LightNode=create_light_nodes(mat,Lights[i],Matcols,(-i*150,-400))
             if i==0 or i==1:
                 links.new(LightNode.outputs[0],LColAdd1[i+1])
             elif i==2:
@@ -660,11 +660,14 @@ def generate_nodes(material):
         links.clear()
 
         if material.nns_mat_type == "tx":
+            print("oui")
             generate_image_only_nodes(material)
         elif material.nns_mat_type == "df":
             generate_solid_color_nodes(material)
         elif material.nns_mat_type == "vc":
             generate_only_vc_nodes(material)
+        elif materia.nns_mat_type == "df_nr":
+            pass
         elif material.nns_polygon_mode == "modulate" \
                 or material.nns_polygon_mode == "toon_highlight" \
                 or material.nns_polygon_mode == "shadow":
