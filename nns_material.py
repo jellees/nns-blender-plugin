@@ -493,7 +493,7 @@ def create_light_nodes(mat,LightInfo,Matcols,location):
         #Diffuse color
          
         Di=create_node(mat,"Diffuse","ShaderNodeMixRGB",location)
-        Di.operation="MULTIPLY"
+        Di.blend_type="MULTIPLY"
         Di.inputs[0].default_value=1.0
         Di.inputs[1].default_value=Matcols["df"]
         links.new(ls.outputs[0],Di.inputs[2])
@@ -509,7 +509,7 @@ def create_light_nodes(mat,LightInfo,Matcols,location):
         Mult4.operation="MULTIPLY"
         
         Si=create_node(mat,"Specular","ShaderNodeMixRGB",location)
-        Si.operation="MULTIPLY"
+        Si.blend_type="MULTIPLY"
         Si.inputs[0].default_value=1.0
         Si.inputs[1].default_value=Matcols["spec"]
         
@@ -520,12 +520,12 @@ def create_light_nodes(mat,LightInfo,Matcols,location):
         #addition of the three colors (all except emission)
         
         ColAdd1=create_node(mat,"","ShaderNodeMixRGB",location)
-        ColAdd1.operation="ADD"
+        ColAdd1.blend_type="ADD"
         ColAdd1.inputs[0].default_value=1.0
         ColAdd1.inputs[2].default_value=Matcols["amb"]
         
         ColAdd2=create_node(mat,"","ShaderNodeMixRGB",location)
-        ColAdd2.operation="ADD"
+        ColAdd2.blend_type="ADD"
         ColAdd2.inputs[0].default_value=1.0
         
         links.new(Di.outputs[0],ColAdd1.inputs[1])
@@ -535,7 +535,7 @@ def create_light_nodes(mat,LightInfo,Matcols,location):
         #multiply with light color
         
         ColMult1=create_node(mat,"Result "+str(LightIndex),"ShaderNodeMixRGB",location)
-        ColMult1.operation="MULTIPLY"
+        ColMult1.blend_type="MULTIPLY"
         ColMult1.inputs[0].default_value=1.0
         ColMult1.inputs[2].default_value=LightCol
         
@@ -570,10 +570,10 @@ def generate_normal_lightning_color_nodes(material):
                             material.nns_emission[2],
                             1.0)}
 
-    Light0={"LightVector":(0,0,-1),"LightCol":(1,1,1,1),"LightSpecular":0.5,"isLightEnabled":material.nns_light0.default,"LightIndex":0}
-    Light1={"LightVector":(0,0.5,-0.5),"LightCol":(1,1,1,1),"LightSpecular":1,"isLightEnabled":material.nns_light1.default,"LightIndex":1}
-    Light2={"LightVector":(0,0,-1),"LightCol":(1,0,0,1),"LightSpecular":0.5,"isLightEnabled":material.nns_light2.default,"LightIndex":2}
-    Light3={"LightVector":(0,0,1),"LightCol":(1,1,0,1),"LightSpecular":0,"isLightEnabled":material.nns_light3.default,"LightIndex":3}
+    Light0={"LightVector":(0,0,-1),"LightCol":(1,1,1,1),"LightSpecular":0.5,"isLightEnabled":mat.nns_light0,"LightIndex":0}
+    Light1={"LightVector":(0,0.5,-0.5),"LightCol":(1,1,1,1),"LightSpecular":1,"isLightEnabled":mat.nns_light1,"LightIndex":1}
+    Light2={"LightVector":(0,0,-1),"LightCol":(1,0,0,1),"LightSpecular":0.5,"isLightEnabled":mat.nns_light2,"LightIndex":2}
+    Light3={"LightVector":(0,0,1),"LightCol":(1,1,0,1),"LightSpecular":0,"isLightEnabled":mat.nns_light3,"LightIndex":3}
     
     Lights=(Light0,Light1,Light2,Light3)
     
@@ -582,19 +582,19 @@ def generate_normal_lightning_color_nodes(material):
         #add all the results of the light0, 1, 2 and 3 calculations
         
         LColAdd1=create_node(mat,"","ShaderNodeMixRGB",(-450,-300))
-        LColAdd1.operation="ADD"
+        LColAdd1.blend_type="ADD"
         LColAdd1.inputs[0].default_value=1.0
         
         LColAdd2=create_node(mat,"","ShaderNodeMixRGB",(-300,-300))
-        LColAdd2.operation="ADD"
+        LColAdd2.blend_type="ADD"
         LColAdd2.inputs[0].default_value=1.0
         
         LColAdd3=create_node(mat,"","ShaderNodeMixRGB",(-150,-300))
-        LColAdd3.operation="ADD"
+        LColAdd3.blend_type="ADD"
         LColAdd3.inputs[0].default_value=1.0
         
         LColAdd4=create_node(mat,"","ShaderNodeMixRGB",(0,-300))
-        LColAdd4.operation="ADD"
+        LColAdd4.blend_type="ADD"
         LColAdd4.inputs[0].default_value=1.0
         LColAdd4.inputs[2].default_value=mat.nns_emission
         
