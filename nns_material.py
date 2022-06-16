@@ -352,11 +352,14 @@ def generate_solid_color_nodes(material):
     generate_output_node(material, node_mix_shader)
     
 def create_node(mat,name,nodeType,location):
+    global NodeOffsetx
+    global NodeOffsety
     nodes = mat.node_tree.nodes
     newnode = nodes.new(type=nodeType)
     newnode.label=name
     newnode.bl_label=name
-    newnode.location=location
+    newnode.location=(location[0]+NodeOffsetx, location[1]+NodeOffsety)
+    NodeOffsetx+=150
     return newnode
 
 def create_light_nodes(mat,LightInfo,Matcols,location):
@@ -367,22 +370,22 @@ def create_light_nodes(mat,LightInfo,Matcols,location):
     LightCol=LightInfo["LightCol"]
     LightIndex=LightInfo["LightIndex"]
     
-    nodes = material.node_tree.nodes
-    links = material.node_tree.links
+    nodes = mat.node_tree.nodes
+    links = mat.node_tree.links
     
     if (isLightEnabled):
         #transform inputs
         #normals to camera space
         NormalVecNode = create_node(mat,"normal vector(N)",'ShaderNodeNewGeometry',location)
-        VecTrans = create_node(mat,"normal vector(N)",'ShaderNodeNewGeometry',location)
+        VecTrans = create_node(mat,"normal vector(N)",'ShaderNodeVectorTransform',location)
         VecTrans.convert_from="WORLD"
         VecTrans.convert_to="CAMERA"
-        links.new(NormalVecNode[1],VecTrans[0])
+        links.new(NormalVecNode.outputs[1],VecTrans.inputs[0])
         
         #LightVector in camera space
         VecMult1=create_node(mat,"inverse light angle","ShaderNodeVectorMath",location)
-        VecMult1.inputs[1].default_value=LightVector
-        VecMult1.inputs[2].default_value=(-1,-1,-1)
+        VecMult1.inputs[0].default_value=LightVector
+        VecMult1.inputs[1].default_value=(-1,-1,-1)
         VecMult1.operation="MULTIPLY"
         
         VecNorm1=create_node(mat,"Normalize","ShaderNodeVectorMath",location)
@@ -390,8 +393,8 @@ def create_light_nodes(mat,LightInfo,Matcols,location):
         
         links.new(VecMult1.outputs[0],VecNorm1.inputs[0])
         
-        SepXYZ1=create_node(mat,"","ShaderNodeSeparateXYZ",location)
-        CombXYZ1=create_node(mat,"","ShaderNodeCombineXYZ",location)
+        SepXYZ1=create_node(mat,"SepXYZ","ShaderNodeSeparateXYZ",location)
+        CombXYZ1=create_node(mat,"CombXYZ","ShaderNodeCombineXYZ",location)
         
         links.new(VecNorm1.outputs[0],SepXYZ1.inputs[0])
         links.new(SepXYZ1.outputs[0],CombXYZ1.inputs[0])
@@ -404,30 +407,30 @@ def create_light_nodes(mat,LightInfo,Matcols,location):
         
         #calculation of ld 
         
-        DotProd1=create_node(mat,"","ShaderNodeVectorMath",location)
+        DotProd1=create_node(mat,"Dot Prod1","ShaderNodeVectorMath",location)
         DotProd1.operation="DOT_PRODUCT"
         
         links.new(VecTrans.outputs[0],DotProd1.inputs[0])
         links.new(CombXYZ1.outputs[0],DotProd1.inputs[1])
         
-        Clamp1=create_node(mat,"","ShaderNodeClamp",location)
-        Clamp1.inputs[0].default_value=0.0
-        Clamp1.inputs[1].default_value=1.0
+        Clamp1=create_node(mat,"Clamp1","ShaderNodeClamp",location)
+        Clamp1.inputs[1].default_value=0.0
+        Clamp1.inputs[2].default_value=1.0
         
-        ld=create_node(mat,"","ShaderNodeMath",location)
+        ld=create_node(mat,"ld","ShaderNodeMath",location)
         ld.operation="POWER"
         ld.inputs[1].default_value=1.50
         
-        links.new(DotProd1.outputs[0],Clamp1.inputs[0])
+        links.new(DotProd1.outputs[1],Clamp1.inputs[0])
         links.new(Clamp1.outputs[0],ld.inputs[0])
         
         #half angle vector
         
-        VecAdd1=create_node(mat,"","ShaderNodeVectorMath",location)
+        VecAdd1=create_node(mat,"VecAdd1","ShaderNodeVectorMath",location)
         VecAdd1.operation="ADD"
         VecAdd1.inputs[1].default_value=(0,0.99,0)
         
-        VecNorm2=(mat,"","ShaderNodeVectorMath",location)
+        VecNorm2=create_node(mat,"VecNorm2","ShaderNodeVectorMath",location)
         VecNorm2.operation="NORMALIZE"
         
         links.new(CombXYZ1.outputs[0],VecAdd1.inputs[0])
@@ -436,41 +439,43 @@ def create_light_nodes(mat,LightInfo,Matcols,location):
         #calculation of ls (may not be 100% accurate due to me not knowing how to search for tables in the ida db but it's accurate enough for preview purpose)
         #may be updated if i find a better approwimation or get the exact formula
         
-        DotProd2=create_node(mat,"","ShaderNodeVectorMath",location)
+        DotProd2=create_node(mat,"DotProd2","ShaderNodeVectorMath",location)
         DotProd2.operation="DOT_PRODUCT"
         
-        Sign1=create_node(mat,"","ShaderNodeMath",location)
+        Sign1=create_node(mat,"Sign1","ShaderNodeMath",location)
         Sign1.operation="SIGN"
         Sign1.use_clamp=True
         
-        Pow1=create_node(mat,"","ShaderNodeMath",location)
+        Pow1=create_node(mat,"Pow1","ShaderNodeMath",location)
         Pow1.operation="POWER"
         Pow1.inputs[1].default_value=2.0
         
         links.new(VecNorm2.outputs[0],DotProd2.inputs[0])
         links.new(VecTrans.outputs[0],DotProd2.inputs[1])
+        links.new(DotProd2.outputs[1],Pow1.inputs[0])
+        links.new(DotProd2.outputs[1],Sign1.inputs[0])
         
-        Mult1=create_node(mat,"","ShaderNodeMath",location)
+        Mult1=create_node(mat,"Mult1","ShaderNodeMath",location)
         Mult1.operation="MULTIPLY"
         Mult1.inputs[1].default_value=2.0
         
-        Sub1=create_node(mat,"","ShaderNodeMath",location)
-        Sub1.operation="SUBSTRACT"
+        Sub1=create_node(mat,"Sub1","ShaderNodeMath",location)
+        Sub1.operation="SUBTRACT"
         Sub1.inputs[1].default_value=1.0
         Sub1.use_clamp=True
         
         links.new(Pow1.outputs[0],Mult1.inputs[0])
-        links.new(Mult1.outputs[0],Sub2.inputs[0])
+        links.new(Mult1.outputs[0],Sub1.inputs[0])
         
         #specular corrective mask
         
         Geo1=create_node(mat,"","ShaderNodeNewGeometry",location)
         
-        Sub2=create_node(mat,"","ShaderNodeMath",location)
-        Sub2.operation="SUBSTRACT"
+        Sub2=create_node(mat,"Sub2","ShaderNodeMath",location)
+        Sub2.operation="SUBTRACT"
         Sub2.inputs[0].default_value=1.0
         
-        Mult2=create_node(mat,"","ShaderNodeMath",location)
+        Mult2=create_node(mat,"Mult2","ShaderNodeMath",location)
         Mult2.operation="MULTIPLY"
         
         links.new(Geo1.outputs[6],Sub2.inputs[1])
@@ -480,7 +485,7 @@ def create_light_nodes(mat,LightInfo,Matcols,location):
         #end of mask
         #applying the mask
         
-        Mult3=create_node(mat,"","ShaderNodeMath",location)
+        Mult3=create_node(mat,"Mult3","ShaderNodeMath",location)
         Mult3.operation="MULTIPLY"
         links.new(Mult2.outputs[0],Mult3.inputs[0])
         links.new(Sub1.outputs[0],Mult3.inputs[1])
@@ -496,16 +501,16 @@ def create_light_nodes(mat,LightInfo,Matcols,location):
         Di.blend_type="MULTIPLY"
         Di.inputs[0].default_value=1.0
         Di.inputs[1].default_value=Matcols["df"]
-        links.new(ls.outputs[0],Di.inputs[2])
+        links.new(ld.outputs[0],Di.inputs[2])
         
         #Specular color
         
-        Pow2=create_node(mat,"","ShaderNodeMath",location)
+        Pow2=create_node(mat,"Pow2","ShaderNodeMath",location)
         Pow2.operation="POWER"
         Pow2.inputs[0].default_value=LightSpecular
-        POw2.inputs[1].default_value=1.5
+        Pow2.inputs[1].default_value=1.5
         
-        Mult4=create_node(mat,"","ShaderNodeMath",location)
+        Mult4=create_node(mat,"Mult4","ShaderNodeMath",location)
         Mult4.operation="MULTIPLY"
         
         Si=create_node(mat,"Specular","ShaderNodeMixRGB",location)
@@ -519,12 +524,12 @@ def create_light_nodes(mat,LightInfo,Matcols,location):
         
         #addition of the three colors (all except emission)
         
-        ColAdd1=create_node(mat,"","ShaderNodeMixRGB",location)
+        ColAdd1=create_node(mat,"ColAdd1","ShaderNodeMixRGB",location)
         ColAdd1.blend_type="ADD"
         ColAdd1.inputs[0].default_value=1.0
         ColAdd1.inputs[2].default_value=Matcols["amb"]
         
-        ColAdd2=create_node(mat,"","ShaderNodeMixRGB",location)
+        ColAdd2=create_node(mat,"ColAdd2","ShaderNodeMixRGB",location)
         ColAdd2.blend_type="ADD"
         ColAdd2.inputs[0].default_value=1.0
         
@@ -546,9 +551,11 @@ def create_light_nodes(mat,LightInfo,Matcols,location):
         LightNode=create_node(mat,"Result "+str(LightIndex),"ShaderNodeRGB",location)
         LightNode.outputs[0].default_value=(0,0,0,1)
         
-    return LightResult
+    return LightNode
 
 def generate_normal_lightning_color_nodes(material):
+    global NodeOffsety
+    global NodeOffsetx
     mat = material
     nodes = mat.node_tree.nodes
     links = mat.node_tree.links
@@ -581,35 +588,37 @@ def generate_normal_lightning_color_nodes(material):
         
         #add all the results of the light0, 1, 2 and 3 calculations
         
-        LColAdd1=create_node(mat,"","ShaderNodeMixRGB",(-450,-300))
+        LColAdd1=create_node(mat,"LColAdd1","ShaderNodeMixRGB",(1450,-300))
         LColAdd1.blend_type="ADD"
         LColAdd1.inputs[0].default_value=1.0
         
-        LColAdd2=create_node(mat,"","ShaderNodeMixRGB",(-300,-300))
+        LColAdd2=create_node(mat,"LColAdd2","ShaderNodeMixRGB",(1450,-300))
         LColAdd2.blend_type="ADD"
         LColAdd2.inputs[0].default_value=1.0
         
-        LColAdd3=create_node(mat,"","ShaderNodeMixRGB",(-150,-300))
+        LColAdd3=create_node(mat,"LColAdd3","ShaderNodeMixRGB",(1450,-300))
         LColAdd3.blend_type="ADD"
         LColAdd3.inputs[0].default_value=1.0
         
-        LColAdd4=create_node(mat,"","ShaderNodeMixRGB",(0,-300))
+        LColAdd4=create_node(mat,"LColAdd4","ShaderNodeMixRGB",(1450,-300))
         LColAdd4.blend_type="ADD"
         LColAdd4.inputs[0].default_value=1.0
-        LColAdd4.inputs[2].default_value=Matcol["em"]
+        LColAdd4.inputs[2].default_value=Matcols["em"]
         
         links.new(LColAdd1.outputs[0],LColAdd2.inputs[1])
         links.new(LColAdd2.outputs[0],LColAdd3.inputs[1])
         links.new(LColAdd3.outputs[0],LColAdd4.inputs[1])
         
         for i in range(4):
-            LightNode=create_light_nodes(mat,Lights[i],Matcols,(-i*150,-400))
+            LightNode=create_light_nodes(mat,Lights[i],Matcols,(-3500-i*150,0))
             if i==0 or i==1:
-                links.new(LightNode.outputs[0],LColAdd1[i+1])
+                links.new(LightNode.outputs[0],LColAdd1.inputs[i+1])
             elif i==2:
-                links.new(LightNode.outputs[0],LColAdd2[2])
+                links.new(LightNode.outputs[0],LColAdd2.inputs[2])
             else:
-                links.new(LightNode.outputs[0],LColAdd3[2])
+                links.new(LightNode.outputs[0],LColAdd3.inputs [2])
+            NodeOffsety-=500
+            NodeOffsetx=0
         
         links.new(LColAdd3.outputs[0],LColAdd4.inputs[1])
         LightTotalResult=LColAdd4
