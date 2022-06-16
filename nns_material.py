@@ -351,15 +351,18 @@ def generate_solid_color_nodes(material):
     links.new(node_mix_df.outputs[0], node_mix_shader.inputs[2])
     generate_output_node(material, node_mix_shader)
     
+NodeOffsetx=0
+NodeOffsety=0
+
 def create_node(mat,name,nodeType,location):
     global NodeOffsetx
     global NodeOffsety
     nodes = mat.node_tree.nodes
     newnode = nodes.new(type=nodeType)
+    newnode.name=name
     newnode.label=name
-    newnode.bl_label=name
     newnode.location=(location[0]+NodeOffsetx, location[1]+NodeOffsety)
-    NodeOffsetx+=150
+    NodeOffsetx+=180
     return newnode
 
 def create_light_nodes(mat,LightInfo,Matcols,location):
@@ -588,19 +591,19 @@ def generate_normal_lightning_color_nodes(material):
         
         #add all the results of the light0, 1, 2 and 3 calculations
         
-        LColAdd1=create_node(mat,"LColAdd1","ShaderNodeMixRGB",(1450,-300))
+        LColAdd1=create_node(mat,"LColAdd1","ShaderNodeMixRGB",(-450,-300))
         LColAdd1.blend_type="ADD"
         LColAdd1.inputs[0].default_value=1.0
         
-        LColAdd2=create_node(mat,"LColAdd2","ShaderNodeMixRGB",(1450,-300))
+        LColAdd2=create_node(mat,"LColAdd2","ShaderNodeMixRGB",(-450,-450))
         LColAdd2.blend_type="ADD"
         LColAdd2.inputs[0].default_value=1.0
         
-        LColAdd3=create_node(mat,"LColAdd3","ShaderNodeMixRGB",(1450,-300))
+        LColAdd3=create_node(mat,"LColAdd3","ShaderNodeMixRGB",(-450,-600))
         LColAdd3.blend_type="ADD"
         LColAdd3.inputs[0].default_value=1.0
         
-        LColAdd4=create_node(mat,"LColAdd4","ShaderNodeMixRGB",(1450,-300))
+        LColAdd4=create_node(mat,"LColAdd4","ShaderNodeMixRGB",(-450,-750))
         LColAdd4.blend_type="ADD"
         LColAdd4.inputs[0].default_value=1.0
         LColAdd4.inputs[2].default_value=Matcols["em"]
@@ -610,7 +613,7 @@ def generate_normal_lightning_color_nodes(material):
         links.new(LColAdd3.outputs[0],LColAdd4.inputs[1])
         
         for i in range(4):
-            LightNode=create_light_nodes(mat,Lights[i],Matcols,(-3500-i*150,0))
+            LightNode=create_light_nodes(mat,Lights[i],Matcols,(-6500-i*150,-300))
             if i==0 or i==1:
                 links.new(LightNode.outputs[0],LColAdd1.inputs[i+1])
             elif i==2:
