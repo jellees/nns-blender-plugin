@@ -636,6 +636,40 @@ def generate_normal_lightning_color_nodes(material):
     
     return LightTotalResult
 
+def generate_only_normal_lighting(material):
+    nodes = material.node_tree.nodes
+    links = material.node_tree.links
+
+    node_mix_rgb = nodes.new(type='ShaderNodeMixRGB')
+    node_mix_rgb.blend_type = 'MULTIPLY'
+    node_mix_rgb.name = 'nns_node_alpha'
+    node_mix_rgb.inputs[0].default_value = 1.0
+    node_mix_rgb.inputs[1].default_value = (1.0, 1.0, 1.0, 1.0)
+    node_mix_rgb.inputs[2].default_value = (
+        material.nns_alpha / 31,
+        material.nns_alpha / 31,
+        material.nns_alpha / 31,
+        1.0
+    )
+    node_bsdf = nodes.new(type='ShaderNodeBsdfTransparent')
+    node_vertex_lighting=generate_normal_lightning_color_nodes(material)
+    node_mix_shader = nodes.new(type='ShaderNodeMixShader')
+
+    if material.nns_display_face == "both":
+        links.new(node_mix_rgb.outputs[0], node_mix_shader.inputs[0])
+    else:
+        node_face = generate_culling_nodes(material)
+        links.new(node_mix_rgb.outputs[0], node_face.inputs[2])
+        links.new(node_face.outputs[0], node_mix_shader.inputs[0])
+
+    links.new(node_bsdf.outputs[0], node_mix_shader.inputs[1])
+    links.new(node_vertex_lighting.outputs[0], node_mix_shader.inputs[2])
+    generate_output_node(material, node_mix_shader)
+    
+Mat=bpy.data.materials["code test"]
+
+generate_only_normal_lighting(Mat)
+
 def generate_only_vc_nodes(material):
     nodes = material.node_tree.nodes
     links = material.node_tree.links
@@ -667,6 +701,7 @@ def generate_only_vc_nodes(material):
     links.new(node_vc.outputs[0], node_mix_shader.inputs[2])
     generate_output_node(material, node_mix_shader)
 
+#generate_only_vc_nodes(Mat)
 
 def generate_nodes(material):
     if material.is_nns:
@@ -683,8 +718,7 @@ def generate_nodes(material):
         elif material.nns_mat_type == "vc":
             generate_only_vc_nodes(material)
         elif material.nns_mat_type == "df_nr":
-            
-            pass
+            generate_only_normal_lighting(material) 
         elif material.nns_polygon_mode == "modulate" \
                 or material.nns_polygon_mode == "toon_highlight" \
                 or material.nns_polygon_mode == "shadow":
