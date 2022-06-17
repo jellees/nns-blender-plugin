@@ -80,277 +80,6 @@ def generate_srt_nodes(material, input):
 
     return node_s_mapping
 
-
-def generate_image_nodes(material):
-    nodes = material.node_tree.nodes
-    links = material.node_tree.links
-
-    node_image = nodes.new(type='ShaderNodeTexImage')
-    node_image.name = 'nns_node_image'
-    node_image.interpolation = 'Closest'
-    if material.nns_image != '':
-        try:
-            node_image.image = material.nns_image
-        except Exception:
-            raise NameError("Cannot load image")
-
-    # Make this ahead of time. Must always be filled.
-    node_srt = None
-
-    if material.nns_tex_gen_mode == "nrm":
-        node_geo = nodes.new(type='ShaderNodeNewGeometry')
-        node_vec_trans = nodes.new(type='ShaderNodeVectorTransform')
-        node_vec_trans.convert_from = 'WORLD'
-        node_vec_trans.convert_to = 'CAMERA'
-        node_vec_trans.vector_type = 'NORMAL'
-        node_mapping = nodes.new(type='ShaderNodeMapping')
-        node_mapping.inputs[3].default_value = (0.5, 0.5, 0.5)
-        links.new(node_geo.outputs[1], node_vec_trans.inputs[0])
-        links.new(node_vec_trans.outputs[0], node_mapping.inputs[0])
-        node_srt = generate_srt_nodes(material, node_mapping)
-    else:
-        node_uvmap = nodes.new(type='ShaderNodeUVMap')
-        node_uvmap.uv_map = "UVMap"
-        node_srt = generate_srt_nodes(material, node_uvmap)
-
-    node_sp_xyz = nodes.new(type='ShaderNodeSeparateXYZ')
-    links.new(node_srt.outputs[0], node_sp_xyz.inputs[0])
-
-    node_cb_xyz = nodes.new(type='ShaderNodeCombineXYZ')
-    links.new(node_sp_xyz.outputs[2], node_cb_xyz.inputs[2])
-
-    if material.nns_tex_tiling_u == "flip":
-        node_math_u = nodes.new(type='ShaderNodeMath')
-        node_math_u.operation = 'PINGPONG'
-        node_math_u.inputs[1].default_value = 1.0
-        links.new(node_sp_xyz.outputs[0], node_math_u.inputs[0])
-        links.new(node_math_u.outputs[0], node_cb_xyz.inputs[0])
-    elif material.nns_tex_tiling_u == "clamp":
-        node_math_u = nodes.new(type='ShaderNodeMath')
-        node_math_u.operation = 'MINIMUM'
-        node_math_u.inputs[1].default_value = 0.99
-        node_math_u.use_clamp = True
-        links.new(node_sp_xyz.outputs[0], node_math_u.inputs[0])
-        links.new(node_math_u.outputs[0], node_cb_xyz.inputs[0])
-    else:
-        links.new(node_sp_xyz.outputs[0], node_cb_xyz.inputs[0])
-
-    if material.nns_tex_tiling_v == "flip":
-        node_math_v = nodes.new(type='ShaderNodeMath')
-        node_math_v.operation = 'PINGPONG'
-        node_math_v.inputs[1].default_value = 1.0
-        links.new(node_sp_xyz.outputs[1], node_math_v.inputs[0])
-        links.new(node_math_v.outputs[0], node_cb_xyz.inputs[1])
-    elif material.nns_tex_tiling_v == "clamp":
-        node_math_v = nodes.new(type='ShaderNodeMath')
-        node_math_v.operation = 'MINIMUM'
-        node_math_v.inputs[1].default_value = 0.99
-        node_math_v.use_clamp = True
-        links.new(node_sp_xyz.outputs[1], node_math_v.inputs[0])
-        links.new(node_math_v.outputs[0], node_cb_xyz.inputs[1])
-    else:
-        links.new(node_sp_xyz.outputs[1], node_cb_xyz.inputs[1])
-
-    links.new(node_cb_xyz.outputs[0], node_image.inputs[0])
-
-    return node_image
-
-
-def generate_mod_vc_nodes(material):
-    nodes = material.node_tree.nodes
-    links = material.node_tree.links
-
-    node_mix = nodes.new(type='ShaderNodeMixRGB')
-    node_mix.inputs[0].default_value = 0.0
-
-    node_mix_rgb = nodes.new(type='ShaderNodeMixRGB')
-    node_mix_rgb.blend_type = 'MULTIPLY'
-    node_mix_rgb.name = 'nns_node_alpha'
-    node_mix_rgb.inputs[0].default_value = 1.0
-    node_mix_rgb.inputs[1].default_value = (1.0, 1.0, 1.0, 1.0)
-    node_mix_rgb.inputs[2].default_value = (
-        material.nns_alpha / 31,
-        material.nns_alpha / 31,
-        material.nns_alpha / 31,
-        1.0
-    )
-
-    if "tx" in material.nns_mat_type:
-        node_image = generate_image_nodes(material)
-        links.new(node_image.outputs[0], node_mix.inputs[1])
-        links.new(node_image.outputs[1], node_mix.inputs[2])
-        links.new(node_image.outputs[1], node_mix_rgb.inputs[1])
-
-    node_multiply = nodes.new(type='ShaderNodeMixRGB')
-    node_multiply.name = 'nns_node_diffuse'
-    node_multiply.blend_type = 'MULTIPLY'
-    node_multiply.inputs[0].default_value = 1.0
-    node_multiply.inputs[1].default_value = (1.0, 1.0, 1.0, 1.0)
-    node_multiply.inputs[2].default_value = (
-        material.nns_diffuse[0],
-        material.nns_diffuse[1],
-        material.nns_diffuse[2],
-        1.0
-    )
-
-    if "vc" in material.nns_mat_type:
-        node_attr = nodes.new(type='ShaderNodeAttribute')
-        node_attr.attribute_name = 'Col'
-        links.new(node_attr.outputs[0], node_multiply.inputs[2])
-
-    node_bsdf = nodes.new(type='ShaderNodeBsdfTransparent')
-    node_mix_shader = nodes.new(type='ShaderNodeMixShader')
-
-    links.new(node_mix.outputs[0], node_multiply.inputs[1])
-    links.new(node_multiply.outputs[0], node_mix_shader.inputs[2])
-
-    if material.nns_display_face == "both":
-        links.new(node_mix_rgb.outputs[0], node_mix_shader.inputs[0])
-    else:
-        node_face = generate_culling_nodes(material)
-        links.new(node_mix_rgb.outputs[0], node_face.inputs[2])
-        links.new(node_face.outputs[0], node_mix_shader.inputs[0])
-
-    links.new(node_bsdf.outputs[0], node_mix_shader.inputs[1])
-    generate_output_node(material, node_mix_shader)
-
-
-def generate_decal_vc_nodes(material):
-    nodes = material.node_tree.nodes
-    links = material.node_tree.links
-
-    node_mix_1 = nodes.new(type='ShaderNodeMixRGB')
-    node_mix_1.inputs[0].default_value = 0.0
-
-    node_mix_2 = nodes.new(type='ShaderNodeMixRGB')
-
-    links.new(node_mix_1.outputs[0], node_mix_2.inputs[2])
-
-    if "tx" in material.nns_mat_type:
-        node_image = generate_image_nodes(material)
-        links.new(node_image.outputs[0], node_mix_1.inputs[1])
-        links.new(node_image.outputs[1], node_mix_1.inputs[2])
-        links.new(node_image.outputs[1], node_mix_2.inputs[0])
-
-    node_mix_shader = nodes.new(type='ShaderNodeMixShader')
-    node_trans_bsdf = nodes.new(type='ShaderNodeBsdfTransparent')
-
-    links.new(node_mix_2.outputs[0], node_mix_shader.inputs[2])
-    links.new(node_trans_bsdf.outputs[0], node_mix_shader.inputs[1])
-
-    if "vc" in material.nns_mat_type:
-        node_attr = nodes.new(type='ShaderNodeAttribute')
-        node_attr.attribute_name = 'Col'
-        links.new(node_attr.outputs[0], node_mix_2.inputs[1])
-    else:
-        node_diffuse = nodes.new(type='ShaderNodeMixRGB')
-        node_diffuse.name = 'nns_node_diffuse'
-        node_diffuse.blend_type = 'MULTIPLY'
-        node_diffuse.inputs[0].default_value = 1.0
-        node_diffuse.inputs[1].default_value = (1.0, 1.0, 1.0, 1.0)
-        node_diffuse.inputs[2].default_value = (
-            material.nns_diffuse[0],
-            material.nns_diffuse[1],
-            material.nns_diffuse[2],
-            1.0)
-        links.new(node_diffuse.outputs[0], node_mix_2.inputs[1])
-
-    node_mix_rgb = nodes.new(type='ShaderNodeMixRGB')
-    node_mix_rgb.location = (0, 200)
-    node_mix_rgb.blend_type = 'MULTIPLY'
-    node_mix_rgb.name = 'nns_node_alpha'
-    node_mix_rgb.inputs[0].default_value = 1.0
-    node_mix_rgb.inputs[1].default_value = (1.0, 1.0, 1.0, 1.0)
-    node_mix_rgb.inputs[2].default_value = (
-        material.nns_alpha / 31,
-        material.nns_alpha / 31,
-        material.nns_alpha / 31,
-        1.0
-    )
-
-    if material.nns_display_face == "both":
-        links.new(node_mix_rgb.outputs[0], node_mix_shader.inputs[0])
-    else:
-        node_face = generate_culling_nodes(material)
-        links.new(node_mix_rgb.outputs[0], node_face.inputs[2])
-        links.new(node_face.outputs[0], node_mix_shader.inputs[0])
-
-    generate_output_node(material, node_mix_shader)
-
-
-def generate_image_only_nodes(material):
-    nodes = material.node_tree.nodes
-    links = material.node_tree.links
-
-    node_mix_rgb = nodes.new(type='ShaderNodeMixRGB')
-    node_mix_rgb.blend_type = 'MULTIPLY'
-    node_mix_rgb.name = 'nns_node_alpha'
-    node_mix_rgb.inputs[0].default_value = 1.0
-    node_mix_rgb.inputs[2].default_value = (
-        material.nns_alpha / 31,
-        material.nns_alpha / 31,
-        material.nns_alpha / 31,
-        1.0
-    )
-    node_bsdf = nodes.new(type='ShaderNodeBsdfTransparent')
-    node_mix_shader = nodes.new(type='ShaderNodeMixShader')
-    node_image = generate_image_nodes(material)
-
-    links.new(node_image.outputs[0], node_mix_shader.inputs[2])
-    links.new(node_image.outputs[1], node_mix_rgb.inputs[1])
-
-    if material.nns_display_face == "both":
-        links.new(node_mix_rgb.outputs[0], node_mix_shader.inputs[0])
-    else:
-        node_face = generate_culling_nodes(material)
-        links.new(node_mix_rgb.outputs[0], node_face.inputs[2])
-        links.new(node_face.outputs[0], node_mix_shader.inputs[0])
-
-    links.new(node_bsdf.outputs[0], node_mix_shader.inputs[1])
-    generate_output_node(material, node_mix_shader)
-
-
-def generate_solid_color_nodes(material):
-    nodes = material.node_tree.nodes
-    links = material.node_tree.links
-
-    node_mix_rgb = nodes.new(type='ShaderNodeMixRGB')
-    node_mix_rgb.location = (0, 200)
-    node_mix_rgb.blend_type = 'MULTIPLY'
-    node_mix_rgb.name = 'nns_node_alpha'
-    node_mix_rgb.inputs[0].default_value = 1.0
-    node_mix_rgb.inputs[1].default_value = (1.0, 1.0, 1.0, 1.0)
-    node_mix_rgb.inputs[2].default_value = (
-        material.nns_alpha / 31,
-        material.nns_alpha / 31,
-        material.nns_alpha / 31,
-        1.0
-    )
-    node_bsdf = nodes.new(type='ShaderNodeBsdfTransparent')
-    node_mix_df = nodes.new(type='ShaderNodeMixRGB')
-    node_mix_df.location = (0, -100)
-    node_mix_df.name = 'nns_node_diffuse'
-    node_mix_df.inputs[0].default_value = 1.0
-    node_mix_df.inputs[2].default_value = (
-        material.nns_diffuse[0],
-        material.nns_diffuse[1],
-        material.nns_diffuse[2],
-        1.0
-    )
-    node_mix_shader = nodes.new(type='ShaderNodeMixShader')
-    node_mix_shader.location = (200, 0)
-
-    if material.nns_display_face == "both":
-        links.new(node_mix_rgb.outputs[0], node_mix_shader.inputs[0])
-    else:
-        node_face = generate_culling_nodes(material)
-        links.new(node_mix_rgb.outputs[0], node_face.inputs[2])
-        links.new(node_face.outputs[0], node_mix_shader.inputs[0])
-
-    links.new(node_bsdf.outputs[0], node_mix_shader.inputs[1])
-    links.new(node_mix_df.outputs[0], node_mix_shader.inputs[2])
-    generate_output_node(material, node_mix_shader)
-    
 NodeOffsetx=0
 NodeOffsety=0
 
@@ -364,6 +93,7 @@ def create_node(mat,name,nodeType,location):
     newnode.location=(location[0]+NodeOffsetx, location[1]+NodeOffsety)
     NodeOffsetx+=180
     return newnode
+
 
 def create_light_nodes(mat,LightInfo,Matcols,location):
     
@@ -502,7 +232,7 @@ def create_light_nodes(mat,LightInfo,Matcols,location):
         
         #Diffuse color
          
-        Di=create_node(mat,"Diffuse","ShaderNodeMixRGB",location)
+        Di=create_node(mat,"Diffuse "+str(LightIndex),"ShaderNodeMixRGB",location)
         Di.blend_type="MULTIPLY"
         Di.inputs[0].default_value=1.0
         Di.inputs[1].default_value=Matcols["df"]
@@ -518,7 +248,7 @@ def create_light_nodes(mat,LightInfo,Matcols,location):
         Mult4=create_node(mat,"Mult4","ShaderNodeMath",location)
         Mult4.operation="MULTIPLY"
         
-        Si=create_node(mat,"Specular","ShaderNodeMixRGB",location)
+        Si=create_node(mat,"Specular "+str(LightIndex),"ShaderNodeMixRGB",location)
         Si.blend_type="MULTIPLY"
         Si.inputs[0].default_value=1.0
         Si.inputs[1].default_value=Matcols["spec"]
@@ -529,7 +259,7 @@ def create_light_nodes(mat,LightInfo,Matcols,location):
         
         #addition of the three colors (all except emission)
         
-        ColAdd1=create_node(mat,"ColAdd1","ShaderNodeMixRGB",location)
+        ColAdd1=create_node(mat,"Ambient "+str(LightIndex),"ShaderNodeMixRGB",location)
         ColAdd1.blend_type="ADD"
         ColAdd1.inputs[0].default_value=1.0
         ColAdd1.inputs[2].default_value=Matcols["amb"]
@@ -558,9 +288,14 @@ def create_light_nodes(mat,LightInfo,Matcols,location):
         
     return LightNode
 
+
 def generate_normal_lightning_color_nodes(material):
     global NodeOffsety
     global NodeOffsetx
+    
+    NodeOffsetx=0
+    NodeOffsety=0
+    
     mat = material
     nodes = mat.node_tree.nodes
     links = mat.node_tree.links
@@ -607,7 +342,7 @@ def generate_normal_lightning_color_nodes(material):
         LColAdd3.blend_type="ADD"
         LColAdd3.inputs[0].default_value=1.0
         
-        LColAdd4=create_node(mat,"LColAdd4","ShaderNodeMixRGB",(AddNodesX,-750))
+        LColAdd4=create_node(mat,"Total result","ShaderNodeMixRGB",(AddNodesX,-750))
         LColAdd4.blend_type="ADD"
         LColAdd4.inputs[0].default_value=1.0
         LColAdd4.inputs[2].default_value=Matcols["em"]
@@ -635,6 +370,286 @@ def generate_normal_lightning_color_nodes(material):
         LightTotalResult.outputs[0].default_value=Matcols["df"]
     
     return LightTotalResult
+
+
+def generate_decal_vc_nodes(material):
+    nodes = material.node_tree.nodes
+    links = material.node_tree.links
+
+    node_mix_1 = nodes.new(type='ShaderNodeMixRGB')
+    node_mix_1.inputs[0].default_value = 0.0
+
+    node_mix_2 = nodes.new(type='ShaderNodeMixRGB')
+
+    links.new(node_mix_1.outputs[0], node_mix_2.inputs[2])
+
+    if "tx" in material.nns_mat_type:
+        node_image = generate_image_nodes(material)
+        links.new(node_image.outputs[0], node_mix_1.inputs[1])
+        links.new(node_image.outputs[1], node_mix_1.inputs[2])
+        links.new(node_image.outputs[1], node_mix_2.inputs[0])
+
+    node_mix_shader = nodes.new(type='ShaderNodeMixShader')
+    node_trans_bsdf = nodes.new(type='ShaderNodeBsdfTransparent')
+
+    links.new(node_mix_2.outputs[0], node_mix_shader.inputs[2])
+    links.new(node_trans_bsdf.outputs[0], node_mix_shader.inputs[1])
+
+    if "vc" in material.nns_mat_type:
+        node_attr = nodes.new(type='ShaderNodeAttribute')
+        node_attr.attribute_name = 'Col'
+        links.new(node_attr.outputs[0], node_mix_2.inputs[1])
+        
+    elif "nr" in material.nns_mat_type:
+        node_vertex_lighting=generate_normal_lightning_color_nodes(material)
+        links.new(node_vertex_lighting.outputs[0], node_mix_2.inputs[1])
+        
+    else:
+        node_diffuse = nodes.new(type='ShaderNodeMixRGB')
+        node_diffuse.name = 'nns_node_diffuse'
+        node_diffuse.blend_type = 'MULTIPLY'
+        node_diffuse.inputs[0].default_value = 1.0
+        node_diffuse.inputs[1].default_value = (1.0, 1.0, 1.0, 1.0)
+        node_diffuse.inputs[2].default_value = (
+            material.nns_diffuse[0],
+            material.nns_diffuse[1],
+            material.nns_diffuse[2],
+            1.0)
+        links.new(node_diffuse.outputs[0], node_mix_2.inputs[1])
+
+    node_mix_rgb = nodes.new(type='ShaderNodeMixRGB')
+    node_mix_rgb.location = (0, 200)
+    node_mix_rgb.blend_type = 'MULTIPLY'
+    node_mix_rgb.name = 'nns_node_alpha'
+    node_mix_rgb.inputs[0].default_value = 1.0
+    node_mix_rgb.inputs[1].default_value = (1.0, 1.0, 1.0, 1.0)
+    node_mix_rgb.inputs[2].default_value = (
+        material.nns_alpha / 31,
+        material.nns_alpha / 31,
+        material.nns_alpha / 31,
+        1.0
+    )
+
+    if material.nns_display_face == "both":
+        links.new(node_mix_rgb.outputs[0], node_mix_shader.inputs[0])
+    else:
+        node_face = generate_culling_nodes(material)
+        links.new(node_mix_rgb.outputs[0], node_face.inputs[2])
+        links.new(node_face.outputs[0], node_mix_shader.inputs[0])
+
+    generate_output_node(material, node_mix_shader)
+
+
+def generate_image_nodes(material):
+    nodes = material.node_tree.nodes
+    links = material.node_tree.links
+
+    node_image = nodes.new(type='ShaderNodeTexImage')
+    node_image.name = 'nns_node_image'
+    node_image.interpolation = 'Closest'
+    if material.nns_image != '':
+        try:
+            node_image.image = material.nns_image
+        except Exception:
+            raise NameError("Cannot load image")
+
+    # Make this ahead of time. Must always be filled.
+    node_srt = None
+
+    if material.nns_tex_gen_mode == "nrm":
+        node_geo = nodes.new(type='ShaderNodeNewGeometry')
+        node_vec_trans = nodes.new(type='ShaderNodeVectorTransform')
+        node_vec_trans.convert_from = 'WORLD'
+        node_vec_trans.convert_to = 'CAMERA'
+        node_vec_trans.vector_type = 'NORMAL'
+        node_mapping = nodes.new(type='ShaderNodeMapping')
+        node_mapping.inputs[3].default_value = (0.5, 0.5, 0.5)
+        links.new(node_geo.outputs[1], node_vec_trans.inputs[0])
+        links.new(node_vec_trans.outputs[0], node_mapping.inputs[0])
+        node_srt = generate_srt_nodes(material, node_mapping)
+    else:
+        node_uvmap = nodes.new(type='ShaderNodeUVMap')
+        node_uvmap.uv_map = "UVMap"
+        node_srt = generate_srt_nodes(material, node_uvmap)
+
+    node_sp_xyz = nodes.new(type='ShaderNodeSeparateXYZ')
+    links.new(node_srt.outputs[0], node_sp_xyz.inputs[0])
+
+    node_cb_xyz = nodes.new(type='ShaderNodeCombineXYZ')
+    links.new(node_sp_xyz.outputs[2], node_cb_xyz.inputs[2])
+
+    if material.nns_tex_tiling_u == "flip":
+        node_math_u = nodes.new(type='ShaderNodeMath')
+        node_math_u.operation = 'PINGPONG'
+        node_math_u.inputs[1].default_value = 1.0
+        links.new(node_sp_xyz.outputs[0], node_math_u.inputs[0])
+        links.new(node_math_u.outputs[0], node_cb_xyz.inputs[0])
+    elif material.nns_tex_tiling_u == "clamp":
+        node_math_u = nodes.new(type='ShaderNodeMath')
+        node_math_u.operation = 'MINIMUM'
+        node_math_u.inputs[1].default_value = 0.99
+        node_math_u.use_clamp = True
+        links.new(node_sp_xyz.outputs[0], node_math_u.inputs[0])
+        links.new(node_math_u.outputs[0], node_cb_xyz.inputs[0])
+    else:
+        links.new(node_sp_xyz.outputs[0], node_cb_xyz.inputs[0])
+
+    if material.nns_tex_tiling_v == "flip":
+        node_math_v = nodes.new(type='ShaderNodeMath')
+        node_math_v.operation = 'PINGPONG'
+        node_math_v.inputs[1].default_value = 1.0
+        links.new(node_sp_xyz.outputs[1], node_math_v.inputs[0])
+        links.new(node_math_v.outputs[0], node_cb_xyz.inputs[1])
+    elif material.nns_tex_tiling_v == "clamp":
+        node_math_v = nodes.new(type='ShaderNodeMath')
+        node_math_v.operation = 'MINIMUM'
+        node_math_v.inputs[1].default_value = 0.99
+        node_math_v.use_clamp = True
+        links.new(node_sp_xyz.outputs[1], node_math_v.inputs[0])
+        links.new(node_math_v.outputs[0], node_cb_xyz.inputs[1])
+    else:
+        links.new(node_sp_xyz.outputs[1], node_cb_xyz.inputs[1])
+
+    links.new(node_cb_xyz.outputs[0], node_image.inputs[0])
+
+    return node_image
+
+
+def generate_mod_vc_nodes(material):
+    nodes = material.node_tree.nodes
+    links = material.node_tree.links
+
+    node_mix = nodes.new(type='ShaderNodeMixRGB')
+    node_mix.inputs[0].default_value = 0.0
+
+    node_mix_rgb = nodes.new(type='ShaderNodeMixRGB')
+    node_mix_rgb.blend_type = 'MULTIPLY'
+    node_mix_rgb.name = 'nns_node_alpha'
+    node_mix_rgb.inputs[0].default_value = 1.0
+    node_mix_rgb.inputs[1].default_value = (1.0, 1.0, 1.0, 1.0)
+    node_mix_rgb.inputs[2].default_value = (
+        material.nns_alpha / 31,
+        material.nns_alpha / 31,
+        material.nns_alpha / 31,
+        1.0
+    )
+
+    if "tx" in material.nns_mat_type:
+        node_image = generate_image_nodes(material)
+        links.new(node_image.outputs[0], node_mix.inputs[1])
+        links.new(node_image.outputs[1], node_mix.inputs[2])
+        links.new(node_image.outputs[1], node_mix_rgb.inputs[1])
+
+    node_multiply = nodes.new(type='ShaderNodeMixRGB')
+    node_multiply.name = 'nns_node_diffuse'
+    node_multiply.blend_type = 'MULTIPLY'
+    node_multiply.inputs[0].default_value = 1.0
+    node_multiply.inputs[1].default_value = (1.0, 1.0, 1.0, 1.0)
+    node_multiply.inputs[2].default_value = (
+        material.nns_diffuse[0],
+        material.nns_diffuse[1],
+        material.nns_diffuse[2],
+        1.0
+    )
+
+    if "vc" in material.nns_mat_type:
+        node_attr = nodes.new(type='ShaderNodeAttribute')
+        node_attr.attribute_name = 'Col'
+        links.new(node_attr.outputs[0], node_multiply.inputs[2])
+        
+    elif "nr" in material.nns_mat_type:
+        node_vertex_lighting=generate_normal_lightning_color_nodes(material)
+        links.new(node_vertex_lighting.outputs[0], node_multiply.inputs[2])
+
+    node_bsdf = nodes.new(type='ShaderNodeBsdfTransparent')
+    node_mix_shader = nodes.new(type='ShaderNodeMixShader')
+
+    links.new(node_mix.outputs[0], node_multiply.inputs[1])
+    links.new(node_multiply.outputs[0], node_mix_shader.inputs[2])
+
+    if material.nns_display_face == "both":
+        links.new(node_mix_rgb.outputs[0], node_mix_shader.inputs[0])
+    else:
+        node_face = generate_culling_nodes(material)
+        links.new(node_mix_rgb.outputs[0], node_face.inputs[2])
+        links.new(node_face.outputs[0], node_mix_shader.inputs[0])
+
+    links.new(node_bsdf.outputs[0], node_mix_shader.inputs[1])
+    generate_output_node(material, node_mix_shader)
+
+
+def generate_image_only_nodes(material):
+    nodes = material.node_tree.nodes
+    links = material.node_tree.links
+
+    node_mix_rgb = nodes.new(type='ShaderNodeMixRGB')
+    node_mix_rgb.blend_type = 'MULTIPLY'
+    node_mix_rgb.name = 'nns_node_alpha'
+    node_mix_rgb.inputs[0].default_value = 1.0
+    node_mix_rgb.inputs[2].default_value = (
+        material.nns_alpha / 31,
+        material.nns_alpha / 31,
+        material.nns_alpha / 31,
+        1.0
+    )
+    node_bsdf = nodes.new(type='ShaderNodeBsdfTransparent')
+    node_mix_shader = nodes.new(type='ShaderNodeMixShader')
+    node_image = generate_image_nodes(material)
+
+    links.new(node_image.outputs[0], node_mix_shader.inputs[2])
+    links.new(node_image.outputs[1], node_mix_rgb.inputs[1])
+
+    if material.nns_display_face == "both":
+        links.new(node_mix_rgb.outputs[0], node_mix_shader.inputs[0])
+    else:
+        node_face = generate_culling_nodes(material)
+        links.new(node_mix_rgb.outputs[0], node_face.inputs[2])
+        links.new(node_face.outputs[0], node_mix_shader.inputs[0])
+
+    links.new(node_bsdf.outputs[0], node_mix_shader.inputs[1])
+    generate_output_node(material, node_mix_shader)
+
+def generate_solid_color_nodes(material):
+    nodes = material.node_tree.nodes
+    links = material.node_tree.links
+
+    node_mix_rgb = nodes.new(type='ShaderNodeMixRGB')
+    node_mix_rgb.location = (0, 200)
+    node_mix_rgb.blend_type = 'MULTIPLY'
+    node_mix_rgb.name = 'nns_node_alpha'
+    node_mix_rgb.inputs[0].default_value = 1.0
+    node_mix_rgb.inputs[1].default_value = (1.0, 1.0, 1.0, 1.0)
+    node_mix_rgb.inputs[2].default_value = (
+        material.nns_alpha / 31,
+        material.nns_alpha / 31,
+        material.nns_alpha / 31,
+        1.0
+    )
+    node_bsdf = nodes.new(type='ShaderNodeBsdfTransparent')
+    node_mix_df = nodes.new(type='ShaderNodeMixRGB')
+    node_mix_df.location = (0, -100)
+    node_mix_df.name = 'nns_node_diffuse'
+    node_mix_df.inputs[0].default_value = 1.0
+    node_mix_df.inputs[2].default_value = (
+        material.nns_diffuse[0],
+        material.nns_diffuse[1],
+        material.nns_diffuse[2],
+        1.0
+    )
+    node_mix_shader = nodes.new(type='ShaderNodeMixShader')
+    node_mix_shader.location = (200, 0)
+
+    if material.nns_display_face == "both":
+        links.new(node_mix_rgb.outputs[0], node_mix_shader.inputs[0])
+    else:
+        node_face = generate_culling_nodes(material)
+        links.new(node_mix_rgb.outputs[0], node_face.inputs[2])
+        links.new(node_face.outputs[0], node_mix_shader.inputs[0])
+
+    links.new(node_bsdf.outputs[0], node_mix_shader.inputs[1])
+    links.new(node_mix_df.outputs[0], node_mix_shader.inputs[2])
+    generate_output_node(material, node_mix_shader)
+
 
 def generate_only_normal_lighting(material):
     nodes = material.node_tree.nodes
@@ -666,9 +681,7 @@ def generate_only_normal_lighting(material):
     links.new(node_vertex_lighting.outputs[0], node_mix_shader.inputs[2])
     generate_output_node(material, node_mix_shader)
     
-Mat=bpy.data.materials["code test"]
-
-generate_only_normal_lighting(Mat)
+#Mat=bpy.data.materials["code test"]
 
 def generate_only_vc_nodes(material):
     nodes = material.node_tree.nodes
@@ -700,8 +713,6 @@ def generate_only_vc_nodes(material):
     links.new(node_bsdf.outputs[0], node_mix_shader.inputs[1])
     links.new(node_vc.outputs[0], node_mix_shader.inputs[2])
     generate_output_node(material, node_mix_shader)
-
-#generate_only_vc_nodes(Mat)
 
 def generate_nodes(material):
     if material.is_nns:
@@ -780,6 +791,39 @@ def update_nodes_diffuse(self, context):
             material.nns_diffuse[2],
             1.0
         )
+
+def update_nodes_vertex_normal_lighting(self, context):
+    material = context.material
+    
+    Matcols = {"df": (material.nns_diffuse[0],
+                            material.nns_diffuse[1],
+                            material.nns_diffuse[2],
+                            1.0),
+                    "amb":(material.nns_ambient[0],
+                            material.nns_ambient[1],
+                            material.nns_ambient[2],
+                            1.0),
+                    "spec":(material.nns_specular[0],
+                            material.nns_specular[1],
+                            material.nns_specular[2],
+                            1.0),
+                    "em":(material.nns_emission[0],
+                            material.nns_emission[1],
+                            material.nns_emission[2],
+                            1.0)}
+                            
+    if material.is_nns:
+        nodes_list=material.node_tree.nodes.keys()
+        for i in range(4):
+            if "Specular "+str(i) in nodes_list:
+                Di=nodes.get("Diffuse "+str(i))
+                Di.inputs[1].default_value=Matcols["df"]
+                Si=nodes.get("Specular "+str(i))
+                Si.inputs[1].default_value=Matcols["spec"]
+                Ai=nodes.get("Ambient "+str(i))
+                Ai.inputs[2].default_value=Matcols["amb"]
+        Em=nodes.get("Total result")
+        Em.inputs[2].default_value=Matcols["em"]
 
 
 def update_nodes_face(self, context):
