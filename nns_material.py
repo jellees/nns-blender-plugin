@@ -729,7 +729,7 @@ def generate_only_normal_lighting(material):
         1.0
     )
     node_bsdf = nodes.new(type='ShaderNodeBsdfTransparent')
-    node_vertex_lighting=generate_normal_lightning_color_nodes(material)
+    node_vc_light = generate_normal_lightning_color_nodes(material)
     node_mix_shader = nodes.new(type='ShaderNodeMixShader')
 
     if material.nns_display_face == "both":
@@ -740,10 +740,8 @@ def generate_only_normal_lighting(material):
         links.new(node_face.outputs[0], node_mix_shader.inputs[0])
 
     links.new(node_bsdf.outputs[0], node_mix_shader.inputs[1])
-    links.new(node_vertex_lighting.outputs[0], node_mix_shader.inputs[2])
+    links.new(node_vc_light.outputs[0], node_mix_shader.inputs[2])
     generate_output_node(material, node_mix_shader)
-    
-
 
 def generate_only_vc_nodes(material):
     nodes = material.node_tree.nodes
@@ -842,11 +840,10 @@ def update_nodes_alpha(self, context):
             except Exception:
                 raise NameError("Something alpha I think")
 
-
 def update_nodes_diffuse(self, context):
-    material = context.material
+    material=context.material
     if material.is_nns:
-        if material.nns_mat_type=="df"():
+        if "df" in material.nns_mat_type and material.nns_mat_type!= "df_nr":
             node_diffuse = material.node_tree.nodes.get('nns_node_diffuse')
             node_diffuse.inputs[2].default_value = (
                 material.nns_diffuse[0],
@@ -854,37 +851,91 @@ def update_nodes_diffuse(self, context):
                 material.nns_diffuse[2],
                 1.0
             )
+        if "nr" in material.nns_mat_type:
+            node_diffuse=material.node_tree.nodes.get("df")
+            node_diffuse.outputs[0].default_value=(
+                material.nns_diffuse[0],
+                material.nns_diffuse[1],
+                material.nns_diffuse[2],
+                1.0
+            )
 
-def update_nodes_vertex_normal_lighting(self, context):
-    material = context.material
+def update_nodes_emission(self,context):
+    material=context.material
     if material.is_nns:
         if "nr" in material.nns_mat_type:
-            Matcols = {"df": (material.nns_diffuse[0],
-                                    material.nns_diffuse[1],
-                                    material.nns_diffuse[2],
-                                    1.0),
-                            "amb":(material.nns_ambient[0],
-                                    material.nns_ambient[1],
-                                    material.nns_ambient[2],
-                                    1.0),
-                            "spec":(material.nns_specular[0],
-                                    material.nns_specular[1],
-                                    material.nns_specular[2],
-                                    1.0),
-                            "em":(material.nns_emission[0],
-                                    material.nns_emission[1],
-                                    material.nns_emission[2],
-                                    1.0)}
-            nodes_list=material.node_tree.nodes.keys()
-            for i in range(4):
-                Di=nodes.get("em")
-                Di.outputs[0].default_value=Matcols["df"]
-                Si=nodes.get("spec")
-                Si.outputs[0].default_value=Matcols["spec"]
-                Ai=nodes.get("amb")
-                Ai.outputs[0].default_value=Matcols["amb"]
-            Em=nodes.get("Total result")
-            Em.outputs[0].default_value=Matcols["em"]
+            node_emission=material.node_tree.nodes.get("em")
+            node_emission.outputs[0].default_value=(
+                material.nns_emission[0],
+                material.nns_emission[1],
+                material.nns_emission[2],
+                1.0
+            )
+
+def update_nodes_ambient (self,context):
+    material=context.material
+    if material.is_nns:
+        if "nr" in material.nns_mat_type:
+            node_emission=material.node_tree.nodes.get("amb")
+            node_emission.outputs[0].default_value=(
+                material.nns_ambient[0],
+                material.nns_ambient[1],
+                material.nns_ambient[2],
+                1.0
+            )
+            
+def update_nodes_specular (self,context):
+    material=context.material
+    if material.is_nns:
+        if "nr" in material.nns_mat_type:
+            node_specular=material.node_tree.nodes.get("spec")
+            node_specular.outputs[0].default_value=(
+                material.nns_specular[0],
+                material.nns_specular[1],
+                material.nns_specular[2],
+                1.0
+            )
+
+def update_nodes_UseOnlyDiffuse(material):
+    Masknode=material.node_tree.nodes.get("UseOnlyDiffuse?")
+    UseOnlyDiffuse=True
+    Lights=(material.nns_light0,material.nns_light1,material.nns_light2,material.nns_light3)
+    for light in Lights:
+        if light:
+            UseOnlyDiffuse=False
+    Masknode.inputs[0].default_value=UseOnlyDiffuse
+
+def update_nodes_Light0(self,context):
+    material=context.material
+    update_nodes_UseOnlyDiffuse(material)
+    if material.is_nns:
+        if "nr" in material.nns_mat_type:
+            node_Light0=material.node_tree.nodes.get("Light0 Enabled")
+            node_Light0.outputs[0].default_value=material.nns_light0
+        
+def update_nodes_Light1(self,context):
+    material=context.material
+    update_nodes_UseOnlyDiffuse(material)
+    if material.is_nns:
+        if "nr" in material.nns_mat_type:
+            node_Light1=material.node_tree.nodes.get("Light1 Enabled")
+            node_Light1.outputs[0].default_value=material.nns_light1
+            
+def update_nodes_Light2(self,context):
+    material=context.material
+    update_nodes_UseOnlyDiffuse(material)
+    if material.is_nns:
+        if "nr" in material.nns_mat_type:
+            node_Light2=material.node_tree.nodes.get("Light2 Enabled")
+            node_Light2.outputs[0].default_value=material.nns_light2
+
+def update_nodes_Light3(self,context):
+    material=context.material
+    update_nodes_UseOnlyDiffuse(material)
+    if material.is_nns:
+        if "nr" in material.nns_mat_type:
+            node_Light3=material.node_tree.nodes.get("Light3 Enabled")
+            node_Light3.outputs[0].default_value=material.nns_light3
 
 
 def update_nodes_face(self, context):
@@ -1213,15 +1264,22 @@ def material_register():
         default=(1, 1, 1), subtype='COLOR', min=0.0, max=1.0, name='Diffuse',
         update=update_nodes_diffuse)
     bpy.types.Material.nns_ambient = FloatVectorProperty(
-        default=(1, 1, 1), subtype='COLOR', min=0.0, max=1.0, name='Ambient')
+        default=(1, 1, 1), subtype='COLOR', min=0.0, max=1.0, name='Ambient',
+        update=update_nodes_ambient)
     bpy.types.Material.nns_specular = FloatVectorProperty(
-        default=(0, 0, 0), subtype='COLOR', min=0.0, max=1.0, name='Specular')
+        default=(0, 0, 0), subtype='COLOR', min=0.0, max=1.0, name='Specular',
+        update=update_nodes_specular)
     bpy.types.Material.nns_emission = FloatVectorProperty(
-        default=(0, 0, 0), subtype='COLOR', min=0.0, max=1.0, name='Emission')
-    bpy.types.Material.nns_light0 = BoolProperty(name="Light0", default=False)
-    bpy.types.Material.nns_light1 = BoolProperty(name="Light1", default=False)
-    bpy.types.Material.nns_light2 = BoolProperty(name="Light2", default=False)
-    bpy.types.Material.nns_light3 = BoolProperty(name="Light3", default=False)
+        default=(0, 0, 0), subtype='COLOR', min=0.0, max=1.0, name='Emission',
+        update=update_nodes_emission)
+    bpy.types.Material.nns_light0 = BoolProperty(name="Light0", default=False,
+        update=update_nodes_Light0)
+    bpy.types.Material.nns_light1 = BoolProperty(name="Light1", default=False,
+        update=update_nodes_Light1)
+    bpy.types.Material.nns_light2 = BoolProperty(name="Light2", default=False,
+        update=update_nodes_Light2)
+    bpy.types.Material.nns_light3 = BoolProperty(name="Light3", default=False,
+        update=update_nodes_Light3)
     bpy.types.Material.nns_use_srst = BoolProperty(
         name="Use Specular Reflection Table", default=False)
     bpy.types.Material.nns_fog = BoolProperty(
