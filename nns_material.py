@@ -395,7 +395,7 @@ def generate_normal_lightning_color_nodes(material):
     LColAdd4=create_node(mat,"Total result","ShaderNodeMixRGB",(AddNodesX,-750),3)
     LColAdd4.blend_type="ADD"
     LColAdd4.inputs[0].default_value=1.0
-    LColAdd4.inputs[2].default_value=Matcols["em"]
+    NodeEmission=nodes.get("em")
     
     UseDiffuseNode=create_node(mat,"UseOnlyDiffuse?","ShaderNodeMixRGB",(AddNodesX,-750),3)
     UseDiffuseNode.blend_type="MIX"
@@ -403,6 +403,7 @@ def generate_normal_lightning_color_nodes(material):
     links.new(LColAdd1.outputs[0],LColAdd2.inputs[1])
     links.new(LColAdd2.outputs[0],LColAdd3.inputs[1])
     links.new(LColAdd3.outputs[0],LColAdd4.inputs[1])
+    links.new(NodeEmission.outputs[0],LColAdd4.inputs[2])
     
     NodeOffsetx=0
     NodeOffsety=-300
@@ -432,11 +433,6 @@ def generate_normal_lightning_color_nodes(material):
     LightTotalResult.inputs[2].default_value=Matcols["df"]
     
     return LightTotalResult
-
-print("--------------------\n")
-
-mat=bpy.data.materials["code test"]
-generate_normal_lightning_color_nodes(mat)
 
 def generate_decal_vc_nodes(material):
     nodes = material.node_tree.nodes
@@ -747,7 +743,7 @@ def generate_only_normal_lighting(material):
     links.new(node_vertex_lighting.outputs[0], node_mix_shader.inputs[2])
     generate_output_node(material, node_mix_shader)
     
-#Mat=bpy.data.materials["code test"]
+
 
 def generate_only_vc_nodes(material):
     nodes = material.node_tree.nodes
@@ -858,41 +854,37 @@ def update_nodes_diffuse(self, context):
                 material.nns_diffuse[2],
                 1.0
             )
-        elif "nr" in material.nns_mat_type:
-            generate_nodes()
 
 def update_nodes_vertex_normal_lighting(self, context):
     material = context.material
-    
-    Matcols = {"df": (material.nns_diffuse[0],
-                            material.nns_diffuse[1],
-                            material.nns_diffuse[2],
-                            1.0),
-                    "amb":(material.nns_ambient[0],
-                            material.nns_ambient[1],
-                            material.nns_ambient[2],
-                            1.0),
-                    "spec":(material.nns_specular[0],
-                            material.nns_specular[1],
-                            material.nns_specular[2],
-                            1.0),
-                    "em":(material.nns_emission[0],
-                            material.nns_emission[1],
-                            material.nns_emission[2],
-                            1.0)}
-                            
     if material.is_nns:
-        nodes_list=material.node_tree.nodes.keys()
-        for i in range(4):
-            if "Specular "+str(i) in nodes_list:
-                Di=nodes.get("Diffuse "+str(i))
-                Di.inputs[1].default_value=Matcols["df"]
-                Si=nodes.get("Specular "+str(i))
-                Si.inputs[1].default_value=Matcols["spec"]
-                Ai=nodes.get("Ambient "+str(i))
-                Ai.inputs[2].default_value=Matcols["amb"]
-        Em=nodes.get("Total result")
-        Em.inputs[2].default_value=Matcols["em"]
+        if "nr" in material.nns_mat_type:
+            Matcols = {"df": (material.nns_diffuse[0],
+                                    material.nns_diffuse[1],
+                                    material.nns_diffuse[2],
+                                    1.0),
+                            "amb":(material.nns_ambient[0],
+                                    material.nns_ambient[1],
+                                    material.nns_ambient[2],
+                                    1.0),
+                            "spec":(material.nns_specular[0],
+                                    material.nns_specular[1],
+                                    material.nns_specular[2],
+                                    1.0),
+                            "em":(material.nns_emission[0],
+                                    material.nns_emission[1],
+                                    material.nns_emission[2],
+                                    1.0)}
+            nodes_list=material.node_tree.nodes.keys()
+            for i in range(4):
+                Di=nodes.get("em")
+                Di.outputs[0].default_value=Matcols["df"]
+                Si=nodes.get("spec")
+                Si.outputs[0].default_value=Matcols["spec"]
+                Ai=nodes.get("amb")
+                Ai.outputs[0].default_value=Matcols["amb"]
+            Em=nodes.get("Total result")
+            Em.outputs[0].default_value=Matcols["em"]
 
 
 def update_nodes_face(self, context):
