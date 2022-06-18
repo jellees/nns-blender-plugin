@@ -852,8 +852,15 @@ def update_nodes_diffuse(self, context):
                 1.0
             )
         if "nr" in material.nns_mat_type:
-            node_diffuse=material.node_tree.nodes.get("df")
-            node_diffuse.outputs[0].default_value=(
+            node_diffuse1=material.node_tree.nodes.get("df")
+            node_diffuse1.outputs[0].default_value=(
+                material.nns_diffuse[0],
+                material.nns_diffuse[1],
+                material.nns_diffuse[2],
+                1.0
+            )
+            node_diffuse2=material.node_tree.nodes.get("UseOnlyDiffuse?")
+            node_diffuse2.inputs[2].default_value=(
                 material.nns_diffuse[0],
                 material.nns_diffuse[1],
                 material.nns_diffuse[2],
