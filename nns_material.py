@@ -845,7 +845,7 @@ def update_nodes_alpha(self, context):
 def update_nodes_diffuse(self, context):
     material=context.material
     if material.is_nns:
-        if material.nns_mat_type =="df":
+        if material.nns_mat_type =="df" or material.nns_mat_type =="tx_df":
             node_diffuse = material.node_tree.nodes.get('nns_node_diffuse')
             node_diffuse.inputs[2].default_value = (
                 material.nns_diffuse[0],
