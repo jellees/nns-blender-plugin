@@ -989,7 +989,7 @@ def create_nns_material(obj):
 
     material.is_nns = True
     material.use_nodes = True
-    material.blend_method = 'BLEND'
+    material.blend_method = 'CLIP'
 
     generate_nodes(material)
 
