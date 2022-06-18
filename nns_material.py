@@ -481,16 +481,15 @@ def generate_decal_vc_nodes(material):
 
     node_mix_rgb = nodes.new(type='ShaderNodeMixRGB')
     node_mix_rgb.location = (0, 200)
-    node_mix_rgb.blend_type = 'MULTIPLY'
+    node_mix_rgb.blend_type = 'MIX'
     node_mix_rgb.name = 'nns_node_alpha'
     node_mix_rgb.inputs[0].default_value = 1.0
-    node_mix_rgb.inputs[1].default_value = (1.0, 1.0, 1.0, 1.0)
+    node_mix_rgb.inputs[1].default_value = (0, 0, 0, 1)
     node_mix_rgb.inputs[2].default_value = (
         material.nns_alpha / 31,
         material.nns_alpha / 31,
         material.nns_alpha / 31,
-        1.0
-    )
+        1.0)
 
     if material.nns_display_face == "both":
         links.new(node_mix_rgb.outputs[0], node_mix_shader.inputs[0])
@@ -825,6 +824,7 @@ def update_nodes_alpha(self, context):
         if material.nns_polygon_mode == "modulate":
             try:
                 node_alpha = material.node_tree.nodes.get('nns_node_alpha')
+                node_alpha.blend_type="MULTIPLY"
                 node_alpha.inputs[2].default_value = (
                     material.nns_alpha / 31,
                     material.nns_alpha / 31,
@@ -836,6 +836,8 @@ def update_nodes_alpha(self, context):
         elif material.nns_polygon_mode == "decal":
             try:
                 node_alpha = material.node_tree.nodes.get('nns_node_alpha')
+                node_alpha.blend_type = "MIX"
+                node_alpha.inputs[1].default_value =(0,0,0,1)
                 node_alpha.inputs[0].default_value = material.nns_alpha / 31
             except Exception:
                 raise NameError("Something alpha I think")
@@ -843,7 +845,7 @@ def update_nodes_alpha(self, context):
 def update_nodes_diffuse(self, context):
     material=context.material
     if material.is_nns:
-        if "df" in material.nns_mat_type and material.nns_mat_type!= "df_nr":
+        if material.nns_mat_type =="df":
             node_diffuse = material.node_tree.nodes.get('nns_node_diffuse')
             node_diffuse.inputs[2].default_value = (
                 material.nns_diffuse[0],
