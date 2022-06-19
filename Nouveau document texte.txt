@@ -1,0 +1,159 @@
+def update_light0(self):
+    if __name__ == '__main__':
+        for material in bpy.data.materials.values():
+            if material.is_nns:
+                if "nr" in material.nns_mat_type:
+                    update_nodes_light0(material)
+
+def update_light1(self):
+    if __name__ == '__main__':
+        for material in bpy.data.materials.values():
+            if material.is_nns:
+                if "nr" in material.nns_mat_type:
+                    update_nodes_light1(material)
+
+def update_light2(self):
+    if __name__ == '__main__':
+        for material in bpy.data.materials.values():
+            if material.is_nns:
+                if "nr" in material.nns_mat_type:
+                    update_nodes_light2(material)
+
+def update_light3(self):
+    if __name__ == '__main__':
+        for material in bpy.data.materials.values():
+            if material.is_nns:
+                if "nr" in material.nns_mat_type:
+                    update_nodes_light3(material)
+
+class Plugin_Preferences(AddonPreferences):
+    bl_idname = __package__
+    #Light0
+
+    Light0_color : FloatVectorProperty(
+        name="Light 0 color",
+        subtype='COLOR',
+        default=(1.0, 1.0, 1.0),
+        min=0.0, max=1.0,
+        description="color picker",
+        update="update_light"
+    )
+
+    Light1_color : FloatVectorProperty(
+        name="Light 1 color",
+        subtype='COLOR',
+        default=(1.0, 1.0, 1.0),
+        min=0.0, max=1.0,
+        description="color picker"
+    )
+
+    Light2_color : FloatVectorProperty(
+        name="Light 2 color",
+        subtype='COLOR',
+        default=(1.0, 0, 0),
+        min=0.0, max=1.0,
+        description="color picker"
+    )
+
+    Light3_color : FloatVectorProperty(
+        name="Light 3 color",
+        subtype='COLOR',
+        default=(1.0, 1.0, 0),
+        min=0.0, max=1.0,
+        description="color picker"
+    )
+
+    Light0_specular: FloatProperty(
+        name="Light 0 specular",
+        default=0.5,
+        min=0,
+        max=1
+    )
+
+    Light1_specular: FloatProperty(
+        name="Light 1 specular",
+        default=1,
+        min=0,
+        max=1
+    )
+
+    Light2_specular: FloatProperty(
+        name="Light 2 specular",
+        default=0.5,
+        min=0,
+        max=1
+    )
+
+    Light3_specular: FloatProperty(
+        name="Light 3 specular",
+        default=0,
+        min=0,
+        max=1
+    )
+
+    Light0_vector: FloatVectorProperty(
+        name="Light 0 vector",
+        subtype='XYZ',
+        default=(0, 0, -1.0),
+        min=0.0, max=1.0,
+        description="color picker"
+    )
+
+    Light1_vector: FloatVectorProperty(
+        name="Light 1 vector",
+        subtype='XYZ',
+        default=(0, 0.5, -0.5),
+        min=0.0, max=1.0,
+        description="color picker"
+    )
+
+    Light2_vector: FloatVectorProperty(
+        name="Light 2 vector",
+        subtype='XYZ',
+        default=(0, 0, -1.0),
+        min=0.0, max=1.0,
+        description="color picker"
+    )
+
+    Light3_vector: FloatVectorProperty(
+        name="Light 3 vector",
+        subtype='XYZ',
+        default=(0, 0, 1.0),
+        min=0.0, max=1.0,
+        description="color picker"
+    )
+
+    def draw(self,context):
+        layout = self.layout
+        layout.label(text="Scene light properties:")
+        Columns = layout.column()
+        Columns = Columns.split(factor=0.25, align=True)
+        Col0=Columns.box()
+        Col0.prop(self, "Light0_color")
+        Col0.prop(self, "Light0_specular")
+        Col0.prop(self, "Light0_vector")
+        Col1=Columns.box()
+        Col1.prop(self, "Light1_color")
+        Col1.prop(self, "Light1_specular")
+        Col1.prop(self, "Light1_vector")
+        Col2 = Columns.box()
+        Col2.prop(self, "Light2_color")
+        Col2.prop(self, "Light2_specular")
+        Col2.prop(self, "Light2_vector")
+        Col3 = Columns.box()
+        Col3.prop(self, "Light3_color")
+        Col3.prop(self, "Light3_specular")
+        Col3.prop(self, "Light3_vector")
+
+
+
+class NNS_Light_properties(Operator):
+    bl_idname = "object.nns_preferences"
+    bl_label = "nns_lights_properties"
+    bl_options = {'REGISTER', 'UNDO'}
+
+    def execute(self, context):
+        preferences = context.preferences
+        addon_prefs = preferences.addons[__name__].preferences
+
+        return {'FINISHED'}
