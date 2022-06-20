@@ -806,7 +806,6 @@ def update_Light0(self,context):
     for mat in bpy.data.materials.values():
         if mat.is_nns:
             if "nr" in mat.nns_mat_type:
-                print(mat)
                 nodes=mat.node_tree.nodes
                 col=nodes.get("Light0 Color")
                 if col!= None:
@@ -819,6 +818,60 @@ def update_Light0(self,context):
                         vec.inputs[i].default_value = bpy.context.scene.Light0_vector[i]
                     spec=nodes.get("Light0 Specular")
                     spec.outputs[0].default_value = bpy.context.scene.Light0_specular
+
+def update_Light1(self,context):
+    print("update Light1")
+    for mat in bpy.data.materials.values():
+        if mat.is_nns:
+            if "nr" in mat.nns_mat_type:
+                nodes=mat.node_tree.nodes
+                col=nodes.get("Light1 Color")
+                if col!= None:
+                    col.outputs[0].default_value = (bpy.context.scene.Light1_color[0],
+                                                    bpy.context.scene.Light1_color[1],
+                                                    bpy.context.scene.Light1_color[2],
+                                                    1.0)
+                    vec = nodes.get("Light1 Vector")
+                    for i in range(3):
+                        vec.inputs[i].default_value = bpy.context.scene.Light1_vector[i]
+                    spec=nodes.get("Light1 Specular")
+                    spec.outputs[0].default_value = bpy.context.scene.Light1_specular
+
+def update_Light2(self,context):
+    print("update Light2")
+    for mat in bpy.data.materials.values():
+        if mat.is_nns:
+            if "nr" in mat.nns_mat_type:
+                nodes=mat.node_tree.nodes
+                col=nodes.get("Light2 Color")
+                if col!= None:
+                    col.outputs[0].default_value = (bpy.context.scene.Light2_color[0],
+                                                    bpy.context.scene.Light2_color[1],
+                                                    bpy.context.scene.Light2_color[2],
+                                                    1.0)
+                    vec = nodes.get("Light2 Vector")
+                    for i in range(3):
+                        vec.inputs[i].default_value = bpy.context.scene.Light2_vector[i]
+                    spec=nodes.get("Light2 Specular")
+                    spec.outputs[0].default_value = bpy.context.scene.Light2_specular
+
+def update_Light3(self,context):
+    print("update Light3")
+    for mat in bpy.data.materials.values():
+        if mat.is_nns:
+            if "nr" in mat.nns_mat_type:
+                nodes=mat.node_tree.nodes
+                col=nodes.get("Light3 Color")
+                if col!= None:
+                    col.outputs[0].default_value = (bpy.context.scene.Light3_color[0],
+                                                    bpy.context.scene.Light3_color[1],
+                                                    bpy.context.scene.Light3_color[2],
+                                                    1.0)
+                    vec = nodes.get("Light3 Vector")
+                    for i in range(3):
+                        vec.inputs[i].default_value = bpy.context.scene.Light3_vector[i]
+                    spec=nodes.get("Light3 Specular")
+                    spec.outputs[0].default_value = bpy.context.scene.Light3_specular
 
 
 def update_nodes_mode(self, context):
@@ -1182,6 +1235,56 @@ class NTR_PT_material_visual(bpy.types.Panel):
         layout.prop(mat, "nns_hdr_add_self")
 
 
+class SCENE_PT_NNS_Panel(bpy.types.Panel):
+    bl_label="nns scene settings"
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category="NNS Scene"
+
+    def draw(self, context):
+        layout = self.layout
+        layout.scale_x=5.0
+        #Light 0
+        box=layout.box()
+        box.label(text="Light 0 properties:")
+        col=box.split(factor=0.5,align=True)
+        col1=col.column(align=True)
+        col1.prop(context.scene,"Light0_color",text="color")
+        col1.prop(context.scene, "Light0_specular",text="specular")
+        col2=col.column(align=True)
+        col2.prop(context.scene, "Light0_vector",text="vector")
+
+        # Light 1
+        box = layout.box()
+        box.label(text="Light 1 properties:")
+        col = box.split(factor=0.5, align=True)
+        col1 = col.column(align=True)
+        col1.prop(context.scene, "Light1_color",text="color")
+        col1.prop(context.scene, "Light1_specular",text="specular")
+        col2 = col.column(align=True)
+        col2.prop(context.scene, "Light1_vector",text="vector")
+
+        # Light 2
+        box = layout.box()
+        box.label(text="Light 2 properties:")
+        col = box.split(factor=0.5, align=True)
+        col1 = col.column(align=True)
+        col1.prop(context.scene, "Light2_color",text="color")
+        col1.prop(context.scene, "Light2_specular",text="specular")
+        col2 = col.column(align=True)
+        col2.prop(context.scene, "Light2_vector",text="vector")
+
+        # Light 3
+        box = layout.box()
+        box.label(text="Light 3 propertie:")
+        col = box.split(factor=0.5, align=True)
+        col1 = col.column(align=True)
+        col1.prop(context.scene, "Light3_color",text="color")
+        col1.prop(context.scene, "Light3_specular",text="specular")
+        col2 = col.column(align=True)
+        col2.prop(context.scene, "Light3_vector",text="vector")
+
+
 class NTR_PT_material(bpy.types.Panel):
     bl_label = "NNS Material Options"
     bl_idname = "MATERIAL_PT_nns"
@@ -1235,8 +1338,8 @@ class NTR_PT_material(bpy.types.Panel):
                 row.prop(mat, "nns_light1", toggle=True)
                 row.prop(mat, "nns_light2", toggle=True)
                 row.prop(mat, "nns_light3", toggle=True)
+                #Lights settings
 
-            layout.prop(bpy.data.scenes["Scene"],"Light0")
             layout.prop(mat, "nns_use_srst")
             layout.prop(mat, "nns_fog")
             layout.prop(mat, "nns_wireframe")
@@ -1332,7 +1435,8 @@ def material_register():
         subtype='COLOR',
         default=(1.0, 1.0, 1.0),
         min=0.0, max=1.0,
-        description="color picker"
+        description="color picker",
+        update=update_Light1
     )
 
     bpy.types.Scene.Light2_color = FloatVectorProperty(
@@ -1340,7 +1444,8 @@ def material_register():
         subtype='COLOR',
         default=(1.0, 0, 0),
         min=0.0, max=1.0,
-        description="color picker"
+        description="color picker",
+        update=update_Light2
     )
 
     bpy.types.Scene.Light3_color = FloatVectorProperty(
@@ -1348,7 +1453,8 @@ def material_register():
         subtype='COLOR',
         default=(1.0, 1.0, 0),
         min=0.0, max=1.0,
-        description="color picker"
+        description="color picker",
+        update=update_Light3
     )
 
     bpy.types.Scene.Light0_specular = FloatProperty(
@@ -1363,28 +1469,31 @@ def material_register():
         name="Light 1 specular",
         default=1,
         min=0,
-        max=1
+        max=1,
+        update=update_Light1
     )
 
     bpy.types.Scene.Light2_specular = FloatProperty(
         name="Light 2 specular",
         default=0.5,
         min=0,
-        max=1
+        max=1,
+        update=update_Light2
     )
 
     bpy.types.Scene.Light3_specular = FloatProperty(
         name="Light 3 specular",
         default=0,
         min=0,
-        max=1
+        max=1,
+        update=update_Light3
     )
 
     bpy.types.Scene.Light0_vector = FloatVectorProperty(
         name="Light 0 vector",
         subtype='XYZ',
         default=(0, 0, -1.0),
-        min=0.0, max=1.0,
+        min=-1.0, max=1.0,
         description="color picker",
         update=update_Light0
     )
@@ -1393,24 +1502,27 @@ def material_register():
         name="Light 1 vector",
         subtype='XYZ',
         default=(0, 0.5, -0.5),
-        min=0.0, max=1.0,
-        description="color picker"
+        min=-1.0, max=1.0,
+        description="color picker",
+        update=update_Light1
     )
 
     bpy.types.Scene.Light2_vector = FloatVectorProperty(
         name="Light 2 vector",
         subtype='XYZ',
         default=(0, 0, -1.0),
-        min=0.0, max=1.0,
-        description="color picker"
+        min=-1.0, max=1.0,
+        description="color picker",
+        update=update_Light2
     )
 
     bpy.types.Scene.Light3_vector = FloatVectorProperty(
         name="Light 3 vector",
         subtype='XYZ',
         default=(0, 0, 1.0),
-        min=0.0, max=1.0,
-        description="color picker"
+        min=-1.0, max=1.0,
+        description="color picker",
+        update=update_Light3
     )
 
     bpy.types.Material.nns_use_srst = BoolProperty(
@@ -1502,6 +1614,7 @@ def material_register():
     bpy.utils.register_class(NTR_PT_material_keyframe)
     bpy.utils.register_class(NTR_UL_texframe)
     bpy.utils.register_class(NTR_PT_material_texframe)
+    bpy.utils.register_class(SCENE_PT_NNS_Panel)
 
 
 def material_unregister():
@@ -1515,3 +1628,4 @@ def material_unregister():
     bpy.utils.unregister_class(NTR_PT_material_keyframe)
     bpy.utils.unregister_class(NTR_UL_texframe)
     bpy.utils.unregister_class(NTR_PT_material_texframe)
+    bpy.utils.unregister_class(SCENE_PT_NNS_Panel)
