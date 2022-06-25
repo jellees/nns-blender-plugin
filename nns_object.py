@@ -67,31 +67,31 @@ def generate_billboard_nodes(object):
     for node in nodes:
         nodes.remove(node)
 
-    inputs_node = create_node(gp, "Group Input", "NodeGroupInput", (-2400, 0))
+    inputs_node = create_node(gp, "Group Input", "NodeGroupInput", (-1800, 0))
     Bmode_input = gp.inputs.new("NodeSocketInt", "billboard mode")
 
     NodeOffsetx = 0
 
-    outputs_node = create_node(gp, "Group Output", "NodeGroupOutput", (800, 0))
+    outputs_node = create_node(gp, "Group Output", "NodeGroupOutput", (3800, 0))
 
     Cam_node = create_node(gp, "Cam", "ShaderNodeCombineXYZ")
     create_driver(Cam_node)
 
-    AttVecRot1 = create_node(gp, "VecRot1", "GeometryNodeLegacyAttributeVectorRotate")
-    AttVecRot1.rotation_mode = "EULER_XYZ"
-    AttVecRot1.inputs[1].default_value = "position"
-    AttVecRot1.inputs[10].default_value[0] = -1.5708
-    AttVecRot1.inputs[10].default_value[2] = 0
-    AttVecRot1.inputs[12].default_value = "pos1"
+    Comp1 = create_node(gp, "Comp1", "ShaderNodeMath")
+    Comp1.operation = "COMPARE"
+    Comp1.inputs[1].default_value = 2.0
+    Comp1.inputs[2].default_value = 0.1
 
-    AttVecRot2 = create_node(gp, "VecRot2", "GeometryNodeLegacyAttributeVectorRotate")
-    AttVecRot2.rotation_mode = "EULER_XYZ"
-    AttVecRot2.inputs[1].default_value = "pos1"
-    AttVecRot2.inputs[12].default_value = "pos1"
+    VecMult1 = create_node(gp, "VecMult1", "ShaderNodeVectorMath")
+    VecMult1.operation = "MULTIPLY"
 
-    links.new(inputs_node.outputs[0], AttVecRot1.inputs[0])
-    links.new(AttVecRot1.outputs[0], AttVecRot2.inputs[0])
-    links.new(Cam_node.outputs[0], AttVecRot2.inputs[10])
+    GeoRot1 = create_node(gp, "GeoRot1", "GeometryNodeTransform")
+
+    links.new(inputs_node.outputs[0], GeoRot1.inputs[0])
+    links.new(inputs_node.outputs[1], Comp1.inputs[0])
+    links.new(Comp1.outputs[0], VecMult1.inputs[0])
+    links.new(Cam_node.outputs[0], VecMult1.inputs[1])
+    links.new(VecMult1.outputs[0], GeoRot1.inputs[2])
 
     VecX = create_node(gp, "Vec -1", "FunctionNodeInputVector")
     VecX.vector = (0, -1, 0)
@@ -133,41 +133,27 @@ def generate_billboard_nodes(object):
     links.new(Arcos.outputs[0], Mult.inputs[0])
     links.new(Sign.outputs[0], Mult.inputs[1])
 
-    AttVecRot3 = create_node(gp, "VecRot3", "GeometryNodeLegacyAttributeVectorRotate")
-    AttVecRot3.rotation_mode = "Z_AXIS"
-    AttVecRot3.inputs[1].default_value = "position"
-    AttVecRot3.inputs[12].default_value = "pos2"
+    Comp2 = create_node(gp, "Comp2", "ShaderNodeMath")
+    Comp2.operation = "COMPARE"
+    Comp2.inputs[1].default_value = 3.0
+    Comp2.inputs[2].default_value = 0.1
 
-    links.new(Mult.outputs[0], AttVecRot3.inputs[8])
-    links.new(AttVecRot2.outputs[0], AttVecRot3.inputs[0])
+    VecMult2 = create_node(gp, "VecMult2", "ShaderNodeMath")
+    VecMult2.operation = "MULTIPLY"
 
-    Sub1 = create_node(gp, "Sub1", "ShaderNodeMath")
-    Sub1.use_clamp = True
-    Sub1.operation = "SUBTRACT"
-    Sub1.inputs[1].default_value = 1.0
+    Comb2 = create_node(gp, 'Comb2', "ShaderNodeCombineXYZ")
+    Comb2.inputs[0].default_value = 3.14159
+    Comb2.inputs[1].default_value = 3.14159
 
-    Sub2 = create_node(gp, "Sub2", "ShaderNodeMath")
-    Sub2.operation = "SUBTRACT"
-    Sub2.inputs[0].default_value = 3.0
+    GeoRot2 = create_node(gp, "GeoRot2", "GeometryNodeTransform")
 
-    links.new(inputs_node.outputs[1], Sub1.inputs[0])
-    links.new(inputs_node.outputs[1], Sub2.inputs[1])
-
-    AttMix1 = create_node(gp, "AttMix1", "GeometryNodeLegacyAttributeMix")
-    AttMix1.inputs[3].default_value = "pos2"
-    AttMix1.inputs[7].default_value = "pos1"
-    AttMix1.inputs[11].default_value = "pos1"
-
-    AttMix2 = create_node(gp, "AttMix2", "GeometryNodeLegacyAttributeMix")
-    AttMix2.inputs[3].default_value = "position"
-    AttMix2.inputs[7].default_value = "pos1"
-    AttMix2.inputs[11].default_value = "position"
-
-    links.new(AttVecRot3.outputs[0], AttMix1.inputs[0])
-    links.new(Sub2.outputs[0], AttMix1.inputs[2])
-    links.new(AttMix1.outputs[0], AttMix2.inputs[0])
-    links.new(Sub1.outputs[0], AttMix2.inputs[2])
-    links.new(AttMix2.outputs[0], outputs_node.inputs[0])
+    links.new(inputs_node.outputs[1], Comp2.inputs[0])
+    links.new(Comp2.outputs[0], VecMult2.inputs[0])
+    links.new(Mult.outputs[0], Comb2.inputs[1])
+    links.new(Comb2.outputs[0], VecMult2.inputs[2])
+    links.new(Comb2.outputs[0], GeoRot2.inputs[2])
+    links.new(GeoRot1.outputs[0], GeoRot2.inputs[0])
+    links.new(GeoRot2.outputs[0], outputs_node.inputs[0])
 
 
 def create_billboard_modifier(object):
@@ -175,7 +161,7 @@ def create_billboard_modifier(object):
     if "NNS billboard" in obj.modifiers.keys():
         obj.modifiers.remove(obj.modifiers["NNS billboard"])
     mod = obj.modifiers.new("NNS billboard", "NODES")
-    if "NNS billboard" in bpy.data.node_groups.keys() and "AttMix2" in bpy.data.node_groups[
+    if "NNS billboard" in bpy.data.node_groups.keys() and "GeoRot2" in bpy.data.node_groups[
         "NNS billboard"].nodes.keys():
         gp = obj.modifiers["NNS billboard"].node_group
         bpy.data.node_groups.remove(gp)
@@ -202,7 +188,7 @@ def update_billboard_mode(self,context):
     if not ("NNS billboard" in obj.modifiers.keys()):
         create_billboard_modifier(obj)
     elif not (obj.modifiers["NNS billboard"].node_group is None):
-        if obj.modifiers["NNS billboard"].node_group.name == "NNS billboard" and "AttMix2" in obj.modifiers[
+        if obj.modifiers["NNS billboard"].node_group.name == "NNS billboard" and "GeoRot2" in obj.modifiers[
             "NNS billboard"].node_group.nodes.keys():
 
             Bmode = 1
@@ -223,22 +209,38 @@ def update_billboard_mode(self,context):
     else:
         create_billboard_modifier(obj)
 
-def update_drivers(self,context):
-    if not len(bpy.context.scene.objects.keys())==0:
-        obj=bpy.context.scene.objects[0]
-        if not (obj is None):
+def update_drivers(context):
+    scene=context.scene
+    if not len(scene.objects.keys())==0:
+        Nfound=True
+        i=0
+        while(Nfound):
+            if scene.objects[i].type=="MESH":
+                obj=scene.objects[0]
+                Nfound=False
+        if not Nfound:
             if "Cam" not in obj.modifiers["NNS billboard"].node_group.nodes.keys():
                 update_billboard_mode(self,context)
             else:
                 create_driver(obj.modifiers["NNS billboard"].node_group.nodes["Cam"])
 
+def check_screen_name(context):
+    scene = context.scene
+    if scene.name == scene.screen:
+        return None
+    else:
+        scene.screen = context.screen.name
+        update_drivers(context)
+
 @persistent
 def update_scene_screen(self):
-    if not "temp" in bpy.context.screen.name:
-        scene=bpy.context.scene
-        if bpy.context.scene.name != scene.screen :
-            scene.screen = bpy.context.screen.name
-            update_drivers(self,bpy.context)
+    context=bpy.context
+    if "temp" in context.screen.name:
+        return None
+    else:
+        check_screen_name(context)
+
+
 
 def object_register():
     billboard_items = [
@@ -248,7 +250,7 @@ def object_register():
     ]
     bpy.types.Object.nns_billboard = EnumProperty(
         name="Billboard settings", items=billboard_items,update=update_billboard_mode)
-    bpy.types.Scene.screen=StringProperty(name="current_window",default="Layout", update=update_drivers)
+    bpy.types.Scene.screen=StringProperty(name="current_window",default="Layout")
     bpy.utils.register_class(NTR_PT_object)
     if update_scene_screen not in bpy.app.handlers.frame_change_post:
         bpy.app.handlers.frame_change_post.append(update_scene_screen)
