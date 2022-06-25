@@ -82,6 +82,10 @@ def generate_billboard_nodes(object):
     Comp1.inputs[1].default_value = 2.0
     Comp1.inputs[2].default_value = 0.1
 
+    VecAdd=create_node(gp, "VecAdd", "ShaderNodeVectorMath")
+    VecAdd.operation = "ADD"
+    VecAdd.inputs[1].default_value[0]=-1.5708
+
     VecMult1 = create_node(gp, "VecMult1", "ShaderNodeVectorMath")
     VecMult1.operation = "MULTIPLY"
 
@@ -90,7 +94,8 @@ def generate_billboard_nodes(object):
     links.new(inputs_node.outputs[0], GeoRot1.inputs[0])
     links.new(inputs_node.outputs[1], Comp1.inputs[0])
     links.new(Comp1.outputs[0], VecMult1.inputs[0])
-    links.new(Cam_node.outputs[0], VecMult1.inputs[1])
+    links.new(Cam_node.outputs[0], VecAdd.inputs[0])
+    links.new(VecAdd.outputs[0], VecMult1.inputs[1])
     links.new(VecMult1.outputs[0], GeoRot1.inputs[2])
 
     VecX = create_node(gp, "Vec -1", "FunctionNodeInputVector")
@@ -138,7 +143,7 @@ def generate_billboard_nodes(object):
     Comp2.inputs[1].default_value = 3.0
     Comp2.inputs[2].default_value = 0.1
 
-    VecMult2 = create_node(gp, "VecMult2", "ShaderNodeMath")
+    VecMult2 = create_node(gp, "VecMult2", "ShaderNodeVectorMath")
     VecMult2.operation = "MULTIPLY"
 
     Comb2 = create_node(gp, 'Comb2', "ShaderNodeCombineXYZ")
@@ -149,12 +154,13 @@ def generate_billboard_nodes(object):
 
     links.new(inputs_node.outputs[1], Comp2.inputs[0])
     links.new(Comp2.outputs[0], VecMult2.inputs[0])
-    links.new(Mult.outputs[0], Comb2.inputs[1])
-    links.new(Comb2.outputs[0], VecMult2.inputs[2])
-    links.new(Comb2.outputs[0], GeoRot2.inputs[2])
+    links.new(Mult.outputs[0], Comb2.inputs[2])
+    links.new(Comb2.outputs[0], VecMult2.inputs[1])
+    links.new(VecMult2.outputs[0], GeoRot2.inputs[2])
     links.new(GeoRot1.outputs[0], GeoRot2.inputs[0])
     links.new(GeoRot2.outputs[0], outputs_node.inputs[0])
 
+    NodeOffsetx=0
 
 def create_billboard_modifier(object):
     obj = object
