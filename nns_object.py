@@ -34,10 +34,12 @@ def find_viewport():
 
 def create_driver(node):
     viewport = find_viewport()
-    screen=bpy.context.screen.name
-    for i in range(3):
-        D = node.inputs[i].driver_add("default_value")  # bpy.data.screens[\"Layout\"].areas["+str(viewport)+"]
-        D.driver.expression = "bpy.data.screens[\""+screen+"\"].areas["+str(viewport)+"].spaces.active.region_3d.view_rotation.to_euler()["+str(i)+"]"
+    if viewport is not None:
+        screen=bpy.context.screen.name
+        if bpy.data.screens[screen].areas[viewport].spaces.active is not None:
+            for i in range(3):
+                D = node.inputs[i].driver_add("default_value")  # bpy.data.screens[\"Layout\"].areas["+str(viewport)+"]
+                D.driver.expression = "bpy.data.screens[\""+screen+"\"].areas["+str(viewport)+"].spaces.active.region_3d.view_rotation.to_euler()["+str(i)+"]"
 
 
 def create_node(node_group, name, type, location=Loca):
@@ -53,21 +55,16 @@ def create_node(node_group, name, type, location=Loca):
     return new_node
 
 
-def generate_billboard_nodes(object):
-    obj = object
-    mod = obj.modifiers["NNS billboard"]
+def generate_billboard_nodes(gp):
 
-    mod.node_group.name = "NNS billboard"
-
-    nodes = mod.node_group.nodes
-    links = mod.node_group.links
-
-    gp = mod.node_group
+    nodes = gp.nodes
+    links = gp.links
 
     for node in nodes:
         nodes.remove(node)
 
     inputs_node = create_node(gp, "Group Input", "NodeGroupInput", (-1800, 0))
+    Geo_input = gp.inputs.new("NodeSocketGeometry","Geometry")
     Bmode_input = gp.inputs.new("NodeSocketInt", "billboard mode")
 
     NodeOffsetx = 0
@@ -162,20 +159,26 @@ def generate_billboard_nodes(object):
 
     NodeOffsetx=0
 
-def create_billboard_modifier(object):
-    obj = object
+    return gp
+
+def create_billboard_node_group():
+    gps=bpy.data.node_groups
+    if "NNS billboard" not in gps.keys():
+        gp = gps.new("NNS billboard","GeometryNodeTree")
+        generate_billboard_nodes(gp)
+    else:
+        gp = gps["NNS billboard"]
+        if "Cam" not in gp.nodes :
+            generate_billboard_nodes(gp)
+
+    return gp
+
+def create_billboard_modifier(obj):
     if "NNS billboard" in obj.modifiers.keys():
         obj.modifiers.remove(obj.modifiers["NNS billboard"])
     mod = obj.modifiers.new("NNS billboard", "NODES")
-    if "NNS billboard" in bpy.data.node_groups.keys() and "GeoRot2" in bpy.data.node_groups[
-        "NNS billboard"].nodes.keys():
-        gp = obj.modifiers["NNS billboard"].node_group
-        bpy.data.node_groups.remove(gp)
-        mod.node_group = bpy.data.node_groups["NNS billboard"]
-    else:
-        if "NNS billboard" in bpy.data.node_groups.keys():
-            bpy.data.node_groups.remove(bpy.data.node_groups["NNS billboard"])
-        generate_billboard_nodes(obj)
+    gp = create_billboard_node_group()
+    mod.node_group = gp
 
     Bmode = 1
     Bm = obj.nns_billboard
@@ -186,11 +189,11 @@ def create_billboard_modifier(object):
     elif Bm == "y_on":
         Bmode = 3
 
-    mod["Input_2"] = Bmode
+    mod["Input_1"] = Bmode
 
 
 def update_billboard_mode(self,context):
-    obj = bpy.context.object
+    obj = context.object
     if not ("NNS billboard" in obj.modifiers.keys()):
         create_billboard_modifier(obj)
     elif not (obj.modifiers["NNS billboard"].node_group is None):
@@ -206,7 +209,7 @@ def update_billboard_mode(self,context):
             elif Bm == "y_on":
                 Bmode = 3
 
-            obj.modifiers["NNS billboard"]["Input_2"] = Bmode
+            obj.modifiers["NNS billboard"]["Input_1"] = Bmode
 
             Cam_node = obj.modifiers["NNS billboard"].node_group.nodes.get("Cam")
             create_driver(Cam_node)
@@ -216,19 +219,16 @@ def update_billboard_mode(self,context):
         create_billboard_modifier(obj)
 
 def update_drivers(context):
-    scene=context.scene
-    if not len(scene.objects.keys())==0:
-        Nfound=True
-        i=0
-        while(Nfound):
-            if scene.objects[i].type=="MESH":
-                obj=scene.objects[0]
-                Nfound=False
-        if not Nfound:
-            if "Cam" not in obj.modifiers["NNS billboard"].node_group.nodes.keys():
-                update_billboard_mode(self,context)
-            else:
-                create_driver(obj.modifiers["NNS billboard"].node_group.nodes["Cam"])
+    if "temp" not in context.screen.name:
+        if not len(context.scene.objects.keys())==0:
+            gps=bpy.data.node_groups
+            if "NNS billboard" in gps.keys():
+                gp=gps["NNS billboard"]
+                if "Cam" in gp.nodes.keys():
+                    create_driver(gp.nodes["Cam"])
+                else:
+                    generate_billboard_nodes(gp)
+
 
 def check_screen_name(context):
     scene = context.scene
@@ -240,11 +240,11 @@ def check_screen_name(context):
 
 @persistent
 def update_scene_screen(self):
-    context=bpy.context
-    if "temp" in context.screen.name:
+    if bpy.context.screen.name == bpy.context.scene.screen:
         return None
     else:
-        check_screen_name(context)
+        bpy.context.scene.screen = bpy.context.screen.name
+        update_drivers(bpy.context)
 
 
 
@@ -256,7 +256,7 @@ def object_register():
     ]
     bpy.types.Object.nns_billboard = EnumProperty(
         name="Billboard settings", items=billboard_items,update=update_billboard_mode)
-    bpy.types.Scene.screen=StringProperty(name="current_window",default="Layout")
+    bpy.types.Scene.screen=StringProperty(name="current_window",default="Layout",update=update_billboard_mode)
     bpy.utils.register_class(NTR_PT_object)
     if update_scene_screen not in bpy.app.handlers.frame_change_post:
         bpy.app.handlers.frame_change_post.append(update_scene_screen)
