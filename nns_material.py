@@ -204,7 +204,8 @@ def create_light_nodes(mat, index, location):
     links.new(comb_xyz1.outputs[0], vec_add1.inputs[0])
     links.new(vec_add1.outputs[0], vec_norm2.inputs[0])
 
-    # calculation of ls (may not be 100% accurate due to me not knowing how to search for tables in the ida db but it's accurate enough for preview purpose)
+    # calculation of ls (may not be 100% accurate due to me not knowing how to search for tables in the ida db
+    # but it's accurate enough for preview purpose)
     # may be updated if i find a better approwimation or get the exact formula
 
     dot_prod2 = create_node(mat, "DotProd2", "ShaderNodeVectorMath", location)
@@ -302,9 +303,9 @@ def create_light_nodes(mat, index, location):
 
     links.new(light_col.outputs[0], col_mult1.inputs[2])
     links.new(col_add2.outputs[0], col_mult1.inputs[1])
-    LightNode = col_mult1
+    light_node = col_mult1
 
-    return LightNode
+    return light_node
 
 
 def generate_normal_lightning_color_nodes(material):
@@ -366,7 +367,9 @@ def generate_normal_lightning_color_nodes(material):
         light_enabled = create_node(mat, "Light" + str(i) + " Enabled", "ShaderNodeValue", loca, offset_mode="y")
         light_enabled.outputs[0].default_value = lights[i]["isLightEnabled"]
 
-        mask_node = create_node(mat, "Light" + str(i) + " Color Filtered", "ShaderNodeMixRGB", (-7300, loca[1]), offset_mode="y")
+        mask_node = create_node(mat, "Light" + str(i) + " Color Filtered", "ShaderNodeMixRGB", (-7300, loca[1]),
+                                offset_mode="y")
+
         mask_node.blend_type = "MULTIPLY"
         mask_node.inputs[0].default_value = 1.0
 
@@ -811,7 +814,7 @@ def update_light0(self, context):
             if "nr" in mat.nns_mat_type:
                 nodes = mat.node_tree.nodes
                 col = nodes.get("Light0 Color")
-                if col != None:
+                if col is not None:
                     col.outputs[0].default_value = (bpy.context.scene.Light0_color[0],
                                                     bpy.context.scene.Light0_color[1],
                                                     bpy.context.scene.Light0_color[2],
@@ -829,7 +832,7 @@ def update_light1(self, context):
             if "nr" in mat.nns_mat_type:
                 nodes = mat.node_tree.nodes
                 col = nodes.get("Light1 Color")
-                if col != None:
+                if is not None:
                     col.outputs[0].default_value = (bpy.context.scene.Light1_color[0],
                                                     bpy.context.scene.Light1_color[1],
                                                     bpy.context.scene.Light1_color[2],
@@ -847,7 +850,7 @@ def update_light2(self, context):
             if "nr" in mat.nns_mat_type:
                 nodes = mat.node_tree.nodes
                 col = nodes.get("Light2 Color")
-                if col != None:
+                if is not None:
                     col.outputs[0].default_value = (bpy.context.scene.Light2_color[0],
                                                     bpy.context.scene.Light2_color[1],
                                                     bpy.context.scene.Light2_color[2],
@@ -865,7 +868,7 @@ def update_light3(self, context):
             if "nr" in mat.nns_mat_type:
                 nodes = mat.node_tree.nodes
                 col = nodes.get("Light3 Color")
-                if col != None:
+                if is not None:
                     col.outputs[0].default_value = (bpy.context.scene.Light3_color[0],
                                                     bpy.context.scene.Light3_color[1],
                                                     bpy.context.scene.Light3_color[2],
@@ -990,7 +993,7 @@ def update_nodes_specular(self, context):
             )
 
 
-def update_nodes_UseOnlyDiffuse(material):
+def update_nodes_use_only_diffuse(material):
     mask_node = material.node_tree.nodes.get("UseOnlyDiffuse?")
     use_only_diffuse = True
     lights = (material.nns_light0, material.nns_light1, material.nns_light2, material.nns_light3)
@@ -1000,36 +1003,36 @@ def update_nodes_UseOnlyDiffuse(material):
     mask_node.inputs[0].default_value = use_only_diffuse
 
 
-def update_nodes_Light0(self, context):
+def update_nodes_light0(self, context):
     material = context.material
-    update_nodes_UseOnlyDiffuse(material)
+    update_nodes_use_only_diffuse(material)
     if material.is_nns:
         if "nr" in material.nns_mat_type:
             node_light0 = material.node_tree.nodes.get("Light0 Enabled")
             node_light0.outputs[0].default_value = material.nns_light0
 
 
-def update_nodes_Light1(self, context):
+def update_nodes_light1(self, context):
     material = context.material
-    update_nodes_UseOnlyDiffuse(material)
+    update_nodes_use_only_diffuse(material)
     if material.is_nns:
         if "nr" in material.nns_mat_type:
             node_light1 = material.node_tree.nodes.get("Light1 Enabled")
             node_light1.outputs[0].default_value = material.nns_light1
 
 
-def update_nodes_Light2(self, context):
+def update_nodes_light2(self, context):
     material = context.material
-    update_nodes_UseOnlyDiffuse(material)
+    update_nodes_use_only_diffuse(material)
     if material.is_nns:
         if "nr" in material.nns_mat_type:
             node_light2 = material.node_tree.nodes.get("Light2 Enabled")
             node_light2.outputs[0].default_value = material.nns_light2
 
 
-def update_nodes_Light3(self, context):
+def update_nodes_light3(self, context):
     material = context.material
-    update_nodes_UseOnlyDiffuse(material)
+    update_nodes_use_only_diffuse(material)
     if material.is_nns:
         if "nr" in material.nns_mat_type:
             node_light3 = material.node_tree.nodes.get("Light3 Enabled")
@@ -1422,13 +1425,13 @@ def material_register():
         default=(0, 0, 0), subtype='COLOR', min=0.0, max=1.0, name='Emission',
         update=update_nodes_emission)
     bpy.types.Material.nns_light0 = BoolProperty(name="Light0", default=False,
-                                                 update=update_nodes_Light0)
+                                                 update=update_nodes_light0)
     bpy.types.Material.nns_light1 = BoolProperty(name="Light1", default=False,
-                                                 update=update_nodes_Light1)
+                                                 update=update_nodes_light1)
     bpy.types.Material.nns_light2 = BoolProperty(name="Light2", default=False,
-                                                 update=update_nodes_Light2)
+                                                 update=update_nodes_light2)
     bpy.types.Material.nns_light3 = BoolProperty(name="Light3", default=False,
-                                                 update=update_nodes_Light3)
+                                                 update=update_nodes_light3)
 
     # scene lights properties
 

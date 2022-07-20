@@ -198,7 +198,7 @@ def create_billboard_modifier(obj):
 
 def update_billboard_mode(self, context):
     obj = context.object
-    if bpy.app.version[0]<=2:
+    if bpy.app.version[0] <= 2:
         return None
     else:
         if not ("NNS billboard" in obj.modifiers.keys()):
@@ -265,7 +265,7 @@ def object_register():
     bpy.types.Object.nns_billboard = EnumProperty(
         name="Billboard settings", items=billboard_items, update=update_billboard_mode)
 
-    if bpy.app.version[0]>2:
+    if bpy.app.version[0] > 2:
         bpy.types.Scene.screen = StringProperty(name="current_window", default="Layout", update=update_billboard_mode)
         bpy.utils.register_class(NTR_PT_object)
         if update_scene_screen not in bpy.app.handlers.frame_change_post:
@@ -273,6 +273,7 @@ def object_register():
     else:
         bpy.types.Scene.screen = StringProperty(name="current_window", default="Layout")
         bpy.utils.register_class(NTR_PT_object)
+
 
 def object_unregister():
     bpy.utils.unregister_class(NTR_PT_object)
