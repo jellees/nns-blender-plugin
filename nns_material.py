@@ -88,22 +88,22 @@ node_offset_y = 0
 loca = (0, 0)
 
 
-def create_node(mat, name, nodeType, location, offsetMode=1):
+def create_node(mat, name, node_type, location, offset_mode="x"):
     global node_offset_x
     global node_offset_y
     nodes = mat.node_tree.nodes
-    newnode = nodes.new(type=nodeType)
+    newnode = nodes.new(type=node_type)
     newnode.name = name
     newnode.label = name
-    if offsetMode == 0:
+    if offset_mode == 0:
         newnode.location = location
-    elif offsetMode == 1:
+    elif offset_mode == "x":
         newnode.location = (location[0] + node_offset_x, location[1] + node_offset_y)
         node_offset_x += 180
-    elif offsetMode == 2:
+    elif offset_mode == "y":
         newnode.location = (location[0], location[1] + node_offset_y)
         node_offset_y -= 150
-    elif offsetMode == 3:
+    elif offset_mode == "xy":
         newnode.location = (location[0] + node_offset_x, location[1] + node_offset_y)
         node_offset_x += 180
         newnode.location = (location[0], location[1] + node_offset_y)
@@ -353,20 +353,20 @@ def generate_normal_lightning_color_nodes(material):
     loca = (-7500, -300)
 
     for i in range(4):
-        light_vec = create_node(mat, "Light" + str(i) + " Vector", "ShaderNodeCombineXYZ", loca, 2)
+        light_vec = create_node(mat, "Light" + str(i) + " Vector", "ShaderNodeCombineXYZ", loca, offset_mode="y")
         for j in range(3):
             light_vec.inputs[j].default_value = lights[i]["LightVector"][j]
 
-        light_col = create_node(mat, "Light" + str(i) + " Color", "ShaderNodeRGB", loca, 2)
+        light_col = create_node(mat, "Light" + str(i) + " Color", "ShaderNodeRGB", loca, offset_mode="y")
         light_col.outputs[0].default_value = lights[i]["LightCol"]
 
-        light_spec = create_node(mat, "Light" + str(i) + " Specular", "ShaderNodeValue", loca, 2)
+        light_spec = create_node(mat, "Light" + str(i) + " Specular", "ShaderNodeValue", loca, offset_mode="y")
         light_spec.outputs[0].default_value = lights[i]["LightSpecular"]
 
-        light_enabled = create_node(mat, "Light" + str(i) + " Enabled", "ShaderNodeValue", loca, 2)
+        light_enabled = create_node(mat, "Light" + str(i) + " Enabled", "ShaderNodeValue", loca, offset_mode="y")
         light_enabled.outputs[0].default_value = lights[i]["isLightEnabled"]
 
-        mask_node = create_node(mat, "Light" + str(i) + " Color Filtered", "ShaderNodeMixRGB", (-7300, loca[1]), 2)
+        mask_node = create_node(mat, "Light" + str(i) + " Color Filtered", "ShaderNodeMixRGB", (-7300, loca[1]), offset_mode="y")
         mask_node.blend_type = "MULTIPLY"
         mask_node.inputs[0].default_value = 1.0
 
@@ -376,7 +376,7 @@ def generate_normal_lightning_color_nodes(material):
     # material colors
 
     for name in matcols.keys():
-        col = create_node(mat, name, "ShaderNodeRGB", loca, 2)
+        col = create_node(mat, name, "ShaderNodeRGB", loca, offset_mode="y")
         col.outputs[0].default_value = matcols[name]
 
     # add all the results of the light0, 1, 2 and 3 calculations
@@ -384,24 +384,24 @@ def generate_normal_lightning_color_nodes(material):
     add_nodes_x = -600
     node_offset_y = -300
 
-    l_col_add1 = create_node(mat, "LColAdd1", "ShaderNodeMixRGB", (add_nodes_x, -300), 3)
+    l_col_add1 = create_node(mat, "LColAdd1", "ShaderNodeMixRGB", (add_nodes_x, -300), offset_mode="xy")
     l_col_add1.blend_type = "ADD"
     l_col_add1.inputs[0].default_value = 1.0
 
-    l_col_add2 = create_node(mat, "LColAdd2", "ShaderNodeMixRGB", (add_nodes_x, -450), 3)
+    l_col_add2 = create_node(mat, "LColAdd2", "ShaderNodeMixRGB", (add_nodes_x, -450), offset_mode="xy")
     l_col_add2.blend_type = "ADD"
     l_col_add2.inputs[0].default_value = 1.0
 
-    l_col_add3 = create_node(mat, "LColAdd3", "ShaderNodeMixRGB", (add_nodes_x, -600), 3)
+    l_col_add3 = create_node(mat, "LColAdd3", "ShaderNodeMixRGB", (add_nodes_x, -600), offset_mode="xy")
     l_col_add3.blend_type = "ADD"
     l_col_add3.inputs[0].default_value = 1.0
 
-    l_col_add4 = create_node(mat, "Total result", "ShaderNodeMixRGB", (add_nodes_x, -750), 3)
+    l_col_add4 = create_node(mat, "Total result", "ShaderNodeMixRGB", (add_nodes_x, -750), offset_mode="xy")
     l_col_add4.blend_type = "ADD"
     l_col_add4.inputs[0].default_value = 1.0
     node_emission = nodes.get("em")
 
-    use_diffuse_node = create_node(mat, "UseOnlyDiffuse?", "ShaderNodeMixRGB", (add_nodes_x, -750), 3)
+    use_diffuse_node = create_node(mat, "UseOnlyDiffuse?", "ShaderNodeMixRGB", (add_nodes_x, -750), offset_mode="xy")
     use_diffuse_node.blend_type = "MIX"
 
     links.new(l_col_add1.outputs[0], l_col_add2.inputs[1])
