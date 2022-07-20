@@ -5,7 +5,7 @@ from bpy.props import (BoolProperty,
                        IntProperty,
                        FloatVectorProperty,
                        PointerProperty,
-                       CollectionProperty)
+                        CollectionProperty)
 from bpy.types import Image
 from bpy.app.handlers import persistent
 
@@ -83,14 +83,14 @@ def generate_srt_nodes(material, input):
     return node_s_mapping
 
 
-node_offsetx = 0
-node_offsety = 0
+node_offset_x = 0
+node_offset_y = 0
 loca = (0, 0)
 
 
 def create_node(mat, name, nodeType, location, offsetMode=1):
-    global node_offsetx
-    global node_offsety
+    global node_offset_x
+    global node_offset_y
     nodes = mat.node_tree.nodes
     newnode = nodes.new(type=nodeType)
     newnode.name = name
@@ -98,16 +98,16 @@ def create_node(mat, name, nodeType, location, offsetMode=1):
     if offsetMode == 0:
         newnode.location = location
     elif offsetMode == 1:
-        newnode.location = (location[0] + node_offsetx, location[1] + node_offsety)
-        node_offsetx += 180
+        newnode.location = (location[0] + node_offset_x, location[1] + node_offset_y)
+        node_offset_x += 180
     elif offsetMode == 2:
-        newnode.location = (location[0], location[1] + node_offsety)
-        node_offsety -= 150
+        newnode.location = (location[0], location[1] + node_offset_y)
+        node_offset_y -= 150
     elif offsetMode == 3:
-        newnode.location = (location[0] + node_offsetx, location[1] + node_offsety)
-        node_offsetx += 180
-        newnode.location = (location[0], location[1] + node_offsety)
-        node_offsety -= 150
+        newnode.location = (location[0] + node_offset_x, location[1] + node_offset_y)
+        node_offset_x += 180
+        newnode.location = (location[0], location[1] + node_offset_y)
+        node_offset_y -= 150
     return newnode
 
 
@@ -308,12 +308,12 @@ def create_light_nodes(mat, index, location):
 
 
 def generate_normal_lightning_color_nodes(material):
-    global node_offsety
-    global node_offsetx
+    global node_offset_y
+    global node_offset_x
     global loca
 
-    node_offsetx = 0
-    node_offsety = 0
+    node_offset_x = 0
+    node_offset_y = 0
 
     mat = material
     nodes = mat.node_tree.nodes
@@ -348,8 +348,8 @@ def generate_normal_lightning_color_nodes(material):
     lights = (light0, light1, light2, light3)
 
     # inputs
-    node_offsetx = 0
-    node_offsety = -300
+    node_offset_x = 0
+    node_offset_y = -300
     loca = (-7500, -300)
 
     for i in range(4):
@@ -382,7 +382,7 @@ def generate_normal_lightning_color_nodes(material):
     # add all the results of the light0, 1, 2 and 3 calculations
 
     add_nodes_x = -600
-    node_offsety = -300
+    node_offset_y = -300
 
     l_col_add1 = create_node(mat, "LColAdd1", "ShaderNodeMixRGB", (add_nodes_x, -300), 3)
     l_col_add1.blend_type = "ADD"
@@ -409,8 +409,8 @@ def generate_normal_lightning_color_nodes(material):
     links.new(l_col_add3.outputs[0], l_col_add4.inputs[1])
     links.new(node_emission.outputs[0], l_col_add4.inputs[2])
 
-    node_offsetx = 0
-    node_offsety = -300
+    node_offset_x = 0
+    node_offset_y = -300
 
     for i in range(4):
         light_node = create_light_nodes(mat, i, (-6500 - i * 150, -300))
@@ -420,8 +420,8 @@ def generate_normal_lightning_color_nodes(material):
             links.new(light_node.outputs[0], l_col_add2.inputs[2])
         else:
             links.new(light_node.outputs[0], l_col_add3.inputs[2])
-        node_offsety -= 350
-        node_offsetx = 0
+        node_offset_y -= 350
+        node_offset_x = 0
 
     links.new(l_col_add3.outputs[0], l_col_add4.inputs[1])
     links.new(l_col_add4.outputs[0], use_diffuse_node.inputs[1])
@@ -805,8 +805,7 @@ def generate_nodes(material):
             generate_decal_vc_nodes(material)
 
 
-def update_Light0(self, context):
-    print("update Light0")
+def update_light0(self, context):
     for mat in bpy.data.materials.values():
         if mat.is_nns:
             if "nr" in mat.nns_mat_type:
@@ -824,8 +823,7 @@ def update_Light0(self, context):
                     spec.outputs[0].default_value = bpy.context.scene.Light0_specular
 
 
-def update_Light1(self, context):
-    print("update Light1")
+def update_light1(self, context):
     for mat in bpy.data.materials.values():
         if mat.is_nns:
             if "nr" in mat.nns_mat_type:
@@ -843,8 +841,7 @@ def update_Light1(self, context):
                     spec.outputs[0].default_value = bpy.context.scene.Light1_specular
 
 
-def update_Light2(self, context):
-    print("update Light2")
+def update_light2(self, context):
     for mat in bpy.data.materials.values():
         if mat.is_nns:
             if "nr" in mat.nns_mat_type:
@@ -862,8 +859,7 @@ def update_Light2(self, context):
                     spec.outputs[0].default_value = bpy.context.scene.Light2_specular
 
 
-def update_Light3(self, context):
-    print("update Light3")
+def update_light3(self, context):
     for mat in bpy.data.materials.values():
         if mat.is_nns:
             if "nr" in mat.nns_mat_type:
@@ -1442,7 +1438,7 @@ def material_register():
         default=(1.0, 1.0, 1.0),
         min=0.0, max=1.0,
         description="color picker",
-        update=update_Light0
+        update=update_light0
     )
 
     bpy.types.Scene.Light1_color = FloatVectorProperty(
@@ -1451,7 +1447,7 @@ def material_register():
         default=(1.0, 1.0, 1.0),
         min=0.0, max=1.0,
         description="color picker",
-        update=update_Light1
+        update=update_light1
     )
 
     bpy.types.Scene.Light2_color = FloatVectorProperty(
@@ -1460,7 +1456,7 @@ def material_register():
         default=(1.0, 0, 0),
         min=0.0, max=1.0,
         description="color picker",
-        update=update_Light2
+        update=update_light2
     )
 
     bpy.types.Scene.Light3_color = FloatVectorProperty(
@@ -1469,7 +1465,7 @@ def material_register():
         default=(1.0, 1.0, 0),
         min=0.0, max=1.0,
         description="color picker",
-        update=update_Light3
+        update=update_light3
     )
 
     bpy.types.Scene.Light0_specular = FloatProperty(
@@ -1477,7 +1473,7 @@ def material_register():
         default=0.5,
         min=0,
         max=1,
-        update=update_Light0
+        update=update_light0
     )
 
     bpy.types.Scene.Light1_specular = FloatProperty(
@@ -1485,7 +1481,7 @@ def material_register():
         default=1,
         min=0,
         max=1,
-        update=update_Light1
+        update=update_light1
     )
 
     bpy.types.Scene.Light2_specular = FloatProperty(
@@ -1493,7 +1489,7 @@ def material_register():
         default=0.5,
         min=0,
         max=1,
-        update=update_Light2
+        update=update_light2
     )
 
     bpy.types.Scene.Light3_specular = FloatProperty(
@@ -1501,7 +1497,7 @@ def material_register():
         default=0,
         min=0,
         max=1,
-        update=update_Light3
+        update=update_light3
     )
 
     bpy.types.Scene.Light0_vector = FloatVectorProperty(
@@ -1510,7 +1506,7 @@ def material_register():
         default=(0, 0, -1.0),
         min=-1.0, max=1.0,
         description="color picker",
-        update=update_Light0
+        update=update_light0
     )
 
     bpy.types.Scene.Light1_vector = FloatVectorProperty(
@@ -1519,7 +1515,7 @@ def material_register():
         default=(0, 0.5, -0.5),
         min=-1.0, max=1.0,
         description="color picker",
-        update=update_Light1
+        update=update_light1
     )
 
     bpy.types.Scene.Light2_vector = FloatVectorProperty(
@@ -1528,7 +1524,7 @@ def material_register():
         default=(0, 0, -1.0),
         min=-1.0, max=1.0,
         description="color picker",
-        update=update_Light2
+        update=update_light2
     )
 
     bpy.types.Scene.Light3_vector = FloatVectorProperty(
@@ -1537,7 +1533,7 @@ def material_register():
         default=(0, 0, 1.0),
         min=-1.0, max=1.0,
         description="color picker",
-        update=update_Light3
+        update=update_light3
     )
 
     bpy.types.Material.nns_use_srst = BoolProperty(

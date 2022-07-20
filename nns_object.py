@@ -20,7 +20,7 @@ class NTR_PT_object(bpy.types.Panel):
         layout.prop(obj, "nns_billboard")
 
 
-node_offsetx = 0
+node_offset_x = 0
 loca = (-2200, 0)
 
 
@@ -40,20 +40,20 @@ def create_driver(node):
         screen = bpy.context.screen.name
         if bpy.data.screens[screen].areas[viewport].spaces.active is not None:
             for i in range(3):
-                D = node.inputs[i].driver_add("default_value")  # bpy.data.screens[\"Layout\"].areas["+str(viewport)+"]
-                D.driver.expression = "bpy.data.screens[\"" + screen + "\"].areas[" + str(
+                d = node.inputs[i].driver_add("default_value")
+                d.driver.expression = "bpy.data.screens[\"" + screen + "\"].areas[" + str(
                     viewport) + "].spaces.active.region_3d.view_rotation.to_euler()[" + str(i) + "]"
 
 
 def create_node(node_group, name, type, location=loca):
-    global node_offsetx
+    global node_offset_x
 
     nodes = node_group.nodes
     new_node = nodes.new(type=type)
     new_node.name = name
     new_node.label = name
-    new_node.location = (location[0] + node_offsetx, location[1])
-    node_offsetx += 300
+    new_node.location = (location[0] + node_offset_x, location[1])
+    node_offset_x += 300
 
     return new_node
 
@@ -69,7 +69,7 @@ def generate_billboard_nodes(gp):
     geo_input = gp.inputs.new("NodeSocketGeometry", "Geometry")
     bmode_input = gp.inputs.new("NodeSocketInt", "billboard mode")
 
-    node_offsetx = 0
+    node_offset_x = 0
 
     outputs_node = create_node(gp, "Group Output", "NodeGroupOutput", (3800, 0))
 
@@ -159,7 +159,7 @@ def generate_billboard_nodes(gp):
     links.new(geo_rot1.outputs[0], geo_rot2.inputs[0])
     links.new(geo_rot2.outputs[0], outputs_node.inputs[0])
 
-    node_offsetx = 0
+    node_offset_x = 0
 
     return gp
 
@@ -198,29 +198,32 @@ def create_billboard_modifier(obj):
 
 def update_billboard_mode(self, context):
     obj = context.object
-    if not ("NNS billboard" in obj.modifiers.keys()):
-        create_billboard_modifier(obj)
-    elif not (obj.modifiers["NNS billboard"].node_group is None):
-        if obj.modifiers["NNS billboard"].node_group.name == "NNS billboard" and "GeoRot2" in obj.modifiers[
-            "NNS billboard"].node_group.nodes.keys():
+    if bpy.app.version[0]<=2:
+        return None
+    else:
+        if not ("NNS billboard" in obj.modifiers.keys()):
+            create_billboard_modifier(obj)
+        elif not (obj.modifiers["NNS billboard"].node_group is None):
+            if obj.modifiers["NNS billboard"].node_group.name == "NNS billboard" and "GeoRot2" in obj.modifiers[
+                "NNS billboard"].node_group.nodes.keys():
 
-            bmode = 1
-            bm = obj.nns_billboard
-            if bm == "off":
                 bmode = 1
-            elif bm == "on":
-                bmode = 2
-            elif bm == "y_on":
-                bmode = 3
+                bm = obj.nns_billboard
+                if bm == "off":
+                    bmode = 1
+                elif bm == "on":
+                    bmode = 2
+                elif bm == "y_on":
+                    bmode = 3
 
-            obj.modifiers["NNS billboard"]["Input_1"] = bmode
+                obj.modifiers["NNS billboard"]["Input_1"] = bmode
 
-            Cam_node = obj.modifiers["NNS billboard"].node_group.nodes.get("Cam")
-            create_driver(Cam_node)
+                cam_node = obj.modifiers["NNS billboard"].node_group.nodes.get("Cam")
+                create_driver(cam_node)
+            else:
+                create_billboard_modifier(obj)
         else:
             create_billboard_modifier(obj)
-    else:
-        create_billboard_modifier(obj)
 
 
 def update_drivers(context):
@@ -261,11 +264,15 @@ def object_register():
     ]
     bpy.types.Object.nns_billboard = EnumProperty(
         name="Billboard settings", items=billboard_items, update=update_billboard_mode)
-    bpy.types.Scene.screen = StringProperty(name="current_window", default="Layout", update=update_billboard_mode)
-    bpy.utils.register_class(NTR_PT_object)
-    if update_scene_screen not in bpy.app.handlers.frame_change_post:
-        bpy.app.handlers.frame_change_post.append(update_scene_screen)
 
+    if bpy.app.version[0]>2:
+        bpy.types.Scene.screen = StringProperty(name="current_window", default="Layout", update=update_billboard_mode)
+        bpy.utils.register_class(NTR_PT_object)
+        if update_scene_screen not in bpy.app.handlers.frame_change_post:
+            bpy.app.handlers.frame_change_post.append(update_scene_screen)
+    else:
+        bpy.types.Scene.screen = StringProperty(name="current_window", default="Layout")
+        bpy.utils.register_class(NTR_PT_object)
 
 def object_unregister():
     bpy.utils.unregister_class(NTR_PT_object)
