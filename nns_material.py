@@ -10,9 +10,6 @@ from bpy.types import Image
 from bpy.app.handlers import persistent
 
 
-
-
-
 def generate_output_node(material, input):
     nodes = material.node_tree.nodes
     links = material.node_tree.links
@@ -35,10 +32,12 @@ def generate_culling_nodes(material):
 
     node_geo = nodes.new(type='ShaderNodeNewGeometry')
     node_invert = nodes.new(type='ShaderNodeInvert')
+
     if material.nns_display_face == "front":
         node_invert.inputs[0].default_value = 1.0
     elif material.nns_display_face == "back":
         node_invert.inputs[0].default_value = 0.0
+
     node_mix_rgb = nodes.new(type='ShaderNodeMixRGB')
     node_mix_rgb.blend_type = 'MULTIPLY'
     node_mix_rgb.inputs[0].default_value = 1.0
@@ -83,361 +82,362 @@ def generate_srt_nodes(material, input):
 
     return node_s_mapping
 
-NodeOffsetx=0
-NodeOffsety=0
-Loca=(0,0)
+
+node_offsetx = 0
+node_offsety = 0
+loca = (0, 0)
 
 
-def create_node(mat,name,nodeType,location,offsetMode=1):
-    global NodeOffsetx
-    global NodeOffsety
+def create_node(mat, name, nodeType, location, offsetMode=1):
+    global node_offsetx
+    global node_offsety
     nodes = mat.node_tree.nodes
     newnode = nodes.new(type=nodeType)
-    newnode.name=name
-    newnode.label=name
-    if offsetMode==0:
-        newnode.location=location
-    elif offsetMode==1:
-        newnode.location=(location[0]+NodeOffsetx, location[1]+NodeOffsety)
-        NodeOffsetx+=180
-    elif offsetMode==2:
-        newnode.location=(location[0],location[1]+NodeOffsety)
-        NodeOffsety-=150
-    elif offsetMode==3:
-        newnode.location=(location[0]+NodeOffsetx, location[1]+NodeOffsety)
-        NodeOffsetx+=180
-        newnode.location=(location[0],location[1]+NodeOffsety)
-        NodeOffsety-=150
+    newnode.name = name
+    newnode.label = name
+    if offsetMode == 0:
+        newnode.location = location
+    elif offsetMode == 1:
+        newnode.location = (location[0] + node_offsetx, location[1] + node_offsety)
+        node_offsetx += 180
+    elif offsetMode == 2:
+        newnode.location = (location[0], location[1] + node_offsety)
+        node_offsety -= 150
+    elif offsetMode == 3:
+        newnode.location = (location[0] + node_offsetx, location[1] + node_offsety)
+        node_offsetx += 180
+        newnode.location = (location[0], location[1] + node_offsety)
+        node_offsety -= 150
     return newnode
 
 
-def create_light_nodes(mat,index,location):
-    
+def create_light_nodes(mat, index, location):
     nodes = mat.node_tree.nodes
     links = mat.node_tree.links
-    
-    #get inputs
-    
-    #lights
 
-    LightVec=nodes.get("Light"+str(index)+" Vector")
-    LightSpec=nodes.get("Light"+str(index)+" Specular")
-    LightCol=nodes.get("Light"+str(index)+" Color Filtered")
-    
-    #materials
-    
-    NodeDiffuse=nodes.get("df")
-    NodeAmbient=nodes.get("amb")
-    NodeSpecular=nodes.get("spec")
-    
-    #transform inputs
-    #normals to camera space
-    
-    NormalVecNode = create_node(mat,"normal vector(N)",'ShaderNodeNewGeometry',location)
-    
-    VecMult1 = create_node(mat,"Fix backface","ShaderNodeVectorMath",location)
-    VecMult1.operation="MULTIPLY"
-    
-    MultAdd1=create_node(mat,"remap backface factor","ShaderNodeMath",location)
-    MultAdd1.operation="MULTIPLY_ADD"
-    MultAdd1.inputs[1].default_value=-2.0
-    MultAdd1.inputs[2].default_value=1.0
-    
-    VecTrans = create_node(mat,"transform to camera space",'ShaderNodeVectorTransform',location)
-    VecTrans.convert_from="WORLD"
-    VecTrans.convert_to="CAMERA"
-    
-    links.new(NormalVecNode.outputs[6],MultAdd1.inputs[0])
-    links.new(NormalVecNode.outputs[1],VecMult1.inputs[0])
-    links.new(MultAdd1.outputs[0],VecMult1.inputs[1])
-    links.new(VecMult1.outputs[0],VecTrans.inputs[0])
-    
-    #LightVector in camera space
-    VecMult2=create_node(mat,"inverse light angle","ShaderNodeVectorMath",location)
-    VecMult2.inputs[1].default_value=(-1,-1,-1)
-    VecMult2.operation="MULTIPLY"
-    
-    VecNorm1=create_node(mat,"Normalize","ShaderNodeVectorMath",location)
-    VecNorm1.operation="NORMALIZE"
-    
-    links.new(LightVec.outputs[0],VecMult2.inputs[0])
-    links.new(VecMult2.outputs[0],VecNorm1.inputs[0])
-    
-    SepXYZ1=create_node(mat,"SepXYZ","ShaderNodeSeparateXYZ",location)
-    CombXYZ1=create_node(mat,"CombXYZ","ShaderNodeCombineXYZ",location)
-    
-    links.new(VecNorm1.outputs[0],SepXYZ1.inputs[0])
-    links.new(SepXYZ1.outputs[0],CombXYZ1.inputs[0])
-    links.new(SepXYZ1.outputs[1],CombXYZ1.inputs[2])
-    links.new(SepXYZ1.outputs[2],CombXYZ1.inputs[1])
-    
-    
-    #ld : Diffuse reflection shininess
-    #ls : Specular reflection shininess
-    
-    #calculation of ld 
-    
-    DotProd1=create_node(mat,"Dot Prod1","ShaderNodeVectorMath",location)
-    DotProd1.operation="DOT_PRODUCT"
-    
-    links.new(VecTrans.outputs[0],DotProd1.inputs[0])
-    links.new(CombXYZ1.outputs[0],DotProd1.inputs[1])
-    
-    Clamp1=create_node(mat,"Clamp1","ShaderNodeClamp",location)
-    Clamp1.inputs[1].default_value=0.0
-    Clamp1.inputs[2].default_value=1.0
-    
-    ld=create_node(mat,"ld","ShaderNodeMath",location)
-    ld.operation="POWER"
-    ld.inputs[1].default_value=1.50
-    
-    links.new(DotProd1.outputs[1],Clamp1.inputs[0])
-    links.new(Clamp1.outputs[0],ld.inputs[0])
-    
-    #half angle vector
-    
-    VecAdd1=create_node(mat,"VecAdd1","ShaderNodeVectorMath",location)
-    VecAdd1.operation="ADD"
-    VecAdd1.inputs[1].default_value=(0,0.99,0)
-    
-    VecNorm2=create_node(mat,"VecNorm2","ShaderNodeVectorMath",location)
-    VecNorm2.operation="NORMALIZE"
-    
-    links.new(CombXYZ1.outputs[0],VecAdd1.inputs[0])
-    links.new(VecAdd1.outputs[0],VecNorm2.inputs[0])
-    
-    #calculation of ls (may not be 100% accurate due to me not knowing how to search for tables in the ida db but it's accurate enough for preview purpose)
-    #may be updated if i find a better approwimation or get the exact formula
-    
-    DotProd2=create_node(mat,"DotProd2","ShaderNodeVectorMath",location)
-    DotProd2.operation="DOT_PRODUCT"
-    
-    #specular corrective mask
-    
-    Sign1=create_node(mat,"Sign1","ShaderNodeMath",location)
-    Sign1.operation="SIGN"
-    Sign1.use_clamp=True
-    
-    #end of mask
-    
-    Pow1=create_node(mat,"Pow1","ShaderNodeMath",location)
-    Pow1.operation="POWER"
-    Pow1.inputs[1].default_value=2.0
-    
-    links.new(VecNorm2.outputs[0],DotProd2.inputs[0])
-    links.new(VecTrans.outputs[0],DotProd2.inputs[1])
-    links.new(DotProd2.outputs[1],Pow1.inputs[0])
-    links.new(DotProd2.outputs[1],Sign1.inputs[0])
-    
-    Mult1=create_node(mat,"Mult1","ShaderNodeMath",location)
-    Mult1.operation="MULTIPLY"
-    Mult1.inputs[1].default_value=2.0
-    
-    Sub1=create_node(mat,"Sub1","ShaderNodeMath",location)
-    Sub1.operation="SUBTRACT"
-    Sub1.inputs[1].default_value=1.0
-    Sub1.use_clamp=True
-    
-    links.new(Pow1.outputs[0],Mult1.inputs[0])
-    links.new(Mult1.outputs[0],Sub1.inputs[0]) 
-    
-    #applying the spec corrective mask
-    
-    Mult3=create_node(mat,"Mult3","ShaderNodeMath",location)
-    Mult3.operation="MULTIPLY"
-    links.new(Sign1.outputs[0],Mult3.inputs[0])
-    links.new(Sub1.outputs[0],Mult3.inputs[1])
-    
-    ls=create_node(mat,"Specular brightness","ShaderNodeMath",location)
-    ls.operation="POWER"
-    ls.inputs[1].default_value=2.0
-    links.new(Mult3.outputs[0],ls.inputs[0])
-    
-    #Diffuse color
-     
-    Di=create_node(mat,"Diffuse "+str(index),"ShaderNodeMixRGB",location)
-    Di.blend_type="MULTIPLY"
-    Di.inputs[0].default_value=1.0
-    
-    links.new(NodeDiffuse.outputs[0],Di.inputs[1])
-    links.new(ld.outputs[0],Di.inputs[2])
-    
-    #Specular color
-    
-    Pow2=create_node(mat,"Pow2","ShaderNodeMath",location)
-    Pow2.operation="POWER"
-    Pow2.inputs[1].default_value=1.5
-    
-    Mult4=create_node(mat,"Mult4","ShaderNodeMath",location)
-    Mult4.operation="MULTIPLY"
-    
-    Si=create_node(mat,"Specular "+str(index),"ShaderNodeMixRGB",location)
-    Si.blend_type="MULTIPLY"
-    Si.inputs[0].default_value=1.0
-    
-    links.new(NodeSpecular.outputs[0],Si.inputs[1])
-    links.new(LightSpec.outputs[0],Pow2.inputs[0])
-    links.new(ls.outputs[0],Mult4.inputs[0])
-    links.new(Pow2.outputs[0],Mult4.inputs[1])
-    links.new(Mult4.outputs[0],Si.inputs[2])
-    
-    #addition of the three colors (all except emission)
-    
-    ColAdd1=create_node(mat,"Ambient "+str(index),"ShaderNodeMixRGB",location)
-    ColAdd1.blend_type="ADD"
-    ColAdd1.inputs[0].default_value=1.0
-    
-    
-    ColAdd2=create_node(mat,"ColAdd2","ShaderNodeMixRGB",location)
-    ColAdd2.blend_type="ADD"
-    ColAdd2.inputs[0].default_value=1.0
-    
-    links.new(NodeAmbient.outputs[0],ColAdd1.inputs[2])
-    links.new(Di.outputs[0],ColAdd1.inputs[1])
-    links.new(ColAdd1.outputs[0],ColAdd2.inputs[1])
-    links.new(Si.outputs[0],ColAdd2.inputs[2])
+    # get inputs
 
-    #multiply with light color
-    
-    ColMult1=create_node(mat,"Result "+str(index),"ShaderNodeMixRGB",location)
-    ColMult1.blend_type="MULTIPLY"
-    ColMult1.inputs[0].default_value=1.0
-    
-    links.new(LightCol.outputs[0],ColMult1.inputs[2])
-    links.new(ColAdd2.outputs[0],ColMult1.inputs[1])
-    LightNode=ColMult1
-        
+    # lights
+
+    light_vec = nodes.get("Light" + str(index) + " Vector")
+    light_spec = nodes.get("Light" + str(index) + " Specular")
+    light_col = nodes.get("Light" + str(index) + " Color Filtered")
+
+    # materials
+
+    node_diffuse = nodes.get("df")
+    node_ambient = nodes.get("amb")
+    node_specular = nodes.get("spec")
+
+    # transform inputs
+    # normals to camera space
+
+    normal_vec_node = create_node(mat, "normal vector(N)", 'ShaderNodeNewGeometry', location)
+
+    vec_mult1 = create_node(mat, "Fix backface", "ShaderNodeVectorMath", location)
+    vec_mult1.operation = "MULTIPLY"
+
+    mult_add1 = create_node(mat, "remap backface factor", "ShaderNodeMath", location)
+    mult_add1.operation = "MULTIPLY_ADD"
+    mult_add1.inputs[1].default_value = -2.0
+    mult_add1.inputs[2].default_value = 1.0
+
+    vec_trans = create_node(mat, "transform to camera space", 'ShaderNodeVectorTransform', location)
+    vec_trans.convert_from = "WORLD"
+    vec_trans.convert_to = "CAMERA"
+
+    links.new(normal_vec_node.outputs[6], mult_add1.inputs[0])
+    links.new(normal_vec_node.outputs[1], vec_mult1.inputs[0])
+    links.new(mult_add1.outputs[0], vec_mult1.inputs[1])
+    links.new(vec_mult1.outputs[0], vec_trans.inputs[0])
+
+    # LightVector in camera space
+    vec_mult2 = create_node(mat, "inverse light angle", "ShaderNodeVectorMath", location)
+    vec_mult2.inputs[1].default_value = (-1, -1, -1)
+    vec_mult2.operation = "MULTIPLY"
+
+    vec_norm1 = create_node(mat, "Normalize", "ShaderNodeVectorMath", location)
+    vec_norm1.operation = "NORMALIZE"
+
+    links.new(light_vec.outputs[0], vec_mult2.inputs[0])
+    links.new(vec_mult2.outputs[0], vec_norm1.inputs[0])
+
+    sep_xyz1 = create_node(mat, "SepXYZ", "ShaderNodeSeparateXYZ", location)
+    comb_xyz1 = create_node(mat, "CombXYZ", "ShaderNodeCombineXYZ", location)
+
+    links.new(vec_norm1.outputs[0], sep_xyz1.inputs[0])
+    links.new(sep_xyz1.outputs[0], comb_xyz1.inputs[0])
+    links.new(sep_xyz1.outputs[1], comb_xyz1.inputs[2])
+    links.new(sep_xyz1.outputs[2], comb_xyz1.inputs[1])
+
+    # ld : Diffuse reflection shininess
+    # ls : Specular reflection shininess
+
+    # calculation of ld
+
+    dot_prod1 = create_node(mat, "Dot Prod1", "ShaderNodeVectorMath", location)
+    dot_prod1.operation = "DOT_PRODUCT"
+
+    links.new(vec_trans.outputs[0], dot_prod1.inputs[0])
+    links.new(comb_xyz1.outputs[0], dot_prod1.inputs[1])
+
+    clamp1 = create_node(mat, "Clamp1", "ShaderNodeClamp", location)
+    clamp1.inputs[1].default_value = 0.0
+    clamp1.inputs[2].default_value = 1.0
+
+    ld = create_node(mat, "ld", "ShaderNodeMath", location)
+    ld.operation = "POWER"
+    ld.inputs[1].default_value = 1.50
+
+    links.new(dot_prod1.outputs[1], clamp1.inputs[0])
+    links.new(clamp1.outputs[0], ld.inputs[0])
+
+    # half angle vector
+
+    vec_add1 = create_node(mat, "VecAdd1", "ShaderNodeVectorMath", location)
+    vec_add1.operation = "ADD"
+    vec_add1.inputs[1].default_value = (0, 0.99, 0)
+
+    vec_norm2 = create_node(mat, "VecNorm2", "ShaderNodeVectorMath", location)
+    vec_norm2.operation = "NORMALIZE"
+
+    links.new(comb_xyz1.outputs[0], vec_add1.inputs[0])
+    links.new(vec_add1.outputs[0], vec_norm2.inputs[0])
+
+    # calculation of ls (may not be 100% accurate due to me not knowing how to search for tables in the ida db but it's accurate enough for preview purpose)
+    # may be updated if i find a better approwimation or get the exact formula
+
+    dot_prod2 = create_node(mat, "DotProd2", "ShaderNodeVectorMath", location)
+    dot_prod2.operation = "DOT_PRODUCT"
+
+    # specular corrective mask
+
+    sign1 = create_node(mat, "Sign1", "ShaderNodeMath", location)
+    sign1.operation = "SIGN"
+    sign1.use_clamp = True
+
+    # end of mask
+
+    pow1 = create_node(mat, "Pow1", "ShaderNodeMath", location)
+    pow1.operation = "POWER"
+    pow1.inputs[1].default_value = 2.0
+
+    links.new(vec_norm2.outputs[0], dot_prod2.inputs[0])
+    links.new(vec_trans.outputs[0], dot_prod2.inputs[1])
+    links.new(dot_prod2.outputs[1], pow1.inputs[0])
+    links.new(dot_prod2.outputs[1], sign1.inputs[0])
+
+    mult1 = create_node(mat, "Mult1", "ShaderNodeMath", location)
+    mult1.operation = "MULTIPLY"
+    mult1.inputs[1].default_value = 2.0
+
+    sub1 = create_node(mat, "Sub1", "ShaderNodeMath", location)
+    sub1.operation = "SUBTRACT"
+    sub1.inputs[1].default_value = 1.0
+    sub1.use_clamp = True
+
+    links.new(pow1.outputs[0], mult1.inputs[0])
+    links.new(mult1.outputs[0], sub1.inputs[0])
+
+    # applying the spec corrective mask
+
+    mult3 = create_node(mat, "Mult3", "ShaderNodeMath", location)
+    mult3.operation = "MULTIPLY"
+    links.new(sign1.outputs[0], mult3.inputs[0])
+    links.new(sub1.outputs[0], mult3.inputs[1])
+
+    ls = create_node(mat, "Specular brightness", "ShaderNodeMath", location)
+    ls.operation = "POWER"
+    ls.inputs[1].default_value = 2.0
+    links.new(mult3.outputs[0], ls.inputs[0])
+
+    # Diffuse color
+
+    di = create_node(mat, "Diffuse " + str(index), "ShaderNodeMixRGB", location)
+    di.blend_type = "MULTIPLY"
+    di.inputs[0].default_value = 1.0
+
+    links.new(node_diffuse.outputs[0], di.inputs[1])
+    links.new(ld.outputs[0], di.inputs[2])
+
+    # Specular color
+
+    pow2 = create_node(mat, "Pow2", "ShaderNodeMath", location)
+    pow2.operation = "POWER"
+    pow2.inputs[1].default_value = 1.5
+
+    mult4 = create_node(mat, "Mult4", "ShaderNodeMath", location)
+    mult4.operation = "MULTIPLY"
+
+    si = create_node(mat, "Specular " + str(index), "ShaderNodeMixRGB", location)
+    si.blend_type = "MULTIPLY"
+    si.inputs[0].default_value = 1.0
+
+    links.new(node_specular.outputs[0], si.inputs[1])
+    links.new(light_spec.outputs[0], pow2.inputs[0])
+    links.new(ls.outputs[0], mult4.inputs[0])
+    links.new(pow2.outputs[0], mult4.inputs[1])
+    links.new(mult4.outputs[0], si.inputs[2])
+
+    # addition of the three colors (all except emission)
+
+    col_add1 = create_node(mat, "Ambient " + str(index), "ShaderNodeMixRGB", location)
+    col_add1.blend_type = "ADD"
+    col_add1.inputs[0].default_value = 1.0
+
+    col_add2 = create_node(mat, "ColAdd2", "ShaderNodeMixRGB", location)
+    col_add2.blend_type = "ADD"
+    col_add2.inputs[0].default_value = 1.0
+
+    links.new(node_ambient.outputs[0], col_add1.inputs[2])
+    links.new(di.outputs[0], col_add1.inputs[1])
+    links.new(col_add1.outputs[0], col_add2.inputs[1])
+    links.new(si.outputs[0], col_add2.inputs[2])
+
+    # multiply with light color
+
+    col_mult1 = create_node(mat, "Result " + str(index), "ShaderNodeMixRGB", location)
+    col_mult1.blend_type = "MULTIPLY"
+    col_mult1.inputs[0].default_value = 1.0
+
+    links.new(light_col.outputs[0], col_mult1.inputs[2])
+    links.new(col_add2.outputs[0], col_mult1.inputs[1])
+    LightNode = col_mult1
+
     return LightNode
 
 
 def generate_normal_lightning_color_nodes(material):
-    global NodeOffsety
-    global NodeOffsetx
-    global Loca
-    
-    NodeOffsetx=0
-    NodeOffsety=0
-    
+    global node_offsety
+    global node_offsetx
+    global loca
+
+    node_offsetx = 0
+    node_offsety = 0
+
     mat = material
     nodes = mat.node_tree.nodes
     links = mat.node_tree.links
 
-    Matcols = {"df": (material.nns_diffuse[0],
-                            material.nns_diffuse[1],
-                            material.nns_diffuse[2],
-                            1.0),
-                    "amb":(material.nns_ambient[0],
-                            material.nns_ambient[1],
-                            material.nns_ambient[2],
-                            1.0),
-                    "spec":(material.nns_specular[0],
-                            material.nns_specular[1],
-                            material.nns_specular[2],
-                            1.0),
-                    "em":(material.nns_emission[0],
-                            material.nns_emission[1],
-                            material.nns_emission[2],
-                            1.0)}
+    matcols = {"df": (material.nns_diffuse[0],
+                      material.nns_diffuse[1],
+                      material.nns_diffuse[2],
+                      1.0),
+               "amb": (material.nns_ambient[0],
+                       material.nns_ambient[1],
+                       material.nns_ambient[2],
+                       1.0),
+               "spec": (material.nns_specular[0],
+                        material.nns_specular[1],
+                        material.nns_specular[2],
+                        1.0),
+               "em": (material.nns_emission[0],
+                      material.nns_emission[1],
+                      material.nns_emission[2],
+                      1.0)}
 
+    light0 = {"LightVector": (0, 0, -1), "LightCol": (1, 1, 1, 1), "LightSpecular": 0.5,
+              "isLightEnabled": mat.nns_light0, "LightIndex": 0}
+    light1 = {"LightVector": (0, 0.5, -0.5), "LightCol": (1, 1, 1, 1), "LightSpecular": 1,
+              "isLightEnabled": mat.nns_light1, "LightIndex": 1}
+    light2 = {"LightVector": (0, 0, -1), "LightCol": (1, 0, 0, 1), "LightSpecular": 0.5,
+              "isLightEnabled": mat.nns_light2, "LightIndex": 2}
+    light3 = {"LightVector": (0, 0, 1), "LightCol": (1, 1, 0, 1), "LightSpecular": 0, "isLightEnabled": mat.nns_light3,
+              "LightIndex": 3}
 
+    lights = (light0, light1, light2, light3)
 
-    Light0={"LightVector":(0,0,-1),"LightCol":(1,1,1,1),"LightSpecular":0.5,"isLightEnabled":mat.nns_light0,"LightIndex":0}
-    Light1={"LightVector":(0,0.5,-0.5),"LightCol":(1,1,1,1),"LightSpecular":1,"isLightEnabled":mat.nns_light1,"LightIndex":1}
-    Light2={"LightVector":(0,0,-1),"LightCol":(1,0,0,1),"LightSpecular":0.5,"isLightEnabled":mat.nns_light2,"LightIndex":2}
-    Light3={"LightVector":(0,0,1),"LightCol":(1,1,0,1),"LightSpecular":0,"isLightEnabled":mat.nns_light3,"LightIndex":3}
-    
-    Lights=(Light0,Light1,Light2,Light3)
-        
-    #inputs
-    NodeOffsetx=0
-    NodeOffsety=-300
-    Loca=(-7500,-300)
-    
+    # inputs
+    node_offsetx = 0
+    node_offsety = -300
+    loca = (-7500, -300)
+
     for i in range(4):
-        LightVec=create_node(mat,"Light"+str(i)+" Vector","ShaderNodeCombineXYZ",Loca,2)
+        light_vec = create_node(mat, "Light" + str(i) + " Vector", "ShaderNodeCombineXYZ", loca, 2)
         for j in range(3):
-            LightVec.inputs[j].default_value=Lights[i]["LightVector"][j]
-        
-        LightCol=create_node(mat,"Light"+str(i)+" Color","ShaderNodeRGB",Loca,2)
-        LightCol.outputs[0].default_value=Lights[i]["LightCol"]
-        
-        LightSpec=create_node(mat,"Light"+str(i)+" Specular","ShaderNodeValue",Loca,2)
-        LightSpec.outputs[0].default_value=Lights[i]["LightSpecular"]
-        
-        LightEnabled=create_node(mat,"Light"+str(i)+" Enabled","ShaderNodeValue",Loca,2)
-        LightEnabled.outputs[0].default_value=Lights[i]["isLightEnabled"]
-        
-        MaskNode=create_node(mat,"Light"+str(i)+" Color Filtered","ShaderNodeMixRGB",(-7300,Loca[1]),2)
-        MaskNode.blend_type="MULTIPLY"
-        MaskNode.inputs[0].default_value=1.0
-        
-        links.new(LightCol.outputs[0],MaskNode.inputs[1])
-        links.new(LightEnabled.outputs[0],MaskNode.inputs[2])
-    
-    #material colors
-    
-    for name in Matcols.keys():
-        Col=create_node(mat,name,"ShaderNodeRGB",Loca,2)
-        Col.outputs[0].default_value=Matcols[name]
-        
-    #add all the results of the light0, 1, 2 and 3 calculations
-    
-    AddNodesX=-600
-    NodeOffsety=-300
-    
-    LColAdd1=create_node(mat,"LColAdd1","ShaderNodeMixRGB",(AddNodesX,-300),3)
-    LColAdd1.blend_type="ADD"
-    LColAdd1.inputs[0].default_value=1.0
-    
-    LColAdd2=create_node(mat,"LColAdd2","ShaderNodeMixRGB",(AddNodesX,-450),3)
-    LColAdd2.blend_type="ADD"
-    LColAdd2.inputs[0].default_value=1.0
-    
-    LColAdd3=create_node(mat,"LColAdd3","ShaderNodeMixRGB",(AddNodesX,-600),3)
-    LColAdd3.blend_type="ADD"
-    LColAdd3.inputs[0].default_value=1.0
-    
-    LColAdd4=create_node(mat,"Total result","ShaderNodeMixRGB",(AddNodesX,-750),3)
-    LColAdd4.blend_type="ADD"
-    LColAdd4.inputs[0].default_value=1.0
-    NodeEmission=nodes.get("em")
-    
-    UseDiffuseNode=create_node(mat,"UseOnlyDiffuse?","ShaderNodeMixRGB",(AddNodesX,-750),3)
-    UseDiffuseNode.blend_type="MIX"
-    
-    links.new(LColAdd1.outputs[0],LColAdd2.inputs[1])
-    links.new(LColAdd2.outputs[0],LColAdd3.inputs[1])
-    links.new(LColAdd3.outputs[0],LColAdd4.inputs[1])
-    links.new(NodeEmission.outputs[0],LColAdd4.inputs[2])
-    
-    NodeOffsetx=0
-    NodeOffsety=-300
-    
+            light_vec.inputs[j].default_value = lights[i]["LightVector"][j]
+
+        light_col = create_node(mat, "Light" + str(i) + " Color", "ShaderNodeRGB", loca, 2)
+        light_col.outputs[0].default_value = lights[i]["LightCol"]
+
+        light_spec = create_node(mat, "Light" + str(i) + " Specular", "ShaderNodeValue", loca, 2)
+        light_spec.outputs[0].default_value = lights[i]["LightSpecular"]
+
+        light_enabled = create_node(mat, "Light" + str(i) + " Enabled", "ShaderNodeValue", loca, 2)
+        light_enabled.outputs[0].default_value = lights[i]["isLightEnabled"]
+
+        mask_node = create_node(mat, "Light" + str(i) + " Color Filtered", "ShaderNodeMixRGB", (-7300, loca[1]), 2)
+        mask_node.blend_type = "MULTIPLY"
+        mask_node.inputs[0].default_value = 1.0
+
+        links.new(light_col.outputs[0], mask_node.inputs[1])
+        links.new(light_enabled.outputs[0], mask_node.inputs[2])
+
+    # material colors
+
+    for name in matcols.keys():
+        col = create_node(mat, name, "ShaderNodeRGB", loca, 2)
+        col.outputs[0].default_value = matcols[name]
+
+    # add all the results of the light0, 1, 2 and 3 calculations
+
+    add_nodes_x = -600
+    node_offsety = -300
+
+    l_col_add1 = create_node(mat, "LColAdd1", "ShaderNodeMixRGB", (add_nodes_x, -300), 3)
+    l_col_add1.blend_type = "ADD"
+    l_col_add1.inputs[0].default_value = 1.0
+
+    l_col_add2 = create_node(mat, "LColAdd2", "ShaderNodeMixRGB", (add_nodes_x, -450), 3)
+    l_col_add2.blend_type = "ADD"
+    l_col_add2.inputs[0].default_value = 1.0
+
+    l_col_add3 = create_node(mat, "LColAdd3", "ShaderNodeMixRGB", (add_nodes_x, -600), 3)
+    l_col_add3.blend_type = "ADD"
+    l_col_add3.inputs[0].default_value = 1.0
+
+    l_col_add4 = create_node(mat, "Total result", "ShaderNodeMixRGB", (add_nodes_x, -750), 3)
+    l_col_add4.blend_type = "ADD"
+    l_col_add4.inputs[0].default_value = 1.0
+    node_emission = nodes.get("em")
+
+    use_diffuse_node = create_node(mat, "UseOnlyDiffuse?", "ShaderNodeMixRGB", (add_nodes_x, -750), 3)
+    use_diffuse_node.blend_type = "MIX"
+
+    links.new(l_col_add1.outputs[0], l_col_add2.inputs[1])
+    links.new(l_col_add2.outputs[0], l_col_add3.inputs[1])
+    links.new(l_col_add3.outputs[0], l_col_add4.inputs[1])
+    links.new(node_emission.outputs[0], l_col_add4.inputs[2])
+
+    node_offsetx = 0
+    node_offsety = -300
+
     for i in range(4):
-        LightNode=create_light_nodes(mat,i,(-6500-i*150,-300))
-        if i==0 or i==1:
-            links.new(LightNode.outputs[0],LColAdd1.inputs[i+1])
-        elif i==2:
-            links.new(LightNode.outputs[0],LColAdd2.inputs[2])
+        light_node = create_light_nodes(mat, i, (-6500 - i * 150, -300))
+        if i == 0 or i == 1:
+            links.new(light_node.outputs[0], l_col_add1.inputs[i + 1])
+        elif i == 2:
+            links.new(light_node.outputs[0], l_col_add2.inputs[2])
         else:
-            links.new(LightNode.outputs[0],LColAdd3.inputs [2])
-        NodeOffsety-=350
-        NodeOffsetx=0
-    
-    links.new(LColAdd3.outputs[0],LColAdd4.inputs[1])
-    links.new(LColAdd4.outputs[0],UseDiffuseNode.inputs[1])
-    LightTotalResult=UseDiffuseNode
-    
-    #if no light is enbaled
-    UseOnlyDiffuse=True
-    for light in Lights:
+            links.new(light_node.outputs[0], l_col_add3.inputs[2])
+        node_offsety -= 350
+        node_offsetx = 0
+
+    links.new(l_col_add3.outputs[0], l_col_add4.inputs[1])
+    links.new(l_col_add4.outputs[0], use_diffuse_node.inputs[1])
+    light_total_result = use_diffuse_node
+
+    # if no light is enbaled
+    use_only_diffuse = True
+    for light in lights:
         if light["isLightEnabled"]:
-            UseOnlyDiffuse=False
-    
-    LightTotalResult.inputs[0].default_value=UseOnlyDiffuse
-    LightTotalResult.inputs[2].default_value=Matcols["df"]
-    
-    return LightTotalResult
+            use_only_diffuse = False
+
+    light_total_result.inputs[0].default_value = use_only_diffuse
+    light_total_result.inputs[2].default_value = matcols["df"]
+
+    return light_total_result
+
 
 def generate_decal_vc_nodes(material):
     nodes = material.node_tree.nodes
@@ -466,11 +466,11 @@ def generate_decal_vc_nodes(material):
         node_attr = nodes.new(type='ShaderNodeAttribute')
         node_attr.attribute_name = 'Col'
         links.new(node_attr.outputs[0], node_mix_2.inputs[1])
-        
+
     elif "nr" in material.nns_mat_type:
-        node_vertex_lighting=generate_normal_lightning_color_nodes(material)
+        node_vertex_lighting = generate_normal_lightning_color_nodes(material)
         links.new(node_vertex_lighting.outputs[0], node_mix_2.inputs[1])
-        
+
     else:
         node_diffuse = nodes.new(type='ShaderNodeMixRGB')
         node_diffuse.name = 'nns_node_diffuse'
@@ -622,9 +622,9 @@ def generate_mod_vc_nodes(material):
         node_attr = nodes.new(type='ShaderNodeAttribute')
         node_attr.attribute_name = 'Col'
         links.new(node_attr.outputs[0], node_multiply.inputs[2])
-        
+
     elif "nr" in material.nns_mat_type:
-        node_vertex_lighting=generate_normal_lightning_color_nodes(material)
+        node_vertex_lighting = generate_normal_lightning_color_nodes(material)
         links.new(node_vertex_lighting.outputs[0], node_multiply.inputs[2])
 
     node_bsdf = nodes.new(type='ShaderNodeBsdfTransparent')
@@ -674,6 +674,7 @@ def generate_image_only_nodes(material):
 
     links.new(node_bsdf.outputs[0], node_mix_shader.inputs[1])
     generate_output_node(material, node_mix_shader)
+
 
 def generate_solid_color_nodes(material):
     nodes = material.node_tree.nodes
@@ -747,6 +748,7 @@ def generate_only_normal_lighting(material):
     links.new(node_vc_light.outputs[0], node_mix_shader.inputs[2])
     generate_output_node(material, node_mix_shader)
 
+
 def generate_only_vc_nodes(material):
     nodes = material.node_tree.nodes
     links = material.node_tree.links
@@ -778,6 +780,7 @@ def generate_only_vc_nodes(material):
     links.new(node_vc.outputs[0], node_mix_shader.inputs[2])
     generate_output_node(material, node_mix_shader)
 
+
 def generate_nodes(material):
     if material.is_nns:
         nodes = material.node_tree.nodes
@@ -793,7 +796,7 @@ def generate_nodes(material):
         elif material.nns_mat_type == "vc":
             generate_only_vc_nodes(material)
         elif material.nns_mat_type == "df_nr":
-            generate_only_normal_lighting(material) 
+            generate_only_normal_lighting(material)
         elif material.nns_polygon_mode == "modulate" \
                 or material.nns_polygon_mode == "toon_highlight" \
                 or material.nns_polygon_mode == "shadow":
@@ -801,14 +804,15 @@ def generate_nodes(material):
         elif material.nns_polygon_mode == "decal":
             generate_decal_vc_nodes(material)
 
-def update_Light0(self,context):
+
+def update_Light0(self, context):
     print("update Light0")
     for mat in bpy.data.materials.values():
         if mat.is_nns:
             if "nr" in mat.nns_mat_type:
-                nodes=mat.node_tree.nodes
-                col=nodes.get("Light0 Color")
-                if col!= None:
+                nodes = mat.node_tree.nodes
+                col = nodes.get("Light0 Color")
+                if col != None:
                     col.outputs[0].default_value = (bpy.context.scene.Light0_color[0],
                                                     bpy.context.scene.Light0_color[1],
                                                     bpy.context.scene.Light0_color[2],
@@ -816,17 +820,18 @@ def update_Light0(self,context):
                     vec = nodes.get("Light0 Vector")
                     for i in range(3):
                         vec.inputs[i].default_value = bpy.context.scene.Light0_vector[i]
-                    spec=nodes.get("Light0 Specular")
+                    spec = nodes.get("Light0 Specular")
                     spec.outputs[0].default_value = bpy.context.scene.Light0_specular
 
-def update_Light1(self,context):
+
+def update_Light1(self, context):
     print("update Light1")
     for mat in bpy.data.materials.values():
         if mat.is_nns:
             if "nr" in mat.nns_mat_type:
-                nodes=mat.node_tree.nodes
-                col=nodes.get("Light1 Color")
-                if col!= None:
+                nodes = mat.node_tree.nodes
+                col = nodes.get("Light1 Color")
+                if col != None:
                     col.outputs[0].default_value = (bpy.context.scene.Light1_color[0],
                                                     bpy.context.scene.Light1_color[1],
                                                     bpy.context.scene.Light1_color[2],
@@ -834,17 +839,18 @@ def update_Light1(self,context):
                     vec = nodes.get("Light1 Vector")
                     for i in range(3):
                         vec.inputs[i].default_value = bpy.context.scene.Light1_vector[i]
-                    spec=nodes.get("Light1 Specular")
+                    spec = nodes.get("Light1 Specular")
                     spec.outputs[0].default_value = bpy.context.scene.Light1_specular
 
-def update_Light2(self,context):
+
+def update_Light2(self, context):
     print("update Light2")
     for mat in bpy.data.materials.values():
         if mat.is_nns:
             if "nr" in mat.nns_mat_type:
-                nodes=mat.node_tree.nodes
-                col=nodes.get("Light2 Color")
-                if col!= None:
+                nodes = mat.node_tree.nodes
+                col = nodes.get("Light2 Color")
+                if col != None:
                     col.outputs[0].default_value = (bpy.context.scene.Light2_color[0],
                                                     bpy.context.scene.Light2_color[1],
                                                     bpy.context.scene.Light2_color[2],
@@ -852,17 +858,18 @@ def update_Light2(self,context):
                     vec = nodes.get("Light2 Vector")
                     for i in range(3):
                         vec.inputs[i].default_value = bpy.context.scene.Light2_vector[i]
-                    spec=nodes.get("Light2 Specular")
+                    spec = nodes.get("Light2 Specular")
                     spec.outputs[0].default_value = bpy.context.scene.Light2_specular
 
-def update_Light3(self,context):
+
+def update_Light3(self, context):
     print("update Light3")
     for mat in bpy.data.materials.values():
         if mat.is_nns:
             if "nr" in mat.nns_mat_type:
-                nodes=mat.node_tree.nodes
-                col=nodes.get("Light3 Color")
-                if col!= None:
+                nodes = mat.node_tree.nodes
+                col = nodes.get("Light3 Color")
+                if col != None:
                     col.outputs[0].default_value = (bpy.context.scene.Light3_color[0],
                                                     bpy.context.scene.Light3_color[1],
                                                     bpy.context.scene.Light3_color[2],
@@ -870,7 +877,7 @@ def update_Light3(self,context):
                     vec = nodes.get("Light3 Vector")
                     for i in range(3):
                         vec.inputs[i].default_value = bpy.context.scene.Light3_vector[i]
-                    spec=nodes.get("Light3 Specular")
+                    spec = nodes.get("Light3 Specular")
                     spec.outputs[0].default_value = bpy.context.scene.Light3_specular
 
 
@@ -901,7 +908,7 @@ def update_nodes_alpha(self, context):
         if material.nns_polygon_mode == "modulate":
             try:
                 node_alpha = material.node_tree.nodes.get('nns_node_alpha')
-                node_alpha.blend_type="MULTIPLY"
+                node_alpha.blend_type = "MULTIPLY"
                 node_alpha.inputs[2].default_value = (
                     material.nns_alpha / 31,
                     material.nns_alpha / 31,
@@ -914,15 +921,16 @@ def update_nodes_alpha(self, context):
             try:
                 node_alpha = material.node_tree.nodes.get('nns_node_alpha')
                 node_alpha.blend_type = "MIX"
-                node_alpha.inputs[1].default_value =(0,0,0,1)
+                node_alpha.inputs[1].default_value = (0, 0, 0, 1)
                 node_alpha.inputs[0].default_value = material.nns_alpha / 31
             except Exception:
                 raise NameError("Something alpha I think")
 
+
 def update_nodes_diffuse(self, context):
-    material=context.material
+    material = context.material
     if material.is_nns:
-        if material.nns_mat_type =="df" or material.nns_mat_type =="tx_df":
+        if material.nns_mat_type == "df" or material.nns_mat_type == "tx_df":
             node_diffuse = material.node_tree.nodes.get('nns_node_diffuse')
             node_diffuse.inputs[2].default_value = (
                 material.nns_diffuse[0],
@@ -931,97 +939,105 @@ def update_nodes_diffuse(self, context):
                 1.0
             )
         if "nr" in material.nns_mat_type:
-            node_diffuse1=material.node_tree.nodes.get("df")
-            node_diffuse1.outputs[0].default_value=(
+            node_diffuse1 = material.node_tree.nodes.get("df")
+            node_diffuse1.outputs[0].default_value = (
                 material.nns_diffuse[0],
                 material.nns_diffuse[1],
                 material.nns_diffuse[2],
                 1.0
             )
-            node_diffuse2=material.node_tree.nodes.get("UseOnlyDiffuse?")
-            node_diffuse2.inputs[2].default_value=(
+            node_diffuse2 = material.node_tree.nodes.get("UseOnlyDiffuse?")
+            node_diffuse2.inputs[2].default_value = (
                 material.nns_diffuse[0],
                 material.nns_diffuse[1],
                 material.nns_diffuse[2],
                 1.0
             )
 
-def update_nodes_emission(self,context):
-    material=context.material
+
+def update_nodes_emission(self, context):
+    material = context.material
     if material.is_nns:
         if "nr" in material.nns_mat_type:
-            node_emission=material.node_tree.nodes.get("em")
-            node_emission.outputs[0].default_value=(
+            node_emission = material.node_tree.nodes.get("em")
+            node_emission.outputs[0].default_value = (
                 material.nns_emission[0],
                 material.nns_emission[1],
                 material.nns_emission[2],
                 1.0
             )
 
-def update_nodes_ambient (self,context):
-    material=context.material
+
+def update_nodes_ambient(self, context):
+    material = context.material
     if material.is_nns:
         if "nr" in material.nns_mat_type:
-            node_emission=material.node_tree.nodes.get("amb")
-            node_emission.outputs[0].default_value=(
+            node_emission = material.node_tree.nodes.get("amb")
+            node_emission.outputs[0].default_value = (
                 material.nns_ambient[0],
                 material.nns_ambient[1],
                 material.nns_ambient[2],
                 1.0
             )
-            
-def update_nodes_specular (self,context):
-    material=context.material
+
+
+def update_nodes_specular(self, context):
+    material = context.material
     if material.is_nns:
         if "nr" in material.nns_mat_type:
-            node_specular=material.node_tree.nodes.get("spec")
-            node_specular.outputs[0].default_value=(
+            node_specular = material.node_tree.nodes.get("spec")
+            node_specular.outputs[0].default_value = (
                 material.nns_specular[0],
                 material.nns_specular[1],
                 material.nns_specular[2],
                 1.0
             )
 
+
 def update_nodes_UseOnlyDiffuse(material):
-    Masknode=material.node_tree.nodes.get("UseOnlyDiffuse?")
-    UseOnlyDiffuse=True
-    Lights=(material.nns_light0,material.nns_light1,material.nns_light2,material.nns_light3)
-    for light in Lights:
+    mask_node = material.node_tree.nodes.get("UseOnlyDiffuse?")
+    use_only_diffuse = True
+    lights = (material.nns_light0, material.nns_light1, material.nns_light2, material.nns_light3)
+    for light in lights:
         if light:
-            UseOnlyDiffuse=False
-    Masknode.inputs[0].default_value=UseOnlyDiffuse
+            use_only_diffuse = False
+    mask_node.inputs[0].default_value = use_only_diffuse
 
-def update_nodes_Light0(self,context):
-    material=context.material
-    update_nodes_UseOnlyDiffuse(material)
-    if material.is_nns:
-        if "nr" in material.nns_mat_type:
-            node_Light0=material.node_tree.nodes.get("Light0 Enabled")
-            node_Light0.outputs[0].default_value=material.nns_light0
-        
-def update_nodes_Light1(self,context):
-    material=context.material
-    update_nodes_UseOnlyDiffuse(material)
-    if material.is_nns:
-        if "nr" in material.nns_mat_type:
-            node_Light1=material.node_tree.nodes.get("Light1 Enabled")
-            node_Light1.outputs[0].default_value=material.nns_light1
-            
-def update_nodes_Light2(self,context):
-    material=context.material
-    update_nodes_UseOnlyDiffuse(material)
-    if material.is_nns:
-        if "nr" in material.nns_mat_type:
-            node_Light2=material.node_tree.nodes.get("Light2 Enabled")
-            node_Light2.outputs[0].default_value=material.nns_light2
 
-def update_nodes_Light3(self,context):
-    material=context.material
+def update_nodes_Light0(self, context):
+    material = context.material
     update_nodes_UseOnlyDiffuse(material)
     if material.is_nns:
         if "nr" in material.nns_mat_type:
-            node_Light3=material.node_tree.nodes.get("Light3 Enabled")
-            node_Light3.outputs[0].default_value=material.nns_light3
+            node_light0 = material.node_tree.nodes.get("Light0 Enabled")
+            node_light0.outputs[0].default_value = material.nns_light0
+
+
+def update_nodes_Light1(self, context):
+    material = context.material
+    update_nodes_UseOnlyDiffuse(material)
+    if material.is_nns:
+        if "nr" in material.nns_mat_type:
+            node_light1 = material.node_tree.nodes.get("Light1 Enabled")
+            node_light1.outputs[0].default_value = material.nns_light1
+
+
+def update_nodes_Light2(self, context):
+    material = context.material
+    update_nodes_UseOnlyDiffuse(material)
+    if material.is_nns:
+        if "nr" in material.nns_mat_type:
+            node_light2 = material.node_tree.nodes.get("Light2 Enabled")
+            node_light2.outputs[0].default_value = material.nns_light2
+
+
+def update_nodes_Light3(self, context):
+    material = context.material
+    update_nodes_UseOnlyDiffuse(material)
+    if material.is_nns:
+        if "nr" in material.nns_mat_type:
+            node_light3 = material.node_tree.nodes.get("Light3 Enabled")
+            node_light3.outputs[0].default_value = material.nns_light3
 
 
 def update_nodes_face(self, context):
@@ -1058,7 +1074,6 @@ def update_nodes_srt(material):
 def update_nodes_srt_hook(self, context):
     for material in bpy.data.materials.values():
         if material.is_nns:
-            print(name)
             update_nodes_srt(material)
 
 
@@ -1100,8 +1115,8 @@ class CreateNNSMaterial(bpy.types.Operator):
 
 class NTRTexReference(bpy.types.PropertyGroup):
     image: PointerProperty(
-            name='Texture',
-            type=Image)
+        name='Texture',
+        type=Image)
 
 
 class NewTexReference(bpy.types.Operator):
@@ -1111,7 +1126,7 @@ class NewTexReference(bpy.types.Operator):
     def execute(self, context):
         context.material.nns_texframe_reference.add()
 
-        return{'FINISHED'}
+        return {'FINISHED'}
 
 
 class DeleteTexReference(bpy.types.Operator):
@@ -1130,7 +1145,7 @@ class DeleteTexReference(bpy.types.Operator):
         context.material.nns_texframe_reference_index = min(
             max(0, index - 1), len(my_list) - 1)
 
-        return{'FINISHED'}
+        return {'FINISHED'}
 
 
 class NTR_UL_texframe(bpy.types.UIList):
@@ -1161,7 +1176,7 @@ class NTR_PT_material_texframe(bpy.types.Panel):
 
         if mat is None:
             pass
-        elif not(mat.use_nodes and mat.is_nns):
+        elif not (mat.use_nodes and mat.is_nns):
             pass
         elif "tx" in mat.nns_mat_type:
             layout = layout.box()
@@ -1176,7 +1191,7 @@ class NTR_PT_material_texframe(bpy.types.Panel):
             row.operator('nns_texframe_reference.delete_texref', text='Delete')
 
             if (mat.nns_texframe_reference_index >= 0
-               and mat.nns_texframe_reference):
+                    and mat.nns_texframe_reference):
                 idx = mat.nns_texframe_reference_index
                 item = mat.nns_texframe_reference[idx]
 
@@ -1202,7 +1217,7 @@ class NTR_PT_material_keyframe(bpy.types.Panel):
 
         if mat is None:
             pass
-        elif not(mat.use_nodes and mat.is_nns):
+        elif not (mat.use_nodes and mat.is_nns):
             pass
         elif "tx" in mat.nns_mat_type:
             layout = layout.box()
@@ -1236,53 +1251,53 @@ class NTR_PT_material_visual(bpy.types.Panel):
 
 
 class SCENE_PT_NNS_Panel(bpy.types.Panel):
-    bl_label="nns scene settings"
+    bl_label = "nns scene settings"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
-    bl_category="NNS Scene"
+    bl_category = "NNS Scene"
 
     def draw(self, context):
         layout = self.layout
-        layout.scale_x=5.0
-        #Light 0
-        box=layout.box()
+        layout.scale_x = 5.0
+        # Light 0
+        box = layout.box()
         box.label(text="Light 0 properties:")
-        col=box.split(factor=0.5,align=True)
-        col1=col.column(align=True)
-        col1.prop(context.scene,"Light0_color",text="color")
-        col1.prop(context.scene, "Light0_specular",text="specular")
-        col2=col.column(align=True)
-        col2.prop(context.scene, "Light0_vector",text="vector")
+        col = box.split(factor=0.5, align=True)
+        col1 = col.column(align=True)
+        col1.prop(context.scene, "Light0_color", text="color")
+        col1.prop(context.scene, "Light0_specular", text="specular")
+        col2 = col.column(align=True)
+        col2.prop(context.scene, "Light0_vector", text="vector")
 
         # Light 1
         box = layout.box()
         box.label(text="Light 1 properties:")
         col = box.split(factor=0.5, align=True)
         col1 = col.column(align=True)
-        col1.prop(context.scene, "Light1_color",text="color")
-        col1.prop(context.scene, "Light1_specular",text="specular")
+        col1.prop(context.scene, "Light1_color", text="color")
+        col1.prop(context.scene, "Light1_specular", text="specular")
         col2 = col.column(align=True)
-        col2.prop(context.scene, "Light1_vector",text="vector")
+        col2.prop(context.scene, "Light1_vector", text="vector")
 
         # Light 2
         box = layout.box()
         box.label(text="Light 2 properties:")
         col = box.split(factor=0.5, align=True)
         col1 = col.column(align=True)
-        col1.prop(context.scene, "Light2_color",text="color")
-        col1.prop(context.scene, "Light2_specular",text="specular")
+        col1.prop(context.scene, "Light2_color", text="color")
+        col1.prop(context.scene, "Light2_specular", text="specular")
         col2 = col.column(align=True)
-        col2.prop(context.scene, "Light2_vector",text="vector")
+        col2.prop(context.scene, "Light2_vector", text="vector")
 
         # Light 3
         box = layout.box()
         box.label(text="Light 3 propertie:")
         col = box.split(factor=0.5, align=True)
         col1 = col.column(align=True)
-        col1.prop(context.scene, "Light3_color",text="color")
-        col1.prop(context.scene, "Light3_specular",text="specular")
+        col1.prop(context.scene, "Light3_color", text="color")
+        col1.prop(context.scene, "Light3_specular", text="specular")
         col2 = col.column(align=True)
-        col2.prop(context.scene, "Light3_vector",text="vector")
+        col2.prop(context.scene, "Light3_vector", text="vector")
 
 
 class NTR_PT_material(bpy.types.Panel):
@@ -1305,7 +1320,7 @@ class NTR_PT_material(bpy.types.Panel):
 
         if mat is None:
             pass
-        elif not(mat.use_nodes and mat.is_nns):
+        elif not (mat.use_nodes and mat.is_nns):
             pass
         else:
             layout = layout.box()
@@ -1338,7 +1353,7 @@ class NTR_PT_material(bpy.types.Panel):
                 row.prop(mat, "nns_light1", toggle=True)
                 row.prop(mat, "nns_light2", toggle=True)
                 row.prop(mat, "nns_light3", toggle=True)
-                #Lights settings
+                # Lights settings
 
             layout.prop(mat, "nns_use_srst")
             layout.prop(mat, "nns_fog")
@@ -1372,8 +1387,8 @@ class NTR_PT_material(bpy.types.Panel):
                 row = box.row(align=True)
                 row.prop(mat, "nns_tex_effect_mtx_3")
 
-def material_register():
 
+def material_register():
     bpy.utils.register_class(NTRTexReference)
     bpy.utils.register_class(NewTexReference)
     bpy.utils.register_class(DeleteTexReference)
@@ -1411,15 +1426,15 @@ def material_register():
         default=(0, 0, 0), subtype='COLOR', min=0.0, max=1.0, name='Emission',
         update=update_nodes_emission)
     bpy.types.Material.nns_light0 = BoolProperty(name="Light0", default=False,
-        update=update_nodes_Light0)
+                                                 update=update_nodes_Light0)
     bpy.types.Material.nns_light1 = BoolProperty(name="Light1", default=False,
-        update=update_nodes_Light1)
+                                                 update=update_nodes_Light1)
     bpy.types.Material.nns_light2 = BoolProperty(name="Light2", default=False,
-        update=update_nodes_Light2)
+                                                 update=update_nodes_Light2)
     bpy.types.Material.nns_light3 = BoolProperty(name="Light3", default=False,
-        update=update_nodes_Light3)
+                                                 update=update_nodes_Light3)
 
-    #scene lights properties
+    # scene lights properties
 
     bpy.types.Scene.Light0_color = FloatVectorProperty(
         name="Light 0 color",
@@ -1462,7 +1477,7 @@ def material_register():
         default=0.5,
         min=0,
         max=1,
-        update = update_Light0
+        update=update_Light0
     )
 
     bpy.types.Scene.Light1_specular = FloatProperty(
