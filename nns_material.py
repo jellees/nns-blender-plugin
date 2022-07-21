@@ -1,4 +1,5 @@
 import bpy
+# noinspection PyPep8
 from bpy.props import (BoolProperty,
                        FloatProperty,
                        EnumProperty,
@@ -832,7 +833,7 @@ def update_light1(self, context):
             if "nr" in mat.nns_mat_type:
                 nodes = mat.node_tree.nodes
                 col = nodes.get("Light1 Color")
-                if is not None:
+                if col is not None:
                     col.outputs[0].default_value = (bpy.context.scene.Light1_color[0],
                                                     bpy.context.scene.Light1_color[1],
                                                     bpy.context.scene.Light1_color[2],
@@ -850,7 +851,7 @@ def update_light2(self, context):
             if "nr" in mat.nns_mat_type:
                 nodes = mat.node_tree.nodes
                 col = nodes.get("Light2 Color")
-                if is not None:
+                if col is not None:
                     col.outputs[0].default_value = (bpy.context.scene.Light2_color[0],
                                                     bpy.context.scene.Light2_color[1],
                                                     bpy.context.scene.Light2_color[2],
@@ -868,7 +869,7 @@ def update_light3(self, context):
             if "nr" in mat.nns_mat_type:
                 nodes = mat.node_tree.nodes
                 col = nodes.get("Light3 Color")
-                if is not None:
+                if col is not None:
                     col.outputs[0].default_value = (bpy.context.scene.Light3_color[0],
                                                     bpy.context.scene.Light3_color[1],
                                                     bpy.context.scene.Light3_color[2],
