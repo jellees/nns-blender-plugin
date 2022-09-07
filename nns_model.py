@@ -541,7 +541,11 @@ class NitroModel():
                 mtx_prim.primitives.sort(key=lambda x: x.sort_key)
         for node in self.nodes:
             node.collect_statistics(self)
-        self.optimize_polygons()
+
+        # Optimise polygons.
+        for polygon in self.polygons:
+            polygon.optimize()
+        
         self.output_info.collect(self)
 
     def collect_none(self):
@@ -649,10 +653,6 @@ class NitroModel():
         for polygon, material in poly_mats:
             display = node.find_display(material.index, polygon.index)
             display.polygon = polygon.index
-
-    def optimize_polygons(self):
-        for polygon in self.polygons:
-            polygon.optimize()
 
     def apply_transformations(self):
         for item in self.primitives:
