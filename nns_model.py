@@ -545,7 +545,7 @@ class NitroModel():
         # Optimise polygons.
         for polygon in self.polygons:
             polygon.optimize()
-        
+
         self.output_info.collect(self)
 
     def collect_none(self):
@@ -779,17 +779,16 @@ class NitroModel():
             # Make matrix for node.
             self.find_matrix(node.index, bone.matrix_local.copy())
 
-            # Transform.
+            # Calculate transform.
             transform = bone.matrix_local if bone else Matrix.Identity(4)
             if bone and bone.parent:
                 transform = bone.parent.matrix_local.inverted() @ transform
 
-            # Translate bone.
+            # Transform node.
             euler = transform.to_euler('XYZ')
             node.rotate = [decimal.Decimal(math.degrees(e)) for e in euler]
             mag = self.settings['imd_magnification']
             node.translate = transform.to_translation() * mag
-            # TODO: scale for bones.
 
             # Get children.
             children = self.process_bones(node, bone.children)
