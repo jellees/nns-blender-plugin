@@ -541,7 +541,11 @@ class NitroModel():
                 mtx_prim.primitives.sort(key=lambda x: x.sort_key)
         for node in self.nodes:
             node.collect_statistics(self)
-        self.optimize_polygons()
+
+        # Optimise polygons.
+        for polygon in self.polygons:
+            polygon.optimize()
+
         self.output_info.collect(self)
 
     def collect_none(self):
@@ -649,10 +653,6 @@ class NitroModel():
         for polygon, material in poly_mats:
             display = node.find_display(material.index, polygon.index)
             display.polygon = polygon.index
-
-    def optimize_polygons(self):
-        for polygon in self.polygons:
-            polygon.optimize()
 
     def apply_transformations(self):
         for item in self.primitives:
@@ -779,17 +779,16 @@ class NitroModel():
             # Make matrix for node.
             self.find_matrix(node.index, bone.matrix_local.copy())
 
-            # Transform.
+            # Calculate transform.
             transform = bone.matrix_local if bone else Matrix.Identity(4)
             if bone and bone.parent:
                 transform = bone.parent.matrix_local.inverted() @ transform
 
-            # Translate bone.
+            # Transform node.
             euler = transform.to_euler('XYZ')
             node.rotate = [decimal.Decimal(math.degrees(e)) for e in euler]
             mag = self.settings['imd_magnification']
             node.translate = transform.to_translation() * mag
-            # TODO: scale for bones.
 
             # Get children.
             children = self.process_bones(node, bone.children)
