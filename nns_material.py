@@ -1,5 +1,4 @@
 import bpy
-# noinspection PyPep8
 from bpy.props import (BoolProperty,
                        FloatProperty,
                        EnumProperty,
