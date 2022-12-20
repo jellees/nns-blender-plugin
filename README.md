@@ -18,8 +18,6 @@ You can preview your material by switching to lookdev mode or rendered mode. Thi
 
 As for vertex lighting, the lights parameters can be changed in the the section called "NNS scene" in the panel on the right in the 3D view window, by default the light properties are similar to the ones in mario kart ds tracks.
 
-Billboarding is supported in blender 3.0 and above but you have to play the animation to make it track the viewport camera, also if there are multiple 3D view windows on the screen, the objects will only track the first window's camera rotation.
-
 ## Exporting bones and animation
 
 You can export your rigged model and the current active animation by enabling "export .ica" in the export window. You can influence the size-quality ratio by changing the tolerance and frame step mode. Be sure to set the node compression to none, otherwise no bones will be exported.
