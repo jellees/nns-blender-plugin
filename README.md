@@ -10,11 +10,13 @@ Download the latest zip from releases and extract it in the addons folder. Alter
 
 After installing the plugin, you can export your model to imd by going to the export tab and clicking on "Nitro IMD". You can add a material to your object by clicking on the "Create NNS Material" button in the material tab. Be aware that vertex colored models need a vertex color layer called "Col" to be present. Alternatlivey you can also use a PrincipledBSDF node with limited options.
 
-Be sure to use nitro tga files for textures. All other formats will be ignored. You can generate nitro tga's by using Optipix or TGAConv https://garhoogin.com/mkds/tgaconv/
+Be sure to use nitro tga files for textures. All other formats will be ignored. You can generate nitro tga's by using Optipix or NitroPaint https://github.com/Garhoogin/NitroPaint/releases
 
 ## Material preview
 
 You can preview your material by switching to lookdev mode or rendered mode. This feature aids you in crafting your material but it is not a 100% accurate rendering of what it will look like on the ds. Be sure to have a vertex color layer named "Col" when using vertex colored materials, otherwise your material will be black.
+
+As for vertex lighting, the lights parameters can be changed in the the section called "NNS scene" in the panel on the right in the 3D view window, by default the light properties are similar to the ones in mario kart ds tracks.
 
 ## Exporting bones and animation
 
