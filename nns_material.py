@@ -1693,7 +1693,7 @@ def material_register():
         description="color picker",
         update=update_fog_group_nodes
     )
-    bpy.types.Scene.Fog_scale = FloatProperty(name="Fog_scale", default=100, min=0.01, update=update_fog_group_nodes)
+    bpy.types.Scene.Fog_scale = FloatProperty(name="Fog_scale", default=1000, min=0.01, update=update_fog_group_nodes)
     bpy.types.Scene.Fog_offset = FloatProperty(name="Fog_offset", default=0, min=0, max=20, update=update_fog_group_nodes)
 
     # scene lights properties

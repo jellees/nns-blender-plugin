@@ -10,13 +10,15 @@ Download the latest zip from releases and extract it in the addons folder. Alter
 
 After installing the plugin, you can export your model to imd by going to the export tab and clicking on "Nitro IMD". You can add a material to your object by clicking on the "Create NNS Material" button in the material tab. Be aware that vertex colored models need a vertex color layer called "Col" to be present. Alternatlivey you can also use a PrincipledBSDF node with limited options.
 
-Be sure to use nitro tga files for textures. All other formats will be ignored. You can generate nitro tga's by using Optipix or NitroPaint https://github.com/Garhoogin/NitroPaint/releases
+Be sure to use nitro tga files for textures. All other formats will be ignored. You can generate nitro tga's by using Optpix or NitroPaint https://github.com/Garhoogin/NitroPaint/releases
 
 ## Material preview
 
 You can preview your material by switching to lookdev mode or rendered mode. This feature aids you in crafting your material but it is not a 100% accurate rendering of what it will look like on the ds. Be sure to have a vertex color layer named "Col" when using vertex colored materials, otherwise your material will be black.
 
-As for vertex lighting, the lights parameters can be changed in the the section called "NNS scene" in the panel on the right in the 3D view window, by default the light properties are similar to the ones in mario kart ds tracks.
+As for vertex lighting, the lights parameters can be changed in the section called "NNS scene" in the panel on the right in the 3D view window, by default the light properties are similar to the ones in mario kart ds tracks.
+
+There is also fog, you can enable it for the entire scene and per material, its parameters are just above the lights settings in the 3d view panel.
 
 ## Exporting bones and animation
 
@@ -36,6 +38,10 @@ You can export texture animation by animating the SRT values in the material and
 ### Material doesn't have transparency (or wrong transparency) in blender
 
 Under the settings tab of your material, you can choose the blend method. Please choose the appropriate blend method for your material. If your material doesn't use any kind of transparency or tranlucency, be sure to set it on opaque.
+
+### Material doesn't work when updating blender or the plugin
+
+Change the type of the material, for example from vertex colored to solid+diffuse, then change it back to vertex colored
 
 ## Special thanks
 * Stomatol for suggesting features and helping with shader nodes
