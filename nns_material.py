@@ -5,7 +5,7 @@ from bpy.props import (BoolProperty,
                        IntProperty,
                        FloatVectorProperty,
                        PointerProperty,
-                        CollectionProperty)
+                       CollectionProperty)
 from bpy.types import Image
 from bpy.app.handlers import persistent
 
@@ -783,6 +783,185 @@ def generate_only_vc_nodes(material):
     links.new(node_vc.outputs[0], node_mix_shader.inputs[2])
     generate_output_node(material, node_mix_shader)
 
+# fog
+
+node_fog_offset_x = 0
+node_fog_offset_y = 0
+loca_fog = (0, 0)
+
+
+def create_node_fog(name, node_type, location=loca_fog, offset_mode="x"):
+    global node_fog_offset_x
+    global node_fog_offset_y
+    nodes = bpy.data.node_groups.get("nns fog").nodes
+    newnode = nodes.new(type=node_type)
+    newnode.name = name
+    newnode.label = name
+    if offset_mode == 0:
+        newnode.location = location
+    elif offset_mode == "x":
+        newnode.location = (location[0] + node_fog_offset_x, location[1] + node_fog_offset_y)
+        node_fog_offset_x += 180
+    elif offset_mode == "y":
+        newnode.location = (location[0], location[1] + node_fog_offset_y)
+        node_fog_offset_y -= 150
+    elif offset_mode == "xy":
+        newnode.location = (location[0] + node_fog_offset_x, location[1] + node_fog_offset_y)
+        node_fog_offset_x += 180
+        newnode.location = (location[0], location[1] + node_fog_offset_y)
+        node_fog_offset_y -= 150
+    return newnode
+
+
+def generate_fog_group():
+    if "nns fog" not in bpy.data.node_groups.keys():
+        fog_group = bpy.data.node_groups.new(name="nns fog", type="ShaderNodeTree")
+    else:
+        fog_group = bpy.data.node_groups.get("nns fog")
+
+    nodes = fog_group.nodes
+    nodes.clear()
+
+    input_node = create_node_fog("input node", "NodeGroupInput", (-150, 0))
+    output_node = create_node_fog("output_node", "NodeGroupOutput", (1000, 0), 0)
+
+    # reset group
+
+    if "surface color" not in fog_group.inputs or "mat use fog" not in fog_group.inputs:
+        for input in fog_group.inputs:
+            fog_group.inputs.remove(input)
+        fog_group.inputs.new("NodeSocketColor", "surface color")
+        fog_group.inputs.new("NodeSocketFloat", "mat use fog")
+
+    if "Color" not in fog_group.outputs:
+        for output in fog_group.outputs:
+            fog_group.outputs.remove(output)
+        fog_group.outputs.new("NodeSocketColor", "Color")
+
+    for node in nodes:
+        nodes.remove(node)
+
+    generate_fog_group_nodes(fog_group, input_node, output_node)
+
+
+def generate_fog_group_nodes(fog_group, input_node, output_node):
+    global node_fog_offset_x
+    global node_fog_offset_y
+
+    node_fog_offset_x = 0
+    node_fog_offset_y = 0
+    # input data
+    input_node = create_node_fog("inputs", "NodeGroupInput", (0, 150), 0)
+
+    # invariable
+    cam = create_node_fog("cam", "ShaderNodeCameraData", loca_fog, "y")
+
+    # variable
+    use_fog = create_node_fog("use_fog", "ShaderNodeValue", loca_fog, "y")
+    scale = create_node_fog("scale", "ShaderNodeValue", loca_fog, "y")
+    scale.outputs[0].default_value = 20
+    fog_offset = create_node_fog("fog offset", "ShaderNodeValue", loca_fog, "y")
+    fog_color = create_node_fog("fog color", "ShaderNodeRGB", loca_fog, "y")
+
+    node_fog_offset_y = 0
+    node_fog_offset_x = 150
+
+    divide = create_node_fog("divide", "ShaderNodeMath")
+    divide.operation = "DIVIDE"
+
+    subtract = create_node_fog("subtract", "ShaderNodeMath")
+    subtract.operation = "SUBTRACT"
+    subtract.use_clamp = True
+
+    sub_c1 = create_node_fog("subtract", "ShaderNodeMath")
+    sub_c1.operation = "SUBTRACT"
+    sub_c1.inputs[0].default_value = 1
+
+    pow1 = create_node_fog("pow", "ShaderNodeMath")
+    pow1.operation = "POWER"
+    pow1.inputs[1].default_value = 7
+
+    sub_c2 = create_node_fog("subtract", "ShaderNodeMath")
+    sub_c2.operation = "SUBTRACT"
+    sub_c2.inputs[0].default_value = 1
+
+    pow2 = create_node_fog("pow", "ShaderNodeMath")
+    pow2.operation = "POWER"
+    pow2.inputs[1].default_value = 0.5
+
+    mix_c = create_node_fog("mix 1", "ShaderNodeMixRGB")
+    mix_c.blend_type = "MIX"
+
+    curve = create_node_fog("curve", "ShaderNodeRGBCurve")
+    curve.mapping.extend = 'HORIZONTAL'
+    curve.width = 350
+    node_fog_offset_x += 300
+
+    mix_1 = create_node_fog("mix 1", "ShaderNodeMixRGB")
+    mix_1.blend_type = "MIX"
+
+    mult = create_node_fog("mult", "ShaderNodeMath")
+    mult.operation = "MULTIPLY"
+
+    mix_2 = create_node_fog("mix 2", "ShaderNodeMixRGB")
+    mix_2.blend_type = "MIX"
+
+    links = fog_group.links
+
+    links.new(cam.outputs[1], divide.inputs[0])
+    links.new(scale.outputs[0], divide.inputs[1])
+
+    links.new(divide.outputs[0], subtract.inputs[0])
+    links.new(fog_offset.outputs[0], subtract.inputs[1])
+
+    # blending correction
+
+    links.new(subtract.outputs[0], sub_c1.inputs[1])
+    links.new(sub_c1.outputs[0], pow1.inputs[0])
+    links.new(pow1.outputs[0], sub_c2.inputs[1])
+
+    links.new(fog_color.outputs[0], pow2.inputs[0])
+    links.new(pow2.outputs[0],mix_c.inputs[0])
+    links.new(sub_c2.outputs[0], mix_c.inputs[1])
+    links.new(subtract.outputs[0], mix_c.inputs[2])
+
+    # fog density curve
+
+    links.new(mix_c.outputs[0], curve.inputs[1])
+    links.new(curve.outputs[0], mix_1.inputs[0])
+    links.new(input_node.outputs["surface color"], mix_1.inputs[1])
+    links.new(fog_color.outputs[0], mix_1.inputs[2])
+
+    links.new(input_node.outputs["mat use fog"], mult.inputs[0])
+    links.new(use_fog.outputs[0], mult.inputs[1])
+
+    links.new(mult.outputs[0], mix_2.inputs[0])
+    links.new(mix_1.outputs[0], mix_2.inputs[2])
+    links.new(input_node.outputs["surface color"], mix_2.inputs[1])
+
+    # output data
+
+    output_node = create_node_fog("outputs", "NodeGroupOutput")
+    links.new(mix_2.outputs[0], output_node.inputs["Color"])
+
+
+def generate_fog_material_nodes(material):
+    mat = material
+    nodes = mat.node_tree.nodes
+    links = mat.node_tree.links
+
+    mix_shader = nodes.get("Mix Shader")
+    nns_df = mix_shader.inputs[2].links[0].from_node
+
+    nns_fog = create_node(mat, "nns fog", "ShaderNodeGroup", loca)
+    update_fog_group_nodes(self=None, context=bpy.context)
+    nns_fog.node_tree = bpy.data.node_groups.get("nns fog")
+    nns_fog.inputs[1].default_value = int(mat.nns_fog)
+
+    nns_fog.location = (mix_shader.location[0], mix_shader.location[1] - 150)
+    links.new(nns_df.outputs[0], nns_fog.inputs[0])
+    links.new(nns_fog.outputs[0], mix_shader.inputs[2])
+
 
 def generate_nodes(material):
     if material.is_nns:
@@ -806,6 +985,41 @@ def generate_nodes(material):
             generate_mod_vc_nodes(material)
         elif material.nns_polygon_mode == "decal":
             generate_decal_vc_nodes(material)
+
+        generate_fog_material_nodes(material)
+
+def update_fog_group_nodes(self, context):
+    if "nns fog" not in bpy.data.node_groups.keys():
+        generate_fog_group()
+
+    fog_group = bpy.data.node_groups.get("nns fog")
+    if "fog offset" not in fog_group.nodes.keys():
+        generate_fog_group()
+
+    nodes = fog_group.nodes
+
+    use_fog = nodes.get("use_fog")
+    use_fog.outputs[0].default_value = context.scene.Fog_enable  # scene property
+
+    scale = nodes.get("scale")
+    scale.outputs[0].default_value = context.scene.Fog_scale
+
+    fog_offset = nodes.get("fog offset")
+    fog_offset.outputs[0].default_value = context.scene.Fog_offset
+
+    fog_color = nodes.get("fog color")
+    color = context.scene.Fog_color
+    fog_color.outputs[0].default_value = (color[0], color[1], color[2], 1)
+
+
+def update_material_fog(self, context):
+    material = context.material
+    nodes = material.node_tree.nodes
+    group = nodes.get("nns fog")
+    if group is not None:
+        group.inputs[1].default_value = int(material.nns_fog)
+    else:
+        generate_nodes(material)
 
 
 def update_light0(self, context):
@@ -1258,6 +1472,41 @@ class SCENE_PT_NNS_Panel(bpy.types.Panel):
     def draw(self, context):
         layout = self.layout
         layout.scale_x = 5.0
+
+        # disclaimer
+
+        layout.label(text="/!\\ These settings are only for preview purpose,\n they won't be exported")
+
+        # Fog
+        try:
+            fog_group = bpy.data.node_groups.get("nns fog")
+            if fog_group is not None:
+                if "curve" not in fog_group.nodes.keys():
+                    generate_fog_group()
+            else:
+                generate_fog_group()
+
+            curve_node = fog_group.nodes.get("curve")
+        except Exception:
+            raise NameError("Curve node doesn't exist, try creating a NNS material")
+
+        box = layout.box()
+        box.label(text="Fog properties:")
+        box.label(text="Fog density curve:")
+
+        try:
+            box.template_curve_mapping(curve_node, "mapping")
+        except Exception:
+            raise NameError("Curve node doesn't exist, try creating a NNS material")
+
+        col = box.split(factor=0.5, align=True)
+        col1 = col.column(align=True)
+        col1.prop(context.scene, "Fog_enable", text="enable fog")
+        col1.prop(context.scene, "Fog_color", text="fog color")
+        col2 = col.column(align=True)
+        col2.prop(context.scene, "Fog_scale", text="scale")
+        col2.prop(context.scene, "Fog_offset", text="fog offset")
+
         # Light 0
         box = layout.box()
         box.label(text="Light 0 properties:")
@@ -1290,7 +1539,7 @@ class SCENE_PT_NNS_Panel(bpy.types.Panel):
 
         # Light 3
         box = layout.box()
-        box.label(text="Light 3 propertie:")
+        box.label(text="Light 3 properties:")
         col = box.split(factor=0.5, align=True)
         col1 = col.column(align=True)
         col1.prop(context.scene, "Light3_color", text="color")
@@ -1433,6 +1682,20 @@ def material_register():
     bpy.types.Material.nns_light3 = BoolProperty(name="Light3", default=False,
                                                  update=update_nodes_light3)
 
+    # scene fog properties
+
+    bpy.types.Scene.Fog_enable = BoolProperty(name="Fog_enable", default=False, update=update_fog_group_nodes)
+    bpy.types.Scene.Fog_color = bpy.types.Scene.Light0_color = FloatVectorProperty(
+        name="Fog_color",
+        subtype='COLOR',
+        default=(1.0, 1.0, 1.0),
+        min=0.0, max=1.0,
+        description="color picker",
+        update=update_fog_group_nodes
+    )
+    bpy.types.Scene.Fog_scale = FloatProperty(name="Fog_scale", default=1000, min=0.01, update=update_fog_group_nodes)
+    bpy.types.Scene.Fog_offset = FloatProperty(name="Fog_offset", default=0, min=0, max=20, update=update_fog_group_nodes)
+
     # scene lights properties
 
     bpy.types.Scene.Light0_color = FloatVectorProperty(
@@ -1542,7 +1805,7 @@ def material_register():
     bpy.types.Material.nns_use_srst = BoolProperty(
         name="Use Specular Reflection Table", default=False)
     bpy.types.Material.nns_fog = BoolProperty(
-        name="Fog", default=False)
+        name="Fog", default=False, update=update_material_fog)
     bpy.types.Material.nns_wireframe = BoolProperty(
         name="Wireframe", default=False)
     bpy.types.Material.nns_depth_test = BoolProperty(
