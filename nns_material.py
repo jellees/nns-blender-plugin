@@ -1478,20 +1478,27 @@ class SCENE_PT_NNS_Panel(bpy.types.Panel):
         layout.label(text="/!\\ These settings are only for preview purpose,\n they won't be exported")
 
         # Fog
-
-        fog_group = bpy.data.node_groups.get("nns fog")
-        if fog_group is not None:
-            if "curve" not in fog_group.nodes.keys():
+        try:
+            fog_group = bpy.data.node_groups.get("nns fog")
+            if fog_group is not None:
+                if "curve" not in fog_group.nodes.keys():
+                    generate_fog_group()
+            else:
                 generate_fog_group()
-        else:
-            generate_fog_group()
 
-        curve_node = fog_group.nodes.get("curve")
+            curve_node = fog_group.nodes.get("curve")
+        except Exception:
+            raise NameError("Curve node doesn't exist, try creating a NNS material")
 
         box = layout.box()
         box.label(text="Fog properties:")
         box.label(text="Fog density curve:")
-        box.template_curve_mapping(curve_node, "mapping")
+
+        try:
+            box.template_curve_mapping(curve_node, "mapping")
+        except Exception:
+            raise NameError("Curve node doesn't exist, try creating a NNS material")
+
         col = box.split(factor=0.5, align=True)
         col1 = col.column(align=True)
         col1.prop(context.scene, "Fog_enable", text="enable fog")
@@ -1539,6 +1546,7 @@ class SCENE_PT_NNS_Panel(bpy.types.Panel):
         col1.prop(context.scene, "Light3_specular", text="specular")
         col2 = col.column(align=True)
         col2.prop(context.scene, "Light3_vector", text="vector")
+
 
 class NTR_PT_material(bpy.types.Panel):
     bl_label = "NNS Material Options"
