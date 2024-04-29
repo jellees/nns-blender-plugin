@@ -19,9 +19,12 @@ def generate_output_node(material, input):
         add_shader2 = nodes.new(type='ShaderNodeAddShader')
         links.new(input.outputs[0], add_shader1.inputs[0])
         links.new(input.outputs[0], add_shader1.inputs[1])
-        links.new(add_shader1.outputs[0], add_shader2.inputs[0])
-        links.new(add_shader1.outputs[0], add_shader2.inputs[1])
-        links.new(add_shader2.outputs[0], node_output.inputs[0])
+        if bpy.app.version < (3, 0, 0):
+            links.new(add_shader1.outputs[0], add_shader2.inputs[0])
+            links.new(add_shader1.outputs[0], add_shader2.inputs[1])
+            links.new(add_shader2.outputs[0], node_output.inputs[0])
+        else:
+            links.new(add_shader1.outputs[0], node_output.inputs[0])
     else:
         links.new(input.outputs[0], node_output.inputs[0])
 
