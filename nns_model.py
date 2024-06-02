@@ -811,7 +811,9 @@ class NitroModel():
     def process_mesh(self, node, obj):
         primitives = []
 
-        obj.data.calc_normals_split()
+        # fix copied from fast64 repo, in blender version 4.1 func was removed, in 4.1+ normals are always calculated
+        if bpy.app.version < (4, 1, 0):
+            obj.data.calc_normals_split()
 
         for polygon in obj.data.polygons:
             if len(polygon.loop_indices) > 4:
