@@ -522,7 +522,7 @@ def generate_image_nodes(material):
     node_image.interpolation = 'Closest'
     if material.nns_image != '':
         try:
-            print(material.nns_image)
+            #print(material.nns_image)
             node_image.image = material.nns_image
         except Exception:
             raise NameError("Cannot load image")
