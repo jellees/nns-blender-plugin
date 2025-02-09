@@ -31,10 +31,10 @@ def generate_txp_info(ita, info):
     tex_pattern_info.set('tool_start_frame', '0')
     tex_pattern_info.set('tool_end_frame', str(info.frame_size))
     tex_pattern_info.set('compress_material', 'off')
-    tex_pattern_info.set('material_size', '1 1')
+    tex_pattern_info.set('material_size', '1 1') #i wonder if we can not care -> Prellit 2025
 
 
-def generate_body(itp, model, export_settings):
+def generate_body(itp, model:NitroModel, export_settings):
     global settings
     settings = export_settings
 
