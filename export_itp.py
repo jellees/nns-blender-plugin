@@ -102,7 +102,7 @@ class NitroTXP:
         material_frmPattern = []
         for curve in action.fcurves:
             if curve.data_path.count("nns_texframe_reference_index"):
-                for keyf in curve.keyframe_points:
+                """for keyf in curve.keyframe_points:
                     idTex=int(keyf.co.y)
                     tex = material.nns_texframe_reference[idTex]
                     path = os.path.realpath(bpy.path.abspath(tex.image.filepath))
@@ -114,7 +114,26 @@ class NitroTXP:
                     idPlt = self.imgPlt.find_palette(texName.palette_name)
                     material_pltPattern.append(idPlt)
 
-                    material_frmPattern.append(int(keyf.co.x))
+                    material_frmPattern.append(int(keyf.co.x))"""
+                prev = float("inf")
+                for frame in range(int(action.frame_range[1]+1)):
+                    evaluation = curve.evaluate(frame) 
+                    if evaluation != prev:
+                        prev = evaluation
+                        idTex = int(evaluation)
+                        tex = material.nns_texframe_reference[idTex]
+                        path = os.path.realpath(bpy.path.abspath(tex.image.filepath))
+                        texName = model.find_texture(path)
+
+                        idTex = self.imgPlt.find_image(texName.name)
+                        material_imgPattern.append(idTex)
+
+                        idPlt = self.imgPlt.find_palette(texName.palette_name)
+                        material_pltPattern.append(idPlt)
+
+                        material_frmPattern.append(int(frame))
+
+
 
         #headFRM=self.data.find_frames(material_frmPattern)
         #headPLT=self.data.find_palettes(material_pltPattern)
