@@ -1285,17 +1285,14 @@ def update_nodes_srt(material):
                     material.nns_srt_scale[1],
                     0
                 )
-                #--TEST NSBTP PRELLIT
+
                 node_i = material.node_tree.nodes.get('nns_node_image')
                 if material.nns_texframe_reference:
                     node_i.image = material.nns_texframe_reference[material.nns_texframe_reference_index].image
                 else:
                     node_i.image = material.nns_image
-                #print(node_i.image)
-
-                #--\TEST NSBTP PRELLIT
             except Exception:
-                raise NameError("Couldn't find node? | PRELLIT : or an issue related to texture pattern")
+                raise NameError("Couldn't find node?")
 
 
 def update_nodes_srt_hook(self, context):

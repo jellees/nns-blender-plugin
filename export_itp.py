@@ -41,31 +41,10 @@ class NitroTXPData:
         self.image_ids = []
         self.palette_ids = []
 
-    """def find_frames(self,frames):
-        for i in range(len(self.frame_ids)):
-            if self.frame_ids[i:i+len(frames)] == frames:
-                return i
-        retval = len(self.frame_ids)
-        self.frame_ids += frames
-        return retval
+    def find_plt_img_frm(self,palettes,images,frames): 
+        """entry other than the object :list of frames, list of images and list of palettes, all of the same length
+        role : finds an id in self.frame_ids, self.palette_ids and self.image_ids where the corresponding input list is equal to a portion of the former list starting at the id, if its not found it adds the input lists to their corresponding list and returns the next id after the last id before the addition"""
 
-    def find_images(self,images):
-        for i in range(len(self.image_ids)):
-            if self.image_ids[i:i+len(images)] == images:
-                return i
-        retval = len(self.image_ids)
-        self.image_ids += images
-        return retval
-
-    def find_palettes(self,palettes):
-        for i in range(len(self.palettes)):
-            if self.palette_ids[i:i+len(palettes)] == palettes:
-                return i
-        retval = len(self.palette_ids)
-        self.palette_ids += palettes
-        return retval"""
-
-    def find_plt_img_frm(self,palettes,images,frames): #palettes, images and frames should be list with the same length
         for i in range(len(self.frame_ids)): #same len for all elem tbh
             if self.frame_ids[i:i+len(frames)] == frames and self.palette_ids[i:i+len(palettes)] == palettes and self.image_ids[i:i+len(images)] == images:
                 return i
@@ -84,13 +63,14 @@ class NitroTXP:
         self.pattern_anm = {}
 
     def collect(self, model: NitroModel):
-        materials=model.materials
+        materials = model.materials
+
         for material in materials:
             bldMaterial = bpy.data.materials[material.blender_index]
             if bldMaterial.nns_texframe_reference:
 
                 action = bldMaterial.animation_data.action
-                self.info.set_frame_size(int(action.frame_range[1]))
+                self.info.set_frame_size( int(action.frame_range[1]) )
 
                 self.set_images(bldMaterial,model)
 
@@ -100,25 +80,15 @@ class NitroTXP:
         material_imgPattern = []
         material_pltPattern = []
         material_frmPattern = []
+
         for curve in action.fcurves:
             if curve.data_path.count("nns_texframe_reference_index"):
-                """for keyf in curve.keyframe_points:
-                    idTex=int(keyf.co.y)
-                    tex = material.nns_texframe_reference[idTex]
-                    path = os.path.realpath(bpy.path.abspath(tex.image.filepath))
-                    texName = model.find_texture(path)
-
-                    idTex = self.imgPlt.find_image(texName.name)
-                    material_imgPattern.append(idTex)
-
-                    idPlt = self.imgPlt.find_palette(texName.palette_name)
-                    material_pltPattern.append(idPlt)
-
-                    material_frmPattern.append(int(keyf.co.x))"""
                 prev = float("inf")
                 for frame in range(int(action.frame_range[1]+1)):
+
                     evaluation = curve.evaluate(frame) 
                     if evaluation != prev:
+
                         prev = evaluation
                         idTex = int(evaluation)
                         tex = material.nns_texframe_reference[idTex]
@@ -133,11 +103,6 @@ class NitroTXP:
 
                         material_frmPattern.append(int(frame))
 
-
-
-        #headFRM=self.data.find_frames(material_frmPattern)
-        #headPLT=self.data.find_palettes(material_pltPattern)
-        #headIMG=self.data.find_images(material_imgPattern)
         head = self.data.find_plt_img_frm(material_pltPattern,material_imgPattern,material_frmPattern)
         self.pattern_anm[material.name] = [len(material_frmPattern), head]
 
@@ -145,7 +110,7 @@ class NitroTXP:
     def set_images(self,material,model):
 
         for ref in material.nns_texframe_reference:
-            path = os.path.realpath(bpy.path.abspath(ref.image.filepath))
+            path = os.path.realpath( bpy.path.abspath( ref.image.filepath ) )
             texName = model.find_texture(path)
             self.imgPlt.find_image(texName.name)
             self.imgPlt.find_palette(texName.palette_name)

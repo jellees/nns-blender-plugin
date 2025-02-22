@@ -159,22 +159,10 @@ class NitroModelMaterial():
                     self.image_idx = texture.index
                     self.palette_idx = texture.palette_idx
 
-            #---Prellit's test zone !
-                #textures = []
                 for i in material.nns_texframe_reference:
-                    #textures.append(i.image.filepath)
+
                     fPath=os.path.realpath(bpy.path.abspath(i.image.filepath))
-                    #print(dir(i.image), i.image.frame_duration)
-                    #print(dir(material.animation_data.action))
                     model.find_texture(fPath)
-                #print(dir(material.nns_texframe_reference_index))
-                #for i in material.animation_data.action.fcurves:
-                 #       print(i.data_path, i.range())
-                  #      if i.data_path.count("nns_texframe_reference_index"):
-                   #         #print(i.keyframe_points.keys(), i.keyframe_points.values())
-                    #        for j in i.keyframe_points:
-                     #           print(j.co, textures[round(j.co.y)])
-            #--- Exiting Prellit's test zone
 
         else:
             # For now let's use PrincipledBSDF to get the color and image.
