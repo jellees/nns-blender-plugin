@@ -516,11 +516,13 @@ def generate_image_nodes(material):
     nodes = material.node_tree.nodes
     links = material.node_tree.links
 
+
     node_image = nodes.new(type='ShaderNodeTexImage')
     node_image.name = 'nns_node_image'
     node_image.interpolation = 'Closest'
     if material.nns_image != '':
         try:
+            #print(material.nns_image)
             node_image.image = material.nns_image
         except Exception:
             raise NameError("Cannot load image")
@@ -1283,6 +1285,12 @@ def update_nodes_srt(material):
                     material.nns_srt_scale[1],
                     0
                 )
+
+                node_i = material.node_tree.nodes.get('nns_node_image')
+                if material.nns_texframe_reference:
+                    node_i.image = material.nns_texframe_reference[material.nns_texframe_reference_index].image
+                else:
+                    node_i.image = material.nns_image
             except Exception:
                 raise NameError("Couldn't find node?")
 
@@ -1646,7 +1654,7 @@ def material_register():
     bpy.types.Material.nns_texframe_reference = CollectionProperty(
         type=NTRTexReference)
     bpy.types.Material.nns_texframe_reference_index = IntProperty(
-        name="Active texture reference index", default=0)
+        name="Active texture reference index", default=0, update=update_nodes_srt_hook)  
 
     bpy.types.Material.nns_hdr_add_self = BoolProperty(
         default=False, name="HDR shaders", update=update_nodes_mode)

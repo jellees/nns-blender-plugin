@@ -158,6 +158,12 @@ class NitroModelMaterial():
                     texture = model.find_texture(path)
                     self.image_idx = texture.index
                     self.palette_idx = texture.palette_idx
+
+                for i in material.nns_texframe_reference:
+
+                    fPath=os.path.realpath(bpy.path.abspath(i.image.filepath))
+                    model.find_texture(fPath)
+
         else:
             # For now let's use PrincipledBSDF to get the color and image.
             wrap = node_shader_utils.PrincipledBSDFWrapper(material)
