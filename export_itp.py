@@ -124,8 +124,8 @@ def generate_txp_info(itp, info):
     tex_pattern_info.set('tool_start_frame', '0')
     tex_pattern_info.set('tool_end_frame', str(info.frame_size-1))
     tex_pattern_info.set('compress_material', 'off')
-    tex_pattern_info.set('material_size', '1 1') #i wonder if we can not care -> Prellit 2025
-
+    tex_pattern_info.set('material_size', '1 1') 
+    
 def generate_txp_pattern_list_data(itp,img_plt):
 
     tex_pattern_LD = ET.SubElement(itp,"tex_pattern_list_data")

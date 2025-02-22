@@ -1654,7 +1654,7 @@ def material_register():
     bpy.types.Material.nns_texframe_reference = CollectionProperty(
         type=NTRTexReference)
     bpy.types.Material.nns_texframe_reference_index = IntProperty(
-        name="Active texture reference index", default=0, update=update_nodes_srt_hook) # TESTUPDATE BY PRELLIT 
+        name="Active texture reference index", default=0, update=update_nodes_srt_hook)  
 
     bpy.types.Material.nns_hdr_add_self = BoolProperty(
         default=False, name="HDR shaders", update=update_nodes_mode)
