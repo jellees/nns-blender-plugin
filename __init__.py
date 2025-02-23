@@ -6,12 +6,13 @@ from bpy.props import (BoolProperty,
 from bpy_extras.io_utils import ExportHelper
 from .nns_material import material_register, material_unregister
 from .nns_object import object_register, object_unregister
+from .version import NNS_PLUGIN_VERSION
 
 
 bl_info = {
     "name": "Nitro Intermediate (.imd, .ita, .ica, .itp)",
     "author": "Jelle Streekstra, Gabriele Mercurio",
-    "version": (0, 1, 2),
+    "version": NNS_PLUGIN_VERSION,
     "blender": (2, 80, 0),
     "location": "File > Export",
     "description": "Export intermediate files for Nitro system",
