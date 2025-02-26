@@ -1,6 +1,7 @@
 
-NNS_PLUGIN_VERSION = (0, 2, 0)
+
+addon_version = (0, 0, 0)
 
 
 def get_version_str():
-    return '.'.join(map(str, NNS_PLUGIN_VERSION))
+    return '.'.join(map(str, addon_version))
