@@ -1,6 +1,6 @@
 
 
-addon_version = (0, 0, 0)
+addon_version = (0, 2, 2)
 
 
 def get_version_str():
