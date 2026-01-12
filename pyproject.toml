@@ -1,0 +1,15 @@
+[project]
+name = "nns_plugin"
+requires-python = ">=3.11"
+version = "0.0.1"
+
+dependencies = [
+    "pytest",
+    "coverage",
+    "bpy",
+]
+
+[tool.pytest.ini_options]
+pythonpath = [
+  ".", "src",
+]
