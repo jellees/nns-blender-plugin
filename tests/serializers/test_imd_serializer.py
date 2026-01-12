@@ -1,4 +1,5 @@
 import pytest
+from pytest import FixtureRequest
 from src.errors import VtxPosDataError, VtxColorDataError
 from src.models.nitro_model import (NitroModel, NitroModelInfo,
                                     NitroModelBoxTest, NitroTexImage,
@@ -31,7 +32,13 @@ def fixed_point_format():
         "fp_value, fp_expected",
         FIXED_POINT_CASES.values(),
         ids=FIXED_POINT_CASES.keys(),
+        indirect=["fp_value"]
     )
+
+
+@pytest.fixture
+def fp_value(request: FixtureRequest) -> float:
+    return getattr(request, "param", 0.0)
 
 
 @pytest.fixture
@@ -141,14 +148,15 @@ def test_serialize_imd_vtx_pos_data(default_nitro_model: NitroModel,
     assert vtx_pos_data.text == fp_expected
 
 
-# def test_serialize_imd_vtx_pos_data_none(nitro_model):
-#     imd = serialize_imd(nitro_model)
+def test_serialize_imd_vtx_pos_data_none(default_nitro_model: NitroModel):
+    imd = serialize_imd(default_nitro_model)
 
-#     model_info = imd.find("./body/model_info")
-#     assert model_info.get("vertex_style") == VERTEX_STYLE_DIRECT
+    model_info = imd.find("./body/model_info")
+    assert model_info is not None
+    assert model_info.get("vertex_style") == VertexStyle.DIRECT
 
-#     vtx_pos_data = imd.find("./body/vtx_pos_data")
-#     assert vtx_pos_data is None
+    vtx_pos_data = imd.find("./body/vtx_pos_data")
+    assert vtx_pos_data is None
 
 
 # def test_serialize_imd_invalid_vtx_pos_data(nitro_model_vertex_style_index):
