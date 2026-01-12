@@ -50,7 +50,7 @@ def default_nitro_vertices(fp_value: float) -> list[NitroVertex]:
 
 @pytest.fixture
 def default_nitro_model(default_nitro_vertices: list[NitroVertex],
-                        fp_value: float):
+                        fp_value: float) -> NitroModel:
     vector = (fp_value, fp_value, fp_value)
     model_info = NitroModelInfo(1, ScalingRule.MAYA, VertexStyle.DIRECT,
                                 fp_value, 1, TexMatrixMode.SOFTIMAGE_XSI,
@@ -159,14 +159,24 @@ def test_serialize_imd_vtx_pos_data_none(default_nitro_model: NitroModel):
     assert vtx_pos_data is None
 
 
-# def test_serialize_imd_invalid_vtx_pos_data(nitro_model_vertex_style_index):
-#     """
-#     Tests error raised if vtx_pos_data contains values lower than -8 and
-#     greater than 8.
-#     """
-#     nitro_model_vertex_style_index.vtx_pos_data = [-12, 8, 12]
-#     with pytest.raises(VtxPosDataError):
-#         serialize_imd(nitro_model_vertex_style_index)
+@pytest.mark.parametrize("value", [12, -12])
+def test_serialize_imd_invalid_vtx_pos_data(default_nitro_model: NitroModel,
+                                            value: float):
+    """
+    Tests error raised if vtx_pos_data contains values lower than -8 and
+    greater than 8.
+    """
+    default_nitro_model.model_info.vertex_style = VertexStyle.INDEX
+    vertices = [NitroVertex(0, (0, 0), (0, 0, 0), (0, 0, 0),
+                            (value, value, value))]
+    primitive = NitroPrimitive(PrimitiveType.TRIANGLES, vertices)
+    mtx_prim = NitroMtxPrim([0], [primitive])
+    polygon = NitroPolygon("pol0", (0, 0, 0), (0, 0, 0), 2, NitroBool.ON,
+                           NitroBool.ON, NitroBool.ON, [mtx_prim])
+    default_nitro_model.polygons = [polygon]
+
+    with pytest.raises(VtxPosDataError):
+        serialize_imd(default_nitro_model)
 
 
 # def test_serialize_imd_vtx_color_data(nitro_model_vertex_style_index):
