@@ -44,7 +44,7 @@ def fp_value(request: FixtureRequest) -> float:
 @pytest.fixture
 def default_nitro_vertices(fp_value: float) -> list[NitroVertex]:
     return [NitroVertex(0, (fp_value, fp_value),
-                        (fp_value, fp_value, fp_value), (31, 0, 31),
+                        (fp_value, fp_value, fp_value), (0, 0, 0),
                         (fp_value, fp_value, fp_value))] * 4
 
 
@@ -131,10 +131,20 @@ def test_serialize_imd_box_test(default_nitro_model: NitroModel,
     assert element.get("whd") == " ".join([fp_expected] * 3)
 
 
-@fixed_point_format()
-def test_serialize_imd_vtx_pos_data(default_nitro_model: NitroModel,
-                                    fp_expected: str):
+def test_serialize_imd_vtx_pos_data(default_nitro_model: NitroModel):
     default_nitro_model.model_info.vertex_style = VertexStyle.INDEX
+    vertices = [(1.0, 2.0, 1.0),
+                (1.0, 2.0, 1.0),
+                (2.0, 1.0, 2.0),
+                (3.0, 4.0, 5.0)]
+    primitive = NitroPrimitive(
+        PrimitiveType.TRIANGLES,
+        [NitroVertex(0, (0, 0), (0, 0, 0), (0, 0, 0), vertex)
+         for vertex in vertices])
+    mtx_prim = NitroMtxPrim([0], [primitive])
+    polygon = NitroPolygon("pol0", (0, 0, 0), (0, 0, 0), 2, NitroBool.OFF,
+                           NitroBool.OFF, NitroBool.OFF, [mtx_prim])
+    default_nitro_model.polygons = [polygon]
 
     imd = serialize_imd(default_nitro_model)
 
@@ -144,8 +154,9 @@ def test_serialize_imd_vtx_pos_data(default_nitro_model: NitroModel,
 
     vtx_pos_data = imd.find("./body/vtx_pos_data")
     assert vtx_pos_data is not None
-    assert vtx_pos_data.get("pos_size") == "1"
-    assert vtx_pos_data.text == fp_expected
+    assert vtx_pos_data.get("pos_size") == "7"
+    assert vtx_pos_data.text == "1.000000, 2.000000, 1.000000, 2.000000, " \
+                                "3.000000, 4.000000, 5.000000"
 
 
 def test_serialize_imd_vtx_pos_data_none(default_nitro_model: NitroModel):
@@ -160,7 +171,7 @@ def test_serialize_imd_vtx_pos_data_none(default_nitro_model: NitroModel):
 
 
 @pytest.mark.parametrize("value", [12, -12])
-def test_serialize_imd_invalid_vtx_pos_data(default_nitro_model: NitroModel,
+def test_serialize_imd_vtx_pos_data_invalid(default_nitro_model: NitroModel,
                                             value: float):
     """
     Tests error raised if vtx_pos_data contains values lower than -8 and
@@ -171,40 +182,80 @@ def test_serialize_imd_invalid_vtx_pos_data(default_nitro_model: NitroModel,
                             (value, value, value))]
     primitive = NitroPrimitive(PrimitiveType.TRIANGLES, vertices)
     mtx_prim = NitroMtxPrim([0], [primitive])
-    polygon = NitroPolygon("pol0", (0, 0, 0), (0, 0, 0), 2, NitroBool.ON,
-                           NitroBool.ON, NitroBool.ON, [mtx_prim])
+    polygon = NitroPolygon("pol0", (0, 0, 0), (0, 0, 0), 2, NitroBool.OFF,
+                           NitroBool.OFF, NitroBool.OFF, [mtx_prim])
     default_nitro_model.polygons = [polygon]
 
     with pytest.raises(VtxPosDataError):
         serialize_imd(default_nitro_model)
 
 
-# def test_serialize_imd_vtx_color_data(nitro_model_vertex_style_index):
-#     imd = serialize_imd(nitro_model_vertex_style_index)
+@fixed_point_format()
+def test_serialize_imd_vtx_pos_data_formatting(default_nitro_model: NitroModel,
+                                               fp_expected: str):
+    default_nitro_model.model_info.vertex_style = VertexStyle.INDEX
 
-#     model_info = imd.find("./body/model_info")
-#     assert model_info.get("vertex_style") == VERTEX_STYLE_INDEX
+    imd = serialize_imd(default_nitro_model)
 
-#     vtx_color_data = imd.find("./body/vtx_color_data")
-#     assert vtx_color_data.get("color_size") == "6"
-#     assert vtx_color_data.text == "1 2 -3 4 5 -6"
-
-
-# def test_serialize_imd_vtx_color_data_none(nitro_model):
-#     imd = serialize_imd(nitro_model)
-
-#     model_info = imd.find("./body/model_info")
-#     assert model_info.get("vertex_style") == VERTEX_STYLE_DIRECT
-
-#     vtx_pos_data = imd.find("./body/vtx_pos_data")
-#     assert vtx_pos_data is None
+    vtx_pos_data = imd.find("./body/vtx_pos_data")
+    assert vtx_pos_data is not None
+    assert vtx_pos_data.get("pos_size") == "3"
+    assert vtx_pos_data.text == " ".join([fp_expected] * 3)
 
 
-# def test_serialize_imd_invalid_vtx_color_data(nitro_model_vertex_style_index):
-#     """
-#     Tests error raised if vtx_color_data contains values lower than 0 and
-#     greater than 31.
-#     """
-#     nitro_model_vertex_style_index.vtx_color_data = [-12, 8, 32]
-#     with pytest.raises(VtxColorDataError):
-#         serialize_imd(nitro_model_vertex_style_index)
+def test_serialize_imd_vtx_color_data(default_nitro_model: NitroModel):
+    default_nitro_model.model_info.vertex_style = VertexStyle.INDEX
+    colors = [(1, 2, 1),
+              (1, 2, 1),
+              (2, 1, 2),
+              (3, 4, 5)]
+    primitive = NitroPrimitive(
+        PrimitiveType.TRIANGLES,
+        [NitroVertex(0, (0, 0), (0, 0, 0), color, (0, 0, 0))
+         for color in colors])
+    mtx_prim = NitroMtxPrim([0], [primitive])
+    polygon = NitroPolygon("pol0", (0, 0, 0), (0, 0, 0), 2, NitroBool.OFF,
+                           NitroBool.ON, NitroBool.OFF, [mtx_prim])
+    default_nitro_model.polygons = [polygon]
+
+    imd = serialize_imd(default_nitro_model)
+
+    model_info = imd.find("./body/model_info")
+    assert model_info is not None
+    assert model_info.get("vertex_style") == VertexStyle.INDEX
+
+    vtx_color_data = imd.find("./body/vtx_color_data")
+    assert vtx_color_data is not None
+    assert vtx_color_data.get("color_size") == "7"
+    assert vtx_color_data.text == "1 2 1 2 3 4 5"
+
+
+def test_serialize_imd_vtx_color_data_none(default_nitro_model: NitroModel):
+    imd = serialize_imd(default_nitro_model)
+
+    model_info = imd.find("./body/model_info")
+    assert model_info is not None
+    assert model_info.get("vertex_style") == VertexStyle.DIRECT
+
+    vtx_pos_data = imd.find("./body/vtx_pos_data")
+    assert vtx_pos_data is None
+
+
+@pytest.mark.parametrize("value", [32, -1])
+def test_serialize_imd_vtx_color_data_invalid(default_nitro_model: NitroModel,
+                                              value: int):
+    """
+    Tests error raised if vtx_color_data contains values lower than 0 and
+    greater than 31.
+    """
+    default_nitro_model.model_info.vertex_style = VertexStyle.INDEX
+    primitive = NitroPrimitive(
+        PrimitiveType.TRIANGLES,
+        [NitroVertex(0, (0, 0), (0, 0, 0), (value, value, value), (0, 0, 0))])
+    mtx_prim = NitroMtxPrim([0], [primitive])
+    polygon = NitroPolygon("pol0", (0, 0, 0), (0, 0, 0), 2, NitroBool.OFF,
+                           NitroBool.ON, NitroBool.OFF, [mtx_prim])
+    default_nitro_model.polygons = [polygon]
+
+    with pytest.raises(VtxColorDataError):
+        serialize_imd(default_nitro_model)

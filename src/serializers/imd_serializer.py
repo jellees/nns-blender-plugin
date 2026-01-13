@@ -2,7 +2,7 @@ from xml.etree.ElementTree import ElementTree, Element, SubElement
 from src.models.nitro_model import (NitroModel,
                                     NitroModelInfo,
                                     NitroModelBoxTest)
-from src.errors import VtxPosDataError
+# from src.errors import VtxPosDataError
 
 
 def _serialize_model_info(model_info: NitroModelInfo) -> Element:
