@@ -5,6 +5,7 @@ version = "0.0.1"
 
 dependencies = [
     "pytest",
+    "pytest-cov",
     "coverage",
     "bpy",
 ]
