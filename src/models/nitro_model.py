@@ -173,18 +173,18 @@ class NitroMaterial:
     specular: tuple[int, int, int]
     emission: tuple[int, int, int]
     shininess_table_flag: NitroBool
-    tex_image: str | None
-    tex_palette: str | None
-    tex_tiling: TexTiling
-    tex_scale: tuple[float, float]
-    tex_rotate: float
-    tex_translate: tuple[float, float]
-    tex_gen_mode: TexGenMode
-    tex_gen_st_src: TexGenStSrc
+    tex_image: str | None = None
+    tex_palette: str | None = None
+    tex_tiling: TexTiling | None = None
+    tex_scale: tuple[float, float] | None = None
+    tex_rotate: float | None = None
+    tex_translate: tuple[float, float] | None = None
+    tex_gen_mode: TexGenMode | None = None
+    tex_gen_st_src: TexGenStSrc | None = None
     tex_effect_mtx: tuple[float, float, float, float,
                           float, float, float, float,
                           float, float, float, float,
-                          float, float, float, float]
+                          float, float, float, float] | None = None
 
 
 @dataclass(frozen=True)
