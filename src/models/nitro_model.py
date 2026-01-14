@@ -181,10 +181,7 @@ class NitroMaterial:
     tex_translate: tuple[float, float] | None = None
     tex_gen_mode: TexGenMode | None = None
     tex_gen_st_src: TexGenStSrc | None = None
-    tex_effect_mtx: tuple[float, float, float, float,
-                          float, float, float, float,
-                          float, float, float, float,
-                          float, float, float, float] | None = None
+    tex_effect_mtx: list[list[float]] | None = None
 
 
 @dataclass(frozen=True)

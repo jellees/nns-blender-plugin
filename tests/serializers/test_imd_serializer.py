@@ -62,10 +62,6 @@ def default_nitro_model(default_nitro_vertices: list[NitroVertex],
                               Color0Mode.COLOR, "pal0", Path("test/img.png"),
                               bytes(8), None)
     tex_palette = NitroTexPalette("pal0", bytes(8))
-    tex_effect_mtx = (fp_value, fp_value, fp_value, fp_value,
-                      fp_value, fp_value, fp_value, fp_value,
-                      fp_value, fp_value, fp_value, fp_value,
-                      fp_value, fp_value, fp_value, fp_value)
     material = NitroMaterial("mat0", NitroBool.ON, NitroBool.OFF, NitroBool.ON,
                              NitroBool.OFF, FaceMode.FRONT, 22, NitroBool.OFF,
                              PolygonMode.MODULATE, 0, NitroBool.ON,
@@ -74,7 +70,7 @@ def default_nitro_model(default_nitro_vertices: list[NitroVertex],
                              (23, 31, 17), (23, 31, 17), NitroBool.OFF, "img0",
                              "pal0", TexTiling.REPEAT, (fp_value, fp_value),
                              fp_value, (fp_value, fp_value), TexGenMode.NRM,
-                             TexGenStSrc.MATERIAL, tex_effect_mtx)
+                             TexGenStSrc.MATERIAL, [[fp_value] * 4] * 4)
     weight = NitroWeight(100, "joint0")
     envelope = NitroEnvelope([weight])
     matrix = NitroMatrix([envelope])
@@ -447,10 +443,14 @@ def test_serialize_imd_material_no_tex(default_nitro_model: NitroModel):
     assert material.get("tex_effect_mtx") is None
 
 
-@pytest.mark.parametrize("value", [TexGenMode.NONE, TexGenMode.POS])
-def test_serialize_imd_material_no_tex_gen_st_src(
+@pytest.mark.parametrize("value", [TexGenMode.NONE, TexGenMode.TEX])
+def test_serialize_imd_material_no_tex_src_and_mtx(
         default_nitro_model: NitroModel,
         value: TexGenMode):
+    """
+    Tests that tex_gen_st_src and tex_effect_mtx should not be output when
+    tex_gen_mode is 'none' or 'tex'.
+    """
     material = NitroMaterial("mat0", NitroBool.ON, NitroBool.OFF, NitroBool.ON,
                              NitroBool.OFF, FaceMode.FRONT, 22, NitroBool.OFF,
                              PolygonMode.MODULATE, 0, NitroBool.ON,
@@ -458,7 +458,8 @@ def test_serialize_imd_material_no_tex_gen_st_src(
                              NitroBool.ON, (23, 31, 17), (23, 31, 17),
                              (23, 31, 17), (23, 31, 17), NitroBool.OFF, "img0",
                              "pal0", TexTiling.REPEAT, (1.0, 1.0), 1.0,
-                             (1.0, 1.0), value)
+                             (1.0, 1.0), value, TexGenStSrc.MATERIAL,
+                             [[1.0] * 4] * 4)
     default_nitro_model.materials = [material]
 
     imd = serialize_imd(default_nitro_model)
