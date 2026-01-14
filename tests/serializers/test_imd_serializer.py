@@ -427,6 +427,7 @@ def test_serialize_imd_material_no_tex(default_nitro_model: NitroModel):
                              NitroBool.ON, (23, 31, 17), (23, 31, 17),
                              (23, 31, 17), (23, 31, 17), NitroBool.OFF, None,
                              None)
+    default_nitro_model.materials = [material]
 
     imd = serialize_imd(default_nitro_model)
 
@@ -458,6 +459,7 @@ def test_serialize_imd_material_no_tex_gen_st_src(
                              (23, 31, 17), (23, 31, 17), NitroBool.OFF, "img0",
                              "pal0", TexTiling.REPEAT, (1.0, 1.0), 1.0,
                              (1.0, 1.0), value)
+    default_nitro_model.materials = [material]
 
     imd = serialize_imd(default_nitro_model)
 
