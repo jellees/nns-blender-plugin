@@ -83,12 +83,15 @@ def default_nitro_model(default_nitro_vertices: list[NitroVertex],
                           NitroBool.OFF, BillboardSetting.OFF, fp_vector,
                           fp_vector, fp_vector, fp_vector, fp_vector, fp_value,
                           [display])
-    joint_node = NitroNode("joint0", NodeKind.CHAIN, "root", None, None, None,
-                           NitroBool.ON, BillboardSetting.OFF, fp_vector,
-                           fp_vector, fp_vector)
+    joint0_node = NitroNode("joint0", NodeKind.CHAIN, "root", "joint1", None,
+                            None, NitroBool.ON, BillboardSetting.OFF,
+                            fp_vector, fp_vector, fp_vector)
+    joint1_node = NitroNode("joint1", NodeKind.CHAIN, "joint0", None, None,
+                            None, NitroBool.ON, BillboardSetting.OFF,
+                            fp_vector, fp_vector, fp_vector)
     model = NitroModel(model_info, box_test, [tex_image], [tex_palette],
                        [material], [matrix], [polygon],
-                       [root_node, joint_node])
+                       [root_node, joint0_node, joint1_node])
     return model
 
 
@@ -484,3 +487,32 @@ def test_serialize_imd_material_tex_gen_mode(
     else:
         assert "tex_gen_st_src" not in material.attrib
         assert "tex_effect_mtx" not in material.attrib
+
+
+def test_serialize_imd_envelope(default_nitro_model: NitroModel):
+    envelope = NitroEnvelope([NitroWeight(40, "joint0"),
+                              NitroWeight(60, "joint1")])
+    matrix = NitroMatrix([envelope])
+    default_nitro_model.matrices = [matrix]
+
+    imd = serialize_imd(default_nitro_model)
+
+    envelope = imd.find("./body/envelope")
+    assert envelope is not None
+
+    weight = envelope.find("weight")
+    assert weight is not None
+    assert weight.get("size") == "2"
+    assert weight.text == "40 60"
+
+    node_idx = imd.find("node_idx")
+    assert node_idx is not None
+    assert node_idx.get("size") == "2"
+    assert node_idx.text == "1 2"
+
+
+def test_serialize_imd_envelope_none(default_nitro_model: NitroModel):
+    imd = serialize_imd(default_nitro_model)
+
+    envelope = imd.find("./body/envelope")
+    assert envelope is None
