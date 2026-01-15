@@ -516,3 +516,36 @@ def test_serialize_imd_envelope_none(default_nitro_model: NitroModel):
 
     envelope = imd.find("./body/envelope")
     assert envelope is None
+
+
+def test_serialize_imd_matrix(default_nitro_model: NitroModel):
+    imd = serialize_imd(default_nitro_model)
+
+    matrix_array = imd.find("./body/matrix_array")
+    assert matrix_array is not None
+    assert matrix_array.get("size") == "1"
+
+    matrix = imd.find("matrix")
+    assert matrix is not None
+    assert matrix.get("index") == "0"
+    assert matrix.get("mtx_weight") == "1"
+    assert matrix.get("node_idx") == "1"
+
+
+def test_serialize_imd_matrix_with_envelopes(default_nitro_model: NitroModel):
+    envelope = NitroEnvelope([NitroWeight(40, "joint0"),
+                              NitroWeight(60, "joint1")])
+    matrix = NitroMatrix([envelope])
+    default_nitro_model.matrices = [matrix]
+
+    imd = serialize_imd(default_nitro_model)
+
+    matrix_array = imd.find("./body/matrix_array")
+    assert matrix_array is not None
+    assert matrix_array.get("size") == "1"
+
+    matrix = imd.find("matrix")
+    assert matrix is not None
+    assert matrix.get("index") == "0"
+    assert matrix.get("mtx_weight") == "2"
+    assert matrix.get("envelope_head") == "0"
