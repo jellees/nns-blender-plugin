@@ -479,8 +479,8 @@ def test_serialize_imd_material_tex_gen_mode(
     material = material_array.find("material")
     assert material is not None
     if expected:
-        assert material.get("tex_gen_st_src") is not None
-        assert material.get("tex_effect_mtx") is not None
+        assert "tex_gen_st_src" in material.attrib
+        assert "tex_effect_mtx" in material.attrib
     else:
-        assert material.get("tex_gen_st_src") is None
-        assert material.get("tex_effect_mtx") is None
+        assert "tex_gen_st_src" not in material.attrib
+        assert "tex_effect_mtx" not in material.attrib
