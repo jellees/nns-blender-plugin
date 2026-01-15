@@ -443,13 +443,22 @@ def test_serialize_imd_material_no_tex(default_nitro_model: NitroModel):
     assert material.get("tex_effect_mtx") is None
 
 
-@pytest.mark.parametrize("value", [TexGenMode.NONE, TexGenMode.TEX])
-def test_serialize_imd_material_no_tex_src_and_mtx(
+@pytest.mark.parametrize(
+        "value, expected",
+        [
+            (TexGenMode.NONE, False),
+            (TexGenMode.TEX, False),
+            (TexGenMode.POS, True),
+            (TexGenMode.NRM, True)
+        ])
+def test_serialize_imd_material_tex_gen_mode(
         default_nitro_model: NitroModel,
-        value: TexGenMode):
+        value: TexGenMode,
+        expected: bool):
     """
     Tests that tex_gen_st_src and tex_effect_mtx should not be output when
-    tex_gen_mode is 'none' or 'tex'.
+    tex_gen_mode is 'none' or 'tex' but it should be output when tex_gen_mode
+    is 'pos' or 'nrm'.
     """
     material = NitroMaterial("mat0", NitroBool.ON, NitroBool.OFF, NitroBool.ON,
                              NitroBool.OFF, FaceMode.FRONT, 22, NitroBool.OFF,
@@ -469,5 +478,9 @@ def test_serialize_imd_material_no_tex_src_and_mtx(
 
     material = material_array.find("material")
     assert material is not None
-    assert material.get("tex_gen_st_src") is None
-    assert material.get("tex_effect_mtx") is None
+    if expected:
+        assert material.get("tex_gen_st_src") is not None
+        assert material.get("tex_effect_mtx") is not None
+    else:
+        assert material.get("tex_gen_st_src") is None
+        assert material.get("tex_effect_mtx") is None
