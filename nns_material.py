@@ -1622,6 +1622,7 @@ class NTR_PT_material(bpy.types.Panel):
             layout.prop(mat, "nns_render_1_pixel")
             layout.prop(mat, "nns_far_clipping")
             layout.prop(mat, "nns_polygonid")
+            layout.prop(mat, "nns_priorityid")
             layout.prop(mat, "nns_display_face")
             layout.prop(mat, "nns_polygon_mode")
 
@@ -1829,6 +1830,8 @@ def material_register():
         name="Far clipping", default=False)
     bpy.types.Material.nns_polygonid = IntProperty(
         name="Polygon ID", default=0)
+    bpy.types.Material.nns_priorityid = IntProperty(
+        name="Priority ID", default=0)
     display_face_items = [
         ("front", "Front face", '', 1),
         ("back", "Back face", '', 2),
