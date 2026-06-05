@@ -387,8 +387,12 @@ class Primitive():
 
         use_colors = False
 
-        if len(obj.data.vertex_colors) > 0:
-            use_colors = True
+        if bpy.app.version >= (3, 2, 0):
+            if obj.data.color_attributes.active:
+                use_colors = True
+        else:
+            if len(obj.data.vertex_colors) > 0:
+                use_colors = True
 
         for idx in polygon.loop_indices:
             # Get vertex and convert it to VecFx32.
@@ -407,9 +411,16 @@ class Primitive():
 
             # Color
             if use_colors:
+                color = (0, 0, 0)
+
                 # Use special function to get color because the vertex colors
                 # may not align with the vertex loops.
-                color = get_color_from_obj(obj, idx)
+
+                if bpy.app.version >= (3, 2, 0):
+                    color = get_color_from_obj(obj, vertex_index)
+                else:
+                    color = get_color_from_obj(obj, idx)
+
                 r = int(round(color[0] * 31))
                 g = int(round(color[1] * 31))
                 b = int(round(color[2] * 31))
