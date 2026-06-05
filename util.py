@@ -8,10 +8,17 @@ def get_color_from_obj(obj, idx):
     to be aligned with the vertex loops. Possibly this happens when you import a
     wrong model.
     """
-    if len(obj.data.vertex_colors[0].data) <= idx:
-        return (0, 0, 0)
+
+    if bpy.app.version >= (3, 2, 0):
+        if (len(obj.data.color_attributes.active_color.data) <= idx):
+            return(0, 0, 0)
+        else:
+            return(obj.data.color_attributes.active_color.data[idx].color)
     else:
-        return obj.data.vertex_colors[0].data[idx].color
+        if len(obj.data.vertex_colors[0].data) <= idx:
+            return(0, 0, 0)
+        else:
+            return(obj.data.vertex_colors[0].data[idx].color)
 
 
 def is_pos_s(vecfx32):

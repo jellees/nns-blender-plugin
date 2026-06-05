@@ -294,8 +294,12 @@ class NitroModelMtxPrim():
             primitive.sort_key = 0
             primitive.quad_size += int((prim.vertex_count - 2) / 2)
 
-        if len(obj.data.vertex_colors) > 0 and "vc" in material.type:
-            self.parent_polygon.use_clr = True
+        if bpy.app.version >= (3, 2, 0):
+            if obj.data.color_attributes.active:
+                self.parent_polygon.use_clr = True
+        else:
+            if len(obj.data.vertex_colors) > 0 and "vc" in material.type:
+                self.parent_polygon.use_clr = True
 
         if material.image_idx != -1 and "tx" in material.type \
                 and material.tex_gen_mode != "nrm" \
