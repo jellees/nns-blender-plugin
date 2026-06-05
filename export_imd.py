@@ -215,7 +215,7 @@ def generate_nodes(imd, model: NitroModel):
             display_t.set('index', str(display.index))
             display_t.set('material', str(display.material))
             display_t.set('polygon', str(display.polygon))
-            display_t.set('priority', '0')
+            display_t.set('priority', str(model.materials[display.material].priority_id))
 
 
 def generate_output_info(imd, model):

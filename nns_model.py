@@ -111,6 +111,7 @@ class NitroModelMaterial():
         self.render_1_pixel = 'on' if material.nns_render_1_pixel else 'off'
         self.far_clipping = 'on' if material.nns_far_clipping else 'off'
         self.polygon_id = material.nns_polygonid
+        self.priority_id = material.nns_priorityid
         self.face = material.nns_display_face
         self.polygon_mode = material.nns_polygon_mode
         self.tex_gen_mode = material.nns_tex_gen_mode

@@ -6,12 +6,13 @@ from bpy.props import (BoolProperty,
 from bpy_extras.io_utils import ExportHelper
 from .nns_material import material_register, material_unregister
 from .nns_object import object_register, object_unregister
+from . import version
 
 
 bl_info = {
     "name": "Nitro Intermediate (.imd, .ita, .ica, .itp)",
     "author": "Jelle Streekstra, Gabriele Mercurio",
-    "version": (0, 1, 2),
+    "version": (0, 2, 2),
     "blender": (2, 80, 0),
     "location": "File > Export",
     "description": "Export intermediate files for Nitro system",
@@ -204,6 +205,7 @@ def menu_func_export(self, context):
 
 
 def register():
+    version.addon_version = bl_info["version"]
     bpy.utils.register_class(ExportNitro)
     bpy.utils.register_class(NTR_PT_export_imd)
     bpy.utils.register_class(NTR_PT_export_ita)
@@ -211,7 +213,6 @@ def register():
     bpy.utils.register_class(NTR_PT_export_itp)
     material_register()
     object_register()
-
     bpy.types.TOPBAR_MT_file_export.append(menu_func_export)
 
 
@@ -223,7 +224,6 @@ def unregister():
     bpy.utils.unregister_class(NTR_PT_export_itp)
     material_unregister()
     object_unregister()
-
     bpy.types.TOPBAR_MT_file_export.remove(menu_func_export)
 
 

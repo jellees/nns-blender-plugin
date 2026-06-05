@@ -120,9 +120,10 @@ class NitroBCA():
                 transforms = {}
                 for pose in obj.pose.bones:
                     transform = pose.matrix.copy()
-                    if pose.parent:
-                        inv = pose.parent.matrix.inverted()
-                        transform = inv @ transform
+                    transform = obj.convert_space(
+                        pose_bone=pose, matrix=transform,
+                        from_space='POSE',
+                        to_space='LOCAL_WITH_PARENT')
                     transforms[pose.bone.name] = transform
                 mtxs.append(transforms)
 

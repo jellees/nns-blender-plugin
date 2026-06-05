@@ -3,6 +3,7 @@ from xml.dom import minidom
 from . import local_logger as logger
 from .nns_model import NitroModel
 import os
+from .version import get_version_str
 
 
 def generate_header(imd, data_name):
@@ -14,7 +15,7 @@ def generate_header(imd, data_name):
 
     generator = ET.SubElement(head, 'generator')
     generator.set('name', 'Nitro plugin for Blender 2.8')
-    generator.set('version', '0.1.1')
+    generator.set('version', get_version_str())
 
 
 def generate_imd(settings, model):
