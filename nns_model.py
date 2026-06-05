@@ -111,6 +111,7 @@ class NitroModelMaterial():
         self.render_1_pixel = 'on' if material.nns_render_1_pixel else 'off'
         self.far_clipping = 'on' if material.nns_far_clipping else 'off'
         self.polygon_id = material.nns_polygonid
+        self.priority_id = material.nns_priorityid
         self.face = material.nns_display_face
         self.polygon_mode = material.nns_polygon_mode
         self.tex_gen_mode = material.nns_tex_gen_mode
@@ -158,6 +159,12 @@ class NitroModelMaterial():
                     texture = model.find_texture(path)
                     self.image_idx = texture.index
                     self.palette_idx = texture.palette_idx
+
+                for i in material.nns_texframe_reference:
+
+                    fPath=os.path.realpath(bpy.path.abspath(i.image.filepath))
+                    model.find_texture(fPath)
+
         else:
             # For now let's use PrincipledBSDF to get the color and image.
             wrap = node_shader_utils.PrincipledBSDFWrapper(material)
@@ -287,13 +294,9 @@ class NitroModelMtxPrim():
             primitive = self.get_primitive('quad_strip')
             primitive.sort_key = 0
             primitive.quad_size += int((prim.vertex_count - 2) / 2)
-        
-        if bpy.app.version >= (3, 2, 0):
-            if obj.data.color_attributes.active:
-                self.parent_polygon.use_clr = True
-        else:
-            if len(obj.data.vertex_colors) > 0 and "vc" in material.type:
-                self.parent_polygon.use_clr = True
+
+        if len(obj.data.vertex_colors) > 0 and "vc" in material.type:
+            self.parent_polygon.use_clr = True
 
         if material.image_idx != -1 and "tx" in material.type \
                 and material.tex_gen_mode != "nrm" \
