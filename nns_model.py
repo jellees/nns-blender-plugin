@@ -44,7 +44,12 @@ class NitroModelTexture():
         self.name = str(os.path.splitext(os.path.basename(path))[0])[0:15]
 
         # Load Nitro TGA Data from path
-        tga = nns_tga.read_nitro_tga(path)
+        tga = None
+        try:
+            tga = nns_tga.read_nitro_tga(path)
+        except UnicodeDecodeError as error:
+            error.reason = f"{path} is not a valid Nitro TGA"
+            raise error
 
         # Set TexImage properties
         self.format = tga['nitro_data']['tex_format']
@@ -155,10 +160,13 @@ class NitroModelMaterial():
                 filepath = material.nns_image.filepath
                 path = os.path.realpath(bpy.path.abspath(filepath))
                 _, extension = os.path.splitext(path)
-                if extension == '.tga':
+                if extension.lower() == '.tga':
                     texture = model.find_texture(path)
                     self.image_idx = texture.index
                     self.palette_idx = texture.palette_idx
+                else: 
+                    # Prevents confusion due to non-tga textures not generating any texture data
+                    raise Exception(f"{path} is not a Nitro TGA file")
 
                 for i in material.nns_texframe_reference:
 
@@ -184,10 +192,13 @@ class NitroModelMaterial():
                 path = os.path.realpath(bpy.path.abspath(
                     tex_wrap.image.filepath, library=tex_wrap.image.library))
                 _, extension = os.path.splitext(path)
-                if extension == '.tga':
+                if extension.lower() == '.tga':
                     texture = model.find_texture(path)
                     self.image_idx = texture.index
                     self.palette_idx = texture.palette_idx
+                else: 
+                    # Prevents confusion due to non-tga textures not generating any texture data
+                    raise Exception(f"{path} is not a Nitro TGA file")
 
 
 class NitroModelMatrix():
