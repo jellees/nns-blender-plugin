@@ -157,9 +157,9 @@ class NitroModelMaterial():
                  for x in material.nns_emission])
             if material.nns_image is not None \
                     and "tx" in material.nns_mat_type:
-                filepath = material.nns_image.filepath
-                path = os.path.realpath(bpy.path.abspath(filepath))
-                _, extension = os.path.splitext(path)
+
+                path,extension = get_filepath_and_extension(material.nns_image)
+
                 if extension.lower() == '.tga':
                     texture = model.find_texture(path)
                     self.image_idx = texture.index
@@ -168,10 +168,15 @@ class NitroModelMaterial():
                     # Prevents confusion due to non-tga textures not generating any texture data
                     raise Exception(f"{path} is not a Nitro TGA file")
 
-                for i in material.nns_texframe_reference:
+                for texframe in material.nns_texframe_reference:
 
-                    fPath=os.path.realpath(bpy.path.abspath(i.image.filepath))
-                    model.find_texture(fPath)
+                    path_tx, extension_tx = get_filepath_and_extension(texframe.image)
+
+                    if extension_tx.lower() == '.tga':
+                        model.find_texture(path_tx)
+                    else: 
+                        # Prevents confusion due to non-tga textures not generating any texture data
+                        raise Exception(f"{path_tx} is not a Nitro TGA file")
 
         else:
             # For now let's use PrincipledBSDF to get the color and image.
@@ -189,9 +194,11 @@ class NitroModelMaterial():
 
             tex_wrap = getattr(wrap, 'base_color_texture', None)
             if tex_wrap is not None and tex_wrap.image is not None:
+                
                 path = os.path.realpath(bpy.path.abspath(
                     tex_wrap.image.filepath, library=tex_wrap.image.library))
                 _, extension = os.path.splitext(path)
+
                 if extension.lower() == '.tga':
                     texture = model.find_texture(path)
                     self.image_idx = texture.index
@@ -307,7 +314,7 @@ class NitroModelMtxPrim():
             primitive.quad_size += int((prim.vertex_count - 2) / 2)
 
         if bpy.app.version >= (3, 2, 0):
-            if obj.data.color_attributes.active:
+            if obj.data.color_attributes.active and "vc" in material.type:
                 self.parent_polygon.use_clr = True
         else:
             if len(obj.data.vertex_colors) > 0 and "vc" in material.type:

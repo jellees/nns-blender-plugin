@@ -2,6 +2,12 @@ import bpy
 from mathutils import Vector
 
 
+def get_filepath_and_extension(image):
+    filepath = image.filepath
+    path = os.path.realpath(bpy.path.abspath(filepath))
+    _, extension = os.path.splitext(path)
+    return path, extension
+
 def get_color_from_obj(obj, idx):
     """
     This function exists because we cannot trust blender to have the vertex colors
