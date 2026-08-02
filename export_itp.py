@@ -3,6 +3,10 @@ import xml.etree.ElementTree as ET
 from .nns_model import NitroModel
 import os
 
+# This is only imported to fix access to fcurves in the process_action function.
+if bpy.app.version >= (5, 0, 0):
+    from bpy_extras import anim_utils
+
 settings = None
 
 
@@ -57,6 +61,7 @@ class NitroTXPData:
                 and self.palette_ids[i:i+len(palettes)] == palettes
                     and self.image_ids[i:i+len(images)] == images):
                 return i
+
         retval = len(self.palette_ids)
         self.frame_ids += frames
         self.image_ids += images
@@ -75,43 +80,51 @@ class NitroTXP:
         materials = model.materials
 
         for material in materials:
-            bldMaterial = bpy.data.materials[material.blender_index]
-            if bldMaterial.nns_texframe_reference:
+            bld_material = bpy.data.materials[material.blender_index]
+            if bld_material.nns_texframe_reference:
 
-                action = bldMaterial.animation_data.action
+                action = bld_material.animation_data.action
                 self.info.set_frame_size(int(action.frame_range[1]))
 
-                self.set_images(bldMaterial, model)
+                self.set_images(bld_material, model)
 
-                self.set_data(action, bldMaterial, model)
+                self.set_data(action, bld_material, model)
 
     def set_data(self, action, material, model):
         material_imgPattern = []
         material_pltPattern = []
         material_frmPattern = []
 
-        for curve in action.fcurves:
-            if curve.data_path.count("nns_texframe_reference_index"):
-                prev = float("inf")
-                for frame in range(int(action.frame_range[1]+1)):
+        def acquire_from_fcurves(fcurves):
+            for curve in fcurves:
+                if curve.data_path.count("nns_texframe_reference_index"):
+                    prev = float("inf")
+                    for frame in range(int(action.frame_range[1]+1)):
 
-                    evaluation = curve.evaluate(frame)
-                    if evaluation != prev:
+                        evaluation = curve.evaluate(frame)
+                        if evaluation != prev:
+                            prev = evaluation
 
-                        prev = evaluation
-                        idTex = int(evaluation)
-                        tex = material.nns_texframe_reference[idTex]
-                        path = os.path.realpath(
-                            bpy.path.abspath(tex.image.filepath))
-                        texName = model.find_texture(path)
+                            id_tex = int(evaluation)
+                            tex = material.nns_texframe_reference[id_tex]
+                            path = os.path.realpath(
+                                bpy.path.abspath(tex.image.filepath))
+                            tex_name = model.find_texture(path)
 
-                        idTex = self.imgPlt.find_image(texName.name)
-                        material_imgPattern.append(idTex)
+                            id_tex = self.imgPlt.find_image(tex_name.name)
+                            material_imgPattern.append(id_tex)
 
-                        idPlt = self.imgPlt.find_palette(texName.palette_name)
-                        material_pltPattern.append(idPlt)
+                            idPlt = self.imgPlt.find_palette(tex_name.palette_name)
+                            material_pltPattern.append(idPlt)
 
-                        material_frmPattern.append(int(frame))
+                            material_frmPattern.append(int(frame))
+
+        if bpy.app.version >= (5,0,0):
+            for slot in action.slots:
+                channelbag = anim_utils.action_get_channelbag_for_slot(action, slot)
+                acquire_from_fcurves(channelbag.fcurves)
+        else:
+            acquire_from_fcurves(action.fcurves)
 
         head = self.data.find_plt_img_frm(
             material_pltPattern, material_imgPattern, material_frmPattern)
@@ -120,6 +133,7 @@ class NitroTXP:
     def set_images(self, material, model):
 
         for ref in material.nns_texframe_reference:
+
             path = os.path.realpath(bpy.path.abspath(ref.image.filepath))
             texName = model.find_texture(path)
             self.imgPlt.find_image(texName.name)

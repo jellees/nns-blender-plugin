@@ -12,8 +12,8 @@ from . import version
 bl_info = {
     "name": "Nitro Intermediate (.imd, .ita, .ica, .itp)",
     "author": "Jelle Streekstra, Gabriele Mercurio",
-    "version": (0, 2, 2),
-    "blender": (2, 80, 0),
+    "version": (0 ,3 ,0),
+    "blender": (5, 2, 0),
     "location": "File > Export",
     "description": "Export intermediate files for Nitro system",
     "category": "Export"

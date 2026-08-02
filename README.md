@@ -10,7 +10,7 @@ Download the latest zip from releases and extract it in the addons folder. Alter
 
 After installing the plugin, you can export your model to imd by going to the export tab and clicking on "Nitro IMD". You can add a material to your object by clicking on the "Create NNS Material" button in the material tab. Be aware that vertex colored models need a vertex color layer called "Col" to be present. Alternatlivey you can also use a PrincipledBSDF node with limited options.
 
-Be sure to use nitro tga files for textures. All other formats will be ignored. You can generate nitro tga's by using Optpix or NitroPaint https://github.com/Garhoogin/NitroPaint/releases
+Be sure to use nitro tga files for textures. All other formats will throw an error. You can generate nitro tga's by using Optpix or NitroPaint https://github.com/Garhoogin/NitroPaint/releases
 
 ## Material preview
 

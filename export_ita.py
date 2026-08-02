@@ -143,7 +143,7 @@ class NitroSRT():
                 channelbag = anim_utils.action_get_channelbag_for_slot(action, slot)
                 acquire_from_fcurves(channelbag.fcurves)
         else:
-            acquire_from_fcurve(action.fcurves)
+            acquire_from_fcurves(action.fcurves)
         # -------------------
 
     def find_animation(self, material_name):
