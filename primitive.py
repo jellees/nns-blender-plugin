@@ -388,7 +388,7 @@ class Primitive():
         use_colors = False
 
         if bpy.app.version >= (3, 2, 0):
-            if obj.data.color_attributes.active:
+            if obj.data.color_attributes.active_color is not None:
                 use_colors = True
         else:
             if len(obj.data.vertex_colors) > 0:

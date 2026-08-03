@@ -314,7 +314,7 @@ class NitroModelMtxPrim():
             primitive.quad_size += int((prim.vertex_count - 2) / 2)
 
         if bpy.app.version >= (3, 2, 0):
-            if obj.data.color_attributes.active and "vc" in material.type:
+            if obj.data.color_attributes.active_color is not None and "vc" in material.type:
                 self.parent_polygon.use_clr = True
         else:
             if len(obj.data.vertex_colors) > 0 and "vc" in material.type:
