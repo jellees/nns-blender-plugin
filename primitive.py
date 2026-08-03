@@ -416,7 +416,7 @@ class Primitive():
                 # Use special function to get color because the vertex colors
                 # may not align with the vertex loops.
 
-                if bpy.app.version >= (3, 2, 0):
+                if bpy.app.version >= (3, 2, 0) and obj.data.color_attributes.active_color.domain == "POINT":
                     color = get_color_from_obj(obj, vertex_index)
                 else:
                     color = get_color_from_obj(obj, idx)
