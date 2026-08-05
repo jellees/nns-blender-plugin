@@ -28,6 +28,9 @@ def read_nitro_tga_data(f, offset):
     optpix_data = None
     palette_name = ''
     palette = None
+    # These two chunks are optional/order-dependent in practice, without defaults here, a Nitro TGA that happens not to include them before the 'nns_endb' terminator chunk would raise UnboundLocalError instead of just reporting an empty generator name/version.
+    generator_name = ''
+    generator_ver = ''
 
     # Get the end of the file
     f.seek(0, 2)
@@ -87,22 +90,22 @@ def read_nitro_tga(path):
     }
 
 
-# These functions below purpose is inside the imd directly
-# and they might need to be moved somewhere else
+# These functions below purpose is inside the imd directly and they might need to be moved somewhere else
 def format_hex_data(array, element_size):
     str_format = '0' + str(element_size * 2) + 'x'
 
-    out_str = ''
+    # Building this with `out_str += ...` in a loop meant re-creating (or at least re-scanning) the growing string on every iteration, for a large texture (tens of thousands of texels) that adds up. Collecting the pieces in a list and joining once at the end avoids the repeated concatenation cost entirely.
+    parts = []
 
     i = 0
     while i < len(array):
-        temp = [array[j] for j in range(i, i + element_size)]
-        element = int.from_bytes(temp, byteorder='little')
-
-        out_str += format(element, str_format) + ' '
+        element = int.from_bytes(
+            array[i:i + element_size], byteorder='little'
+        )
+        parts.append(format(element, str_format))
         i += element_size
 
-    return out_str
+    return ' '.join(parts) + (' ' if parts else '')
 
 
 def get_bitmap_data(tga):

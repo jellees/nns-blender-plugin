@@ -81,14 +81,34 @@ class NitroTXP:
 
         for material in materials:
             bld_material = bpy.data.materials[material.blender_index]
-            if bld_material.nns_texframe_reference:
+            if not bld_material.nns_texframe_reference:
+                continue
 
+            self.set_images(bld_material, model)
+
+            has_action = (
+                bld_material.animation_data is not None
+                and bld_material.animation_data.action is not None
+            )
+
+            if has_action:
                 action = bld_material.animation_data.action
                 self.info.set_frame_size(int(action.frame_range[1]))
-
-                self.set_images(bld_material, model)
-
                 self.set_data(action, bld_material, model)
+            else:
+                # There are texture pattern entries but no animation driving nns_texframe_reference_index. Previously this crashed with an AttributeError (None has no attribute 'action') instead of exporting anything. Treat it as a single static frame using the first entry. Matches what NitroModelMaterial does for the base texture fallback (see nns_model.py) when there's no main-tab texture either.
+                self.set_static_data(bld_material, model)
+
+    def set_static_data(self, material, model):
+        ref = material.nns_texframe_reference[0]
+        path = os.path.realpath(bpy.path.abspath(ref.image.filepath))
+        tex = model.find_texture(path)
+
+        id_tex = self.imgPlt.find_image(tex.name)
+        id_plt = self.imgPlt.find_palette(tex.palette_name)
+
+        head = self.data.find_plt_img_frm([id_plt], [id_tex], [0])
+        self.pattern_anm[material.name] = [1, head]
 
     def set_data(self, action, material, model):
         material_imgPattern = []
@@ -186,8 +206,8 @@ def generate_txp_anm_array(itp, anm):
     tex_pattern_anm_array = ET.SubElement(itp, "tex_pattern_anm_array")
     tex_pattern_anm_array.set("size", str(len(anm)))
 
-    for keyID in range(len(anm.keys())):
-        name = list(anm.keys())[keyID]
+    # Previously this rebuilt list(anm.keys()) on every loop iteration just to index into it once, O(n^2) for no reason. A single enumerate() over the dict gives the same (index, name) pairs in the same order.
+    for keyID, name in enumerate(anm.keys()):
         tex_pattern_anm = ET.SubElement(
             tex_pattern_anm_array, "tex_pattern_anm")
         tex_pattern_anm.set("index", str(keyID))
