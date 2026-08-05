@@ -8,6 +8,7 @@ from bpy.props import (BoolProperty,
                        CollectionProperty)
 from bpy.types import Image
 from bpy.app.handlers import persistent
+from .util import safe_register_class
 
 
 def generate_output_node(material, input):
@@ -311,7 +312,7 @@ def create_light_nodes(mat, index, location):
     return light_node
 
 
-def generate_normal_lightning_color_nodes(material):
+def generate_normal_lightning_color_nodes(material, diffuse_from_vertex_color=False):
     global node_offset_y
     global node_offset_x
     global loca
@@ -323,11 +324,7 @@ def generate_normal_lightning_color_nodes(material):
     nodes = mat.node_tree.nodes
     links = mat.node_tree.links
 
-    matcols = {"df": (material.nns_diffuse[0],
-                      material.nns_diffuse[1],
-                      material.nns_diffuse[2],
-                      1.0),
-               "amb": (material.nns_ambient[0],
+    matcols = {"amb": (material.nns_ambient[0],
                        material.nns_ambient[1],
                        material.nns_ambient[2],
                        1.0),
@@ -339,6 +336,11 @@ def generate_normal_lightning_color_nodes(material):
                       material.nns_emission[1],
                       material.nns_emission[2],
                       1.0)}
+    if not diffuse_from_vertex_color:
+        matcols["df"] = (material.nns_diffuse[0],
+                          material.nns_diffuse[1],
+                          material.nns_diffuse[2],
+                          1.0)
 
     light0 = {"LightVector": (0, 0, -1), "LightCol": (1, 1, 1, 1), "LightSpecular": 0.5,
               "isLightEnabled": mat.nns_light0, "LightIndex": 0}
@@ -384,6 +386,13 @@ def generate_normal_lightning_color_nodes(material):
     for name in matcols.keys():
         col = create_node(mat, name, "ShaderNodeRGB", loca, offset_mode="y")
         col.outputs[0].default_value = matcols[name]
+
+    # The "df" node feeds into the lighting math below purely by name (create_light_nodes looks it up via nodes.get("df")), so swapping what kind of node it is, a flat material color vs. a per-vertex color attribute, is enough to make the same lighting equation work with either diffuse source, no other changes needed.
+    if diffuse_from_vertex_color:
+        node_df = create_node(mat, "df", "ShaderNodeAttribute", loca, offset_mode="y")
+        node_df.attribute_name = "Col"
+    else:
+        node_df = nodes.get("df")
 
     # add all the results of the light0, 1, 2 and 3 calculations
 
@@ -440,7 +449,10 @@ def generate_normal_lightning_color_nodes(material):
             use_only_diffuse = False
 
     light_total_result.inputs[0].default_value = use_only_diffuse
-    light_total_result.inputs[2].default_value = matcols["df"]
+    if diffuse_from_vertex_color:
+        links.new(node_df.outputs[0], light_total_result.inputs[2])
+    else:
+        light_total_result.inputs[2].default_value = matcols["df"]
 
     return light_total_result
 
@@ -468,14 +480,15 @@ def generate_decal_vc_nodes(material):
     links.new(node_mix_2.outputs[0], node_mix_shader.inputs[2])
     links.new(node_trans_bsdf.outputs[0], node_mix_shader.inputs[1])
 
-    if "vc" in material.nns_mat_type:
+    if "nr" in material.nns_mat_type:
+        node_vertex_lighting = generate_normal_lightning_color_nodes(
+            material, diffuse_from_vertex_color=("vc" in material.nns_mat_type))
+        links.new(node_vertex_lighting.outputs[0], node_mix_2.inputs[1])
+
+    elif "vc" in material.nns_mat_type:
         node_attr = nodes.new(type='ShaderNodeAttribute')
         node_attr.attribute_name = 'Col'
         links.new(node_attr.outputs[0], node_mix_2.inputs[1])
-
-    elif "nr" in material.nns_mat_type:
-        node_vertex_lighting = generate_normal_lightning_color_nodes(material)
-        links.new(node_vertex_lighting.outputs[0], node_mix_2.inputs[1])
 
     else:
         node_diffuse = nodes.new(type='ShaderNodeMixRGB')
@@ -520,10 +533,10 @@ def generate_image_nodes(material):
     node_image = nodes.new(type='ShaderNodeTexImage')
     node_image.name = 'nns_node_image'
     node_image.interpolation = 'Closest'
-    if material.nns_image != '':
+    image = get_material_texture_image(material)
+    if image is not None:
         try:
-            #print(material.nns_image)
-            node_image.image = material.nns_image
+            node_image.image = image
         except Exception:
             raise NameError("Cannot load image")
 
@@ -626,14 +639,15 @@ def generate_mod_vc_nodes(material):
         1.0
     )
 
-    if "vc" in material.nns_mat_type:
+    if "nr" in material.nns_mat_type:
+        node_vertex_lighting = generate_normal_lightning_color_nodes(
+            material, diffuse_from_vertex_color=("vc" in material.nns_mat_type))
+        links.new(node_vertex_lighting.outputs[0], node_multiply.inputs[2])
+
+    elif "vc" in material.nns_mat_type:
         node_attr = nodes.new(type='ShaderNodeAttribute')
         node_attr.attribute_name = 'Col'
         links.new(node_attr.outputs[0], node_multiply.inputs[2])
-
-    elif "nr" in material.nns_mat_type:
-        node_vertex_lighting = generate_normal_lightning_color_nodes(material)
-        links.new(node_vertex_lighting.outputs[0], node_multiply.inputs[2])
 
     node_bsdf = nodes.new(type='ShaderNodeBsdfTransparent')
     node_mix_shader = nodes.new(type='ShaderNodeMixShader')
@@ -743,6 +757,43 @@ def generate_only_normal_lighting(material):
     )
     node_bsdf = nodes.new(type='ShaderNodeBsdfTransparent')
     node_vc_light = generate_normal_lightning_color_nodes(material)
+    node_mix_shader = nodes.new(type='ShaderNodeMixShader')
+
+    if material.nns_display_face == "both":
+        links.new(node_mix_rgb.outputs[0], node_mix_shader.inputs[0])
+    else:
+        node_face = generate_culling_nodes(material)
+        links.new(node_mix_rgb.outputs[0], node_face.inputs[2])
+        links.new(node_face.outputs[0], node_mix_shader.inputs[0])
+
+    links.new(node_bsdf.outputs[0], node_mix_shader.inputs[1])
+    links.new(node_vc_light.outputs[0], node_mix_shader.inputs[2])
+    generate_output_node(material, node_mix_shader)
+
+
+def generate_only_vc_normal_lighting_nodes(material):
+    """vc_nr: vertex colors combined with real-time lighting, no
+    texture. Same structure as generate_only_normal_lighting() (solid
+    color + lighting), just sourcing the diffuse term from the mesh's
+    vertex colors instead of the material's fixed diffuse color.
+    """
+    nodes = material.node_tree.nodes
+    links = material.node_tree.links
+
+    node_mix_rgb = nodes.new(type='ShaderNodeMixRGB')
+    node_mix_rgb.blend_type = 'MULTIPLY'
+    node_mix_rgb.name = 'nns_node_alpha'
+    node_mix_rgb.inputs[0].default_value = 1.0
+    node_mix_rgb.inputs[1].default_value = (1.0, 1.0, 1.0, 1.0)
+    node_mix_rgb.inputs[2].default_value = (
+        material.nns_alpha / 31,
+        material.nns_alpha / 31,
+        material.nns_alpha / 31,
+        1.0
+    )
+    node_bsdf = nodes.new(type='ShaderNodeBsdfTransparent')
+    node_vc_light = generate_normal_lightning_color_nodes(
+        material, diffuse_from_vertex_color=True)
     node_mix_shader = nodes.new(type='ShaderNodeMixShader')
 
     if material.nns_display_face == "both":
@@ -968,6 +1019,114 @@ def generate_fog_material_nodes(material):
     links.new(nns_fog.outputs[0], mix_shader.inputs[2])
 
 
+def get_material_texture_image(material):
+    """Returns the Image this NNS material should use, or None.
+
+    A material's texture comes entirely from the texture pattern list
+    (nns_texframe_reference) now: no entries means no texture (the DS
+    uses the solid/vertex color instead), the first entry is always the
+    base texture shown even with no animation, and more entries enable
+    .itp texture-pattern animation.
+
+    nns_image is only still read here as a fallback, for materials
+    saved with an older version of this plugin before the two texture
+    systems were unified. migrate_legacy_textures() moves it into the
+    pattern list on file load, so this fallback should rarely actually
+    trigger, but it's kept as a safety net in case a material is
+    accessed before that migration runs.
+    """
+    if material.nns_texframe_reference:
+        return material.nns_texframe_reference[0].image
+    if material.nns_image:
+        return material.nns_image
+    return None
+
+
+def compute_mat_type(material):
+    """Derives the internal nns_mat_type value from the three
+    independent choices the material panel actually exposes: color type
+    (solid/vertex), whether any light is on, and whether a texture is
+    assigned. nns_mat_type used to be one big dropdown users picked
+    directly, covering only the combinations someone had built a node
+    graph for; it's computed now so every combination the hardware
+    actually supports is reachable, and the rest of the exporter (which
+    only ever checks "tx"/"vc"/"nr" as substrings of this value, never
+    the whole string) doesn't need to change to understand the new
+    combinations.
+
+    This has to match the exact strings already registered in
+    mat_type_items below, not just contain the right substrings.
+    Blender's EnumProperty rejects a value that isn't one of the
+    registered items. The original naming wasn't fully consistent
+    (textured+normal+solid is "tx_nr_df", with "nr" moved in front of the
+    base name, while every other normals combination keeps "_nr" at the
+    end), so this is an explicit table rather than generic string
+    building, to avoid constructing an unregistered value.
+    """
+    has_texture = get_material_texture_image(material) is not None
+    any_light = (material.nns_light0 or material.nns_light1
+                 or material.nns_light2 or material.nns_light3)
+    is_vertex = material.nns_color_type == 'vertex'
+
+    # (has_texture, is_vertex, any_light) -> registered mat_type string
+    table = {
+        (False, False, False): 'df',
+        (False, False, True): 'df_nr',
+        (False, True, False): 'vc',
+        (False, True, True): 'vc_nr',
+        (True, False, False): 'tx_df',
+        (True, False, True): 'tx_nr_df',
+        (True, True, False): 'tx_vc',
+        (True, True, True): 'tx_vc_nr',
+    }
+    return table[(has_texture, is_vertex, any_light)]
+
+
+def refresh_mat_type(material):
+    """Recomputes nns_mat_type from the material's current settings and
+    rebuilds the preview node graph if it actually changed (e.g. going
+    from no lights to lights crosses into a completely different node graph,
+    not just a value tweak on the existing one).
+    """
+    if material is None or not material.is_nns:
+        return
+    new_type = compute_mat_type(material)
+    if new_type != material.nns_mat_type:
+        material.nns_mat_type = new_type
+        generate_nodes(material)
+
+
+def update_computed_mat_type(self, context):
+    refresh_mat_type(context.material)
+
+
+def update_light_toggle(self, context):
+    """Shared update= callback for all four light booleans. Toggling a
+    light can change what nns_mat_type should be, which needs a full node graph rebuild
+    but if it doesn't change (e.g. a second light toggling while at least one
+    other was already on), the lighting node graph already exists and
+    only the per-light enabled values need refreshing, same as before.
+    """
+    material = context.material
+    if material is None or not material.is_nns:
+        return
+
+    old_type = material.nns_mat_type
+    new_type = compute_mat_type(material)
+
+    if new_type != old_type:
+        material.nns_mat_type = new_type
+        generate_nodes(material)
+    else:
+        update_nodes_use_only_diffuse(material)
+        if "nr" in material.nns_mat_type:
+            for i in range(4):
+                node = material.node_tree.nodes.get(f"Light{i} Enabled")
+                if node is not None:
+                    node.outputs[0].default_value = getattr(
+                        material, f"nns_light{i}")
+
+
 def generate_nodes(material):
     if material.is_nns:
         nodes = material.node_tree.nodes
@@ -984,6 +1143,8 @@ def generate_nodes(material):
             generate_only_vc_nodes(material)
         elif material.nns_mat_type == "df_nr":
             generate_only_normal_lighting(material)
+        elif material.nns_mat_type == "vc_nr":
+            generate_only_vc_normal_lighting_nodes(material)
         elif material.nns_polygon_mode == "modulate" \
                 or material.nns_polygon_mode == "toon_highlight" \
                 or material.nns_polygon_mode == "shadow":
@@ -1120,8 +1281,7 @@ def update_nodes_image(self, context):
                 raise NameError("Cannot load image")
 
 
-def update_nodes_alpha(self, context):
-    material = context.material
+def _apply_alpha_to_nodes(material):
     if material.is_nns:
         if material.nns_polygon_mode == "modulate":
             try:
@@ -1145,8 +1305,11 @@ def update_nodes_alpha(self, context):
                 raise NameError("Something alpha I think")
 
 
-def update_nodes_diffuse(self, context):
-    material = context.material
+def update_nodes_alpha(self, context):
+    _apply_alpha_to_nodes(context.material)
+
+
+def _apply_diffuse_to_nodes(material):
     if material.is_nns:
         if material.nns_mat_type == "df" or material.nns_mat_type == "tx_df":
             node_diffuse = material.node_tree.nodes.get('nns_node_diffuse')
@@ -1173,8 +1336,11 @@ def update_nodes_diffuse(self, context):
             )
 
 
-def update_nodes_emission(self, context):
-    material = context.material
+def update_nodes_diffuse(self, context):
+    _apply_diffuse_to_nodes(context.material)
+
+
+def _apply_emission_to_nodes(material):
     if material.is_nns:
         if "nr" in material.nns_mat_type:
             node_emission = material.node_tree.nodes.get("em")
@@ -1186,8 +1352,11 @@ def update_nodes_emission(self, context):
             )
 
 
-def update_nodes_ambient(self, context):
-    material = context.material
+def update_nodes_emission(self, context):
+    _apply_emission_to_nodes(context.material)
+
+
+def _apply_ambient_to_nodes(material):
     if material.is_nns:
         if "nr" in material.nns_mat_type:
             node_emission = material.node_tree.nodes.get("amb")
@@ -1199,8 +1368,11 @@ def update_nodes_ambient(self, context):
             )
 
 
-def update_nodes_specular(self, context):
-    material = context.material
+def update_nodes_ambient(self, context):
+    _apply_ambient_to_nodes(context.material)
+
+
+def _apply_specular_to_nodes(material):
     if material.is_nns:
         if "nr" in material.nns_mat_type:
             node_specular = material.node_tree.nodes.get("spec")
@@ -1210,6 +1382,10 @@ def update_nodes_specular(self, context):
                 material.nns_specular[2],
                 1.0
             )
+
+
+def update_nodes_specular(self, context):
+    _apply_specular_to_nodes(context.material)
 
 
 def update_nodes_use_only_diffuse(material):
@@ -1303,9 +1479,44 @@ def update_nodes_srt_hook(self, context):
 
 @persistent
 def frame_change_handler(scene):
-    if bpy.context.active_object.active_material:
-        material = bpy.context.active_object.active_material
+    active_object = bpy.context.active_object
+    if active_object and active_object.active_material:
+        material = active_object.active_material
         update_nodes_srt(material)
+        # These five used to only refresh when the property's own update= callback fired which Blender does NOT do when a value changes because of keyframed animation playback/scrubbing (only when a person edits it directly in the UI). That made an animated material color (e.g. an .ima diffuse animation) look frozen in the viewport until you happened to click the property, at which point it would "snap" to the already-correct-but-not-yet-displayed value. Refreshing them here too, on every frame change, keeps the preview in sync during playback the same way the SRT nodes already were.
+        _apply_diffuse_to_nodes(material)
+        _apply_ambient_to_nodes(material)
+        _apply_specular_to_nodes(material)
+        _apply_emission_to_nodes(material)
+        _apply_alpha_to_nodes(material)
+
+
+@persistent
+def migrate_legacy_textures(dummy=None):
+    """Runs on file load (and once immediately when the addon is
+    (re)enabled, in case a file with old-style materials is already
+    open when that happens).
+
+    Materials saved with an older version of this plugin store their
+    texture in nns_image; this version reads a material's texture
+    entirely from the texture pattern list (nns_texframe_reference)
+    instead, so old files don't lose their textures. Also recomputes
+    nns_mat_type for every NNS material, since a fresh file predates the
+    color-type/light-driven computation this version relies on and
+    would otherwise keep whatever value was saved from the old direct
+    dropdown.
+    """
+    for material in bpy.data.materials:
+        if not getattr(material, 'is_nns', False):
+            continue
+
+        if material.nns_image and not material.nns_texframe_reference:
+            ref = material.nns_texframe_reference.add()
+            ref.image = material.nns_image
+            material.nns_image = None
+
+        material.nns_mat_type = compute_mat_type(material)
+        generate_nodes(material)
 
 
 def create_nns_material(obj):
@@ -1349,6 +1560,7 @@ class NewTexReference(bpy.types.Operator):
 
     def execute(self, context):
         context.material.nns_texframe_reference.add()
+        refresh_mat_type(context.material)
 
         return {'FINISHED'}
 
@@ -1368,6 +1580,7 @@ class DeleteTexReference(bpy.types.Operator):
         my_list.remove(index)
         context.material.nns_texframe_reference_index = min(
             max(0, index - 1), len(my_list) - 1)
+        refresh_mat_type(context.material)
 
         return {'FINISHED'}
 
@@ -1387,7 +1600,7 @@ class NTR_UL_texframe(bpy.types.UIList):
 
 
 class NTR_PT_material_texframe(bpy.types.Panel):
-    bl_label = "NNS Material texframes"
+    bl_label = "NNS Material Textures"
     bl_idname = "MATERIAL_TEXFRAME_PT_nns"
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
@@ -1402,10 +1615,14 @@ class NTR_PT_material_texframe(bpy.types.Panel):
             pass
         elif not (mat.use_nodes and mat.is_nns):
             pass
-        elif "tx" in mat.nns_mat_type:
+        else:
             layout = layout.box()
             title = layout.column()
-            title.box().label(text="NNS Material texture pattern")
+            title.box().label(text="NNS Material Textures")
+            layout.label(
+                text="No entries: the DS uses the solid/vertex color "
+                     "above. One entry: that's the base texture. More "
+                     "than one: enables .itp pattern animation.")
             layout.template_list("NTR_UL_texframe", "",
                                  mat, "nns_texframe_reference",
                                  mat, "nns_texframe_reference_index")
@@ -1488,35 +1705,26 @@ class SCENE_PT_NNS_Panel(bpy.types.Panel):
 
         layout.label(text="/!\\ These settings are only for preview purpose,\n they won't be exported")
 
-        # Fog
-        try:
-            fog_group = bpy.data.node_groups.get("nns fog")
-            if fog_group is not None:
-                if "curve" not in fog_group.nodes.keys():
-                    generate_fog_group()
-            else:
-                generate_fog_group()
-
-            curve_node = fog_group.nodes.get("curve")
-        except Exception:
-            raise NameError("Curve node doesn't exist, try creating a NNS material")
+        # Fog Only reads existing data here, never creates the "nns fog" node group from inside draw(). Blender doesn't allow creating/writing ID datablocks (node groups, nodes, ...) during panel drawing. doing that here used to crash this entire sidebar tab (including any other panel sharing it) the moment it was drawn in a file with no NNS material yet, since that's exactly when the group doesn't exist. The group gets created properly by generate_fog_material_nodes()/update_fog_group_nodes(), which only ever run from an actual operator or a property update callback, both valid contexts for creating data.
+        fog_group = bpy.data.node_groups.get("nns fog")
+        curve_node = fog_group.nodes.get("curve") if fog_group else None
 
         box = layout.box()
         box.label(text="Fog properties:")
-        box.label(text="Fog density curve:")
 
-        try:
+        if curve_node is None:
+            box.label(text="Create an NNS material first to preview fog.")
+        else:
+            box.label(text="Fog density curve:")
             box.template_curve_mapping(curve_node, "mapping")
-        except Exception:
-            raise NameError("Curve node doesn't exist, try creating a NNS material")
 
-        col = box.split(factor=0.5, align=True)
-        col1 = col.column(align=True)
-        col1.prop(context.scene, "Fog_enable", text="enable fog")
-        col1.prop(context.scene, "Fog_color", text="fog color")
-        col2 = col.column(align=True)
-        col2.prop(context.scene, "Fog_scale", text="scale")
-        col2.prop(context.scene, "Fog_offset", text="fog offset")
+            col = box.split(factor=0.5, align=True)
+            col1 = col.column(align=True)
+            col1.prop(context.scene, "Fog_enable", text="enable fog")
+            col1.prop(context.scene, "Fog_color", text="fog color")
+            col2 = col.column(align=True)
+            col2.prop(context.scene, "Fog_scale", text="scale")
+            col2.prop(context.scene, "Fog_offset", text="fog offset")
 
         # Light 0
         box = layout.box()
@@ -1560,8 +1768,25 @@ class SCENE_PT_NNS_Panel(bpy.types.Panel):
 
 
 class NTR_PT_material(bpy.types.Panel):
-    bl_label = "NNS Material Options"
+    bl_label = "NNS Material"
     bl_idname = "MATERIAL_PT_nns"
+    bl_space_type = 'PROPERTIES'
+    bl_region_type = 'WINDOW'
+    bl_context = "material"
+    bl_options = {'HIDE_HEADER'}
+
+    @classmethod
+    def poll(cls, context):
+        return context.material
+
+    def draw(self, context):
+        layout = self.layout
+        layout.operator(CreateNNSMaterial.bl_idname)
+
+
+class NTR_PT_material_options(bpy.types.Panel):
+    bl_label = "NNS Material Settings"
+    bl_idname = "MATERIAL_OPTIONS_PT_nns"
     bl_space_type = 'PROPERTIES'
     bl_region_type = 'WINDOW'
     bl_context = "material"
@@ -1575,8 +1800,6 @@ class NTR_PT_material(bpy.types.Panel):
         layout = self.layout
         mat = context.material
 
-        layout.operator(CreateNNSMaterial.bl_idname)
-
         if mat is None:
             pass
         elif not (mat.use_nodes and mat.is_nns):
@@ -1584,35 +1807,36 @@ class NTR_PT_material(bpy.types.Panel):
         else:
             layout = layout.box()
             title = layout.column()
-            title.box().label(text="NNS Material Options")
+            title.box().label(text="NNS Material Settings")
 
-            layout.prop(mat, "nns_mat_type")
+            layout.prop(mat, "nns_color_type")
 
-            if "vc" in mat.nns_mat_type:
+            any_light_on = (mat.nns_light0 or mat.nns_light1
+                             or mat.nns_light2 or mat.nns_light3)
+
+            # Diffuse and emission are shown side by side since they're both always relevant regardless of lighting state. Ambient and specular only ever have a visible effect when combined with an active light's color, with every light off they contribute nothing, so they're grouped together right below and only shown once at least one light is on. Alpha comes last since it's independent of all of the above.
+            if mat.nns_color_type == 'solid':
+                row = layout.row()
+                row.prop(mat, "nns_diffuse")
+                row.prop(mat, "nns_emission")
+            else:
                 layout.label(
                     text='Note: There must be a vertex color layer named '
                          '"Col"')
-
-            if "tx" in mat.nns_mat_type:
-                layout.template_ID(mat, "nns_image", open="image.open")
-
-            if "df" in mat.nns_mat_type:
-                layout.row().prop(mat, "nns_diffuse")
-
-            if "nr" in mat.nns_mat_type:
-                layout.row().prop(mat, "nns_ambient")
-                layout.row().prop(mat, "nns_specular")
                 layout.row().prop(mat, "nns_emission")
+
+            if any_light_on:
+                row = layout.row()
+                row.prop(mat, "nns_ambient")
+                row.prop(mat, "nns_specular")
 
             layout.row().prop(mat, "nns_alpha", slider=True)
 
-            if "nr" in mat.nns_mat_type:
-                row = layout.row(align=True)
-                row.prop(mat, "nns_light0", toggle=True)
-                row.prop(mat, "nns_light1", toggle=True)
-                row.prop(mat, "nns_light2", toggle=True)
-                row.prop(mat, "nns_light3", toggle=True)
-                # Lights settings
+            row = layout.row(align=True)
+            row.prop(mat, "nns_light0", toggle=True)
+            row.prop(mat, "nns_light1", toggle=True)
+            row.prop(mat, "nns_light2", toggle=True)
+            row.prop(mat, "nns_light3", toggle=True)
 
             layout.prop(mat, "nns_use_srst")
             layout.prop(mat, "nns_fog")
@@ -1649,9 +1873,9 @@ class NTR_PT_material(bpy.types.Panel):
 
 
 def material_register():
-    bpy.utils.register_class(NTRTexReference)
-    bpy.utils.register_class(NewTexReference)
-    bpy.utils.register_class(DeleteTexReference)
+    safe_register_class(NTRTexReference)
+    safe_register_class(NewTexReference)
+    safe_register_class(DeleteTexReference)
     bpy.types.Material.nns_texframe_reference = CollectionProperty(
         type=NTRTexReference)
     bpy.types.Material.nns_texframe_reference_index = IntProperty(
@@ -1666,11 +1890,28 @@ def material_register():
         ("vc", "Vertex colored", '', 3),
         ("tx_df", "Textured + solid color", '', 4),
         ("tx_vc", "Textured + vertex colors", '', 5),
-        ("tx_nr_df", "Textured + normals", '', 6)
+        ("tx_nr_df", "Textured + normals", '', 6),
+        ("vc_nr", "Vertex colored + normals", '', 7),
+        ("tx_vc_nr", "Textured + vertex colors + normals", '', 8),
     ]
     bpy.types.Material.nns_mat_type = EnumProperty(
         name="Material type", items=mat_type_items,
         update=update_nodes_mat_type)
+
+    color_type_items = [
+        ("solid", "Solid color", '', 1),
+        ("vertex", "Vertex colors", '', 2),
+    ]
+    bpy.types.Material.nns_color_type = EnumProperty(
+        name="Color type",
+        description=(
+            "Where this material's base color comes from before any "
+            "lighting or texture is applied: either a fixed color you "
+            "set below, or the mesh's own vertex color data"
+        ),
+        items=color_type_items,
+        default='solid',
+        update=update_computed_mat_type)
     bpy.types.Material.nns_image = PointerProperty(
         name='Texture', type=Image, update=update_nodes_image)
     bpy.types.Material.nns_diffuse = FloatVectorProperty(
@@ -1686,13 +1927,13 @@ def material_register():
         default=(0, 0, 0), subtype='COLOR', min=0.0, max=1.0, name='Emission',
         update=update_nodes_emission)
     bpy.types.Material.nns_light0 = BoolProperty(name="Light0", default=False,
-                                                 update=update_nodes_light0)
+                                                 update=update_light_toggle)
     bpy.types.Material.nns_light1 = BoolProperty(name="Light1", default=False,
-                                                 update=update_nodes_light1)
+                                                 update=update_light_toggle)
     bpy.types.Material.nns_light2 = BoolProperty(name="Light2", default=False,
-                                                 update=update_nodes_light2)
+                                                 update=update_light_toggle)
     bpy.types.Material.nns_light3 = BoolProperty(name="Light3", default=False,
-                                                 update=update_nodes_light3)
+                                                 update=update_light_toggle)
 
     # scene fog properties
 
@@ -1899,16 +2140,26 @@ def material_register():
     print("Register frame handler")
     bpy.app.handlers.frame_change_pre.append(frame_change_handler)
 
-    bpy.utils.register_class(CreateNNSMaterial)
-    bpy.utils.register_class(NTR_PT_material_visual)
-    bpy.utils.register_class(NTR_PT_material)
-    bpy.utils.register_class(NTR_PT_material_keyframe)
-    bpy.utils.register_class(NTR_UL_texframe)
-    bpy.utils.register_class(NTR_PT_material_texframe)
-    bpy.utils.register_class(SCENE_PT_NNS_Panel)
+    # NOT called immediately here: bpy.data isn't accessible at all during register() (Blender blocks it through a restricted-context proxy since the file/data state isn't fully settled yet during addon enable), so migrate_legacy_textures() can only safely run from load_post, once an actual file has finished loading. A material that hasn't been migrated yet still works correctly in the meantime either way. get_material_texture_image() already falls back to reading nns_image directly when the pattern list is empty, so nothing is actually broken by the migration not having run yet, it just hasn't visually moved into the pattern list.
+    bpy.app.handlers.load_post.append(migrate_legacy_textures)
+
+    safe_register_class(CreateNNSMaterial)
+    safe_register_class(NTR_PT_material_visual)
+    # Registration order controls draw order for panels sharing the same bl_context, so this sequence is what keeps the create button, texture list, and settings panel appearing in that order in the UI.
+    safe_register_class(NTR_PT_material)
+    safe_register_class(NTR_UL_texframe)
+    safe_register_class(NTR_PT_material_texframe)
+    safe_register_class(NTR_PT_material_options)
+    safe_register_class(NTR_PT_material_keyframe)
+    safe_register_class(SCENE_PT_NNS_Panel)
 
 
 def material_unregister():
+    if frame_change_handler in bpy.app.handlers.frame_change_pre:
+        bpy.app.handlers.frame_change_pre.remove(frame_change_handler)
+    if migrate_legacy_textures in bpy.app.handlers.load_post:
+        bpy.app.handlers.load_post.remove(migrate_legacy_textures)
+
     bpy.utils.unregister_class(NTRTexReference)
     bpy.utils.unregister_class(NewTexReference)
     bpy.utils.unregister_class(DeleteTexReference)
@@ -1916,7 +2167,8 @@ def material_unregister():
     bpy.utils.unregister_class(CreateNNSMaterial)
     bpy.utils.unregister_class(NTR_PT_material_visual)
     bpy.utils.unregister_class(NTR_PT_material)
-    bpy.utils.unregister_class(NTR_PT_material_keyframe)
     bpy.utils.unregister_class(NTR_UL_texframe)
     bpy.utils.unregister_class(NTR_PT_material_texframe)
+    bpy.utils.unregister_class(NTR_PT_material_options)
+    bpy.utils.unregister_class(NTR_PT_material_keyframe)
     bpy.utils.unregister_class(SCENE_PT_NNS_Panel)

@@ -1,7 +1,74 @@
 import sys
 import bpy
+from mathutils.geometry import tessellate_polygon
 from .util import *
 from . import local_logger as logger
+
+
+def bake_primitive_transform(prim, mtx):
+    """Bake a transform directly into a Primitive's position and normal
+    data. Used when a mesh doesn't get its own node (bones-only node
+    mode) there's nowhere else for its own position/rotation/scale to
+    live once the node is gone, so it gets applied to the raw vertex data
+    instead. Normals go through the matrix's rotation only (via
+    to_quaternion(), the same approach already used for skinning normals
+    elsewhere in this plugin), so scale on the object doesn't skew them.
+    """
+    quat = mtx.to_quaternion()
+    for i in range(len(prim.positions)):
+        p = mtx @ prim.positions[i].to_vector()
+        prim.positions[i] = VecFx32().from_vector(p)
+
+        n = quat @ prim.normals[i].to_vector()
+        prim.normals[i] = vector_to_vecfx10(n.normalized())
+
+
+def triangulate_primitive(primitive):
+    """Split an ngon or non-planar-quad Primitive into a list of
+    'triangles'-type Primitives.
+
+    Uses Blender's own polygon tessellation (mathutils.geometry's ear
+    clipping, which correctly handles concave polygons) on the positions
+    already collected on primitive, rather than touching the source
+    mesh with bmesh. so there's no risk of custom data layers (UVs,
+    vertex colors, custom split normals, vertex group weights) getting
+    lost or altered during triangulation: each output triangle just reuses
+    add_vtx() to copy its three corners' data straight from the original
+    primitive.
+    """
+    points = [p.to_vector() for p in primitive.positions]
+    triangle_indices = tessellate_polygon([points])
+
+    triangles = []
+    for (a, b, c) in triangle_indices:
+        tri = Primitive()
+        tri.type = 'triangles'
+        tri.material_index = primitive.material_index
+        tri.add_vtx(primitive, a)
+        tri.add_vtx(primitive, b)
+        tri.add_vtx(primitive, c)
+        triangles.append(tri)
+    return triangles
+
+
+def _vertex_key(prim, idx):
+    """A hashable key that is equal for two vertices only if
+    is_extra_data_equal() AND position-equality would also consider them
+    equal (it's a strictly finer-grained equality: same position, color,
+    normal, texcoord and material). Used to build an inverted index so the
+    strippers can find "triangles/quads that share a vertex with this one"
+    in roughly O(1) instead of scanning every other triangle/quad.
+    """
+    p = prim.positions[idx]
+    n = prim.normals[idx]
+    t = prim.texcoords[idx]
+    return (
+        p.x, p.y, p.z,
+        prim.colors[idx],
+        prim.material_index,
+        n.x, n.y, n.z,
+        t.x, t.y, t.z,
+    )
 
 
 class TriStripper():
@@ -107,10 +174,42 @@ class TriStripper():
         for tri in tris:
             tri.processed = False
 
-        for tri in tris:
+        # --- Candidate discovery ------------------------------------------
+        # The original code compared every triangle against every other
+        # triangle (an O(T^2) loop, each comparison itself doing up to 9
+        # position/color/normal/uv checks) just to find the up-to-3
+        # triangles that share an edge with it. For meshes with more than a
+        # few hundred triangles this dominated export time.
+        #
+        # Any pair of triangles that is_suitable_tstrip_candidate() can
+        # accept MUST share at least one vertex with matching position,
+        # color, normal, texcoord and material (that's what "suitable"
+        # requires, two shared vertices, in fact). So instead of scanning
+        # every triangle, we first build an inverted index from vertex key
+        # -> triangle indices, then only test the (usually tiny) set of
+        # triangles that share at least one vertex key with the current
+        # triangle. This is a strict prefilter, not an approximation: it
+        # can only ever discard triangles that is_suitable_tstrip_candidate
+        # would have rejected anyway, so the result is identical to the
+        # original brute-force search, just much faster to compute.
+        vertex_buckets = {}
+        for t_idx, tri in enumerate(tris):
+            for corner in range(3):
+                vertex_buckets.setdefault(
+                    _vertex_key(tri, corner), []).append(t_idx)
+
+        for t_idx, tri in enumerate(tris):
             tri.next_candidate_count = 0
             tri.next_candidates = [-1] * 4
-            for i, candidate in enumerate(tris):
+            candidate_idxs = set()
+            for corner in range(3):
+                candidate_idxs.update(
+                    vertex_buckets[_vertex_key(tri, corner)])
+            candidate_idxs.discard(t_idx)
+            # Sorted so ties are broken in the same ascending-index order
+            # the original enumerate(tris) scan used.
+            for i in sorted(candidate_idxs):
+                candidate = tris[i]
                 if not tri.is_suitable_tstrip_candidate(candidate):
                     continue
                 tri.next_candidates[tri.next_candidate_count] = i
@@ -278,10 +377,23 @@ class QuadStripper():
         result = []
         quads = [x for x in primitives if x.type == 'quads']
 
-        for quad in quads:
+        # Same hashed-adjacency prefilter as TriStripper.process see the comment there for why this is safe (it can only discard candidates that is_suitable_qstrip_candidate would have rejected  anyway) and why it turns an O(Q^2) scan into roughly O(Q).
+        vertex_buckets = {}
+        for q_idx, quad in enumerate(quads):
+            for corner in range(4):
+                vertex_buckets.setdefault(
+                    _vertex_key(quad, corner), []).append(q_idx)
+
+        for q_idx, quad in enumerate(quads):
             quad.next_candidate_count = 0
             quad.next_candidates = [-1] * 4
-            for i, candidate in enumerate(quads):
+            candidate_idxs = set()
+            for corner in range(4):
+                candidate_idxs.update(
+                    vertex_buckets[_vertex_key(quad, corner)])
+            candidate_idxs.discard(q_idx)
+            for i in sorted(candidate_idxs):
+                candidate = quads[i]
                 if not quad.is_suitable_qstrip_candidate(candidate):
                     continue
                 quad.next_candidates[quad.next_candidate_count] = i
@@ -384,6 +496,10 @@ class Primitive():
         elif len(polygon.loop_indices) == 4:
             self.type = 'quads'
             self.vertex_count = 4
+        else:
+            # 5+ sided face. Never supported by the hardware. kept here as a distinct 'ngon' type only so process_mesh can hand it straight to triangulate_primitive(), it should never reach the stripper or the final output as anything but triangles.
+            self.type = 'ngon'
+            self.vertex_count = len(polygon.loop_indices)
 
         use_colors = False
 
