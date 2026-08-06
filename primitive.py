@@ -464,6 +464,8 @@ class Primitive():
             self.colors = []
             self.texcoords = []
             self.groups = []
+            # Weight (0.0-1.0) of the vertex group in self.groups, at the matching index. Only used for the weight warning in add_primitive(), the hardware always binds a vertex fully to one matrix regardless.
+            self.weights = []
             self.processed = False
             self.next_candidate_count = 0
             # An array of indexes.
@@ -480,6 +482,7 @@ class Primitive():
         # The group this vertex belongs to.
         # This is not important for stripping.
         self.groups = []
+        self.weights = []
         self.processed = False
         self.next_candidate_count = 0
         # An array of indexes.
@@ -518,12 +521,15 @@ class Primitive():
             # Store position.
             self.positions.append(vecfx32)
 
-            # Store group.
+            # Store group. The hardware only ever binds a vertex rigidly to a single matrix, there's no blend-skinning, so if a vertex has more than one vertex group, the one with the highest weight is the one that actually matters. Picking any other one (or, as before, whichever one happened to be first in Blender's internal, not weight-sorted, list) would bind the vertex to the wrong bone. The weight itself is kept alongside it to warn about later in add_primitive(): a weight that isn't 0 or 1 means this vertex was meant to be blended between bones in Blender, which the hardware can't do, so exporting it as fully rigid to the highest-weighted bone is a visible approximation worth flagging.
             groups = obj.data.vertices[vertex_index].groups
             if groups:
-                self.groups.append(groups[0].group)
+                best = max(groups, key=lambda g: g.weight)
+                self.groups.append(best.group)
+                self.weights.append(best.weight)
             else:
                 self.groups.append(-1)
+                self.weights.append(1.0)
 
             # Color
             if use_colors:
@@ -568,6 +574,7 @@ class Primitive():
         self.normals.append(src.normals[idx])
         self.texcoords.append(src.texcoords[idx])
         self.groups.append(src.groups[idx])
+        self.weights.append(src.weights[idx])
 
     def is_extra_data_equal(self, a, other, b):
         return (

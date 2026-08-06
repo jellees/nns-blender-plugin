@@ -434,13 +434,16 @@ class NitroModelMtxPrim():
     def __init__(self, index, parent_polygon):
         self.index = index
         self.mtx_list = []
+        # add_matrix_reference() used to do "if index not in self.mtx_list" followed by "self.mtx_list.index(index)", two linear scans over a list that grows with every distinct matrix referenced in this primitive group, called once per vertex whenever the bone changes. Same class of bug as the find_matrix_by_node_name fix above, just missed in this one spot. This dict mirrors mtx_list purely for O(1) lookups, mtx_list itself is untouched and still used exactly as before by every reader.
+        self._mtx_index_map = {}
         self.primitives = []
         self.parent_polygon = parent_polygon
 
     def add_matrix_reference(self, index):
-        if index not in self.mtx_list:
+        if index not in self._mtx_index_map:
+            self._mtx_index_map[index] = len(self.mtx_list)
             self.mtx_list.append(index)
-        return self.mtx_list.index(index)
+        return self._mtx_index_map[index]
 
     def add_primitive(self, model, obj, prim: Primitive, material,
                        display_node):
@@ -491,6 +494,21 @@ class NitroModelMtxPrim():
             elif group != -1:
                 name = obj.vertex_groups[group].name
                 matrix = model.find_matrix_by_node_name(name)
+
+                # The DS geometry engine binds a vertex to a single matrix, there's no hardware blend-skinning. prim.groups[idx] already picked the highest-weighted group for this vertex (see Primitive.__init__ in primitive.py), so the export itself is correct either way, but a weight that isn't close to 0 or 1 means this vertex was actually meant to be blended between two or more bones in Blender, and that blending is lost on export: the vertex snaps to move fully with just the one bone in-game instead of following all of them, most noticeable right at a joint.                weight = prim.weights[idx]
+                if abs(weight - round(weight)) > 0.001:
+                    warning = (
+                        f"Vertex on '{obj.name}' is weighted "
+                        f"{weight:.3f} to vertex group '{name}', not 0 "
+                        "or 1. The DS can't blend a vertex between "
+                        "bones, so it'll be exported fully rigid to "
+                        "this bone instead, which can look different "
+                        "in-game (most visible at a joint) than the "
+                        "smooth blend shown in Blender. Exporting "
+                        "anyway."
+                    )
+                    logger.log(warning, debug_only=False)
+                    model.warnings.append(warning)
             else:
                 matrix = model.find_matrix_by_node_name(display_node.name)
 
@@ -789,6 +807,23 @@ class NitroModel():
             logger.log(warning, debug_only=False)
             self.warnings.append(warning)
 
+        max_position = self.settings.get('imd_max_position', 4096.0)
+        if max_position > 0 and self.info.max_coord > max_position:
+            warning = (
+                f"This model's largest vertex position is "
+                f"{self.info.max_coord:.3f} units (after Magnification "
+                f"is applied), over the {max_position:.3f} unit limit "
+                "g3dcvtr enforces. This isn't a precision heads up like "
+                "the position scale warning above, it's a hard reject: "
+                "g3dcvtr will refuse to convert this file with a "
+                "parameter out of bounds error. Lower Magnification or "
+                "scale the model down in Blender to bring it back under "
+                "the limit. Exporting anyway, but this file is expected "
+                "to fail in g3dcvtr as-is."
+            )
+            logger.log(warning, debug_only=False)
+            self.warnings.append(warning)
+
     def collect_none(self):
         root = self.find_node(self.root_name)
         root.rotate = tuple(
@@ -940,16 +975,19 @@ class NitroModel():
             display.polygon = polygon.index
 
     def apply_transformations(self):
+        # axis_conversion(...).to_4x4() only depends on the fixed '-Z'/'Y' arguments, never on the object or vertex, so it was being recomputed from scratch on every single vertex and every single normal for no reason when using the 'unite'/ 'unite_combine' node compression settings. Same for its per-object combination with obj.matrix_world and the quaternion derived from it, both only vary per object, not per vertex, so both get computed once per object now instead of once per vertex/normal.
+        axis_transform = axis_conversion(to_forward='-Z', to_up='Y').to_4x4()
+        compress = self.settings['imd_compress_nodes'] in ['unite', 'unite_combine']
         for item in self.primitives:
             obj = item['obj']
+            if compress:
+                obj_transform = axis_transform @ obj.matrix_world
+                obj_quat = obj_transform.to_quaternion()
             for primitive in item['primitives']:
                 for idx in range(len(primitive.positions)):
                     vertex = primitive.positions[idx].to_vector()
-                    if self.settings['imd_compress_nodes'] in ['unite', 'unite_combine']:
-                        transform = axis_conversion(
-                            to_forward='-Z', to_up='Y').to_4x4()
-                        transform = transform @ obj.matrix_world
-                        vertex = transform @ vertex
+                    if compress:
+                        vertex = obj_transform @ vertex
                     else:
                         matrix = None
                         group = primitive.groups[idx]
@@ -963,13 +1001,9 @@ class NitroModel():
                     vecfx32_vertex = VecFx32().from_vector(vertex)
                     primitive.positions[idx] = vecfx32_vertex
                 for idx in range(len(primitive.normals)):
-                    if self.settings['imd_compress_nodes'] in ['unite', 'unite_combine']:
+                    if compress:
                         normal = primitive.normals[idx].to_vector()
-                        transform = axis_conversion(
-                            to_forward='-Z', to_up='Y').to_4x4()
-                        transform = transform @ obj.matrix_world
-                        quat = transform.to_quaternion()
-                        normal = quat @ normal
+                        normal = obj_quat @ normal
                         primitive.normals[idx] = vector_to_vecfx10(normal)
                     else:
                         group = primitive.groups[idx]

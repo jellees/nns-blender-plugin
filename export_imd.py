@@ -121,12 +121,16 @@ def generate_materials(imd, model):
         if mat.image_idx != -1:
             material.set('tex_tiling',
                          f'{mat.tex_tiling_u} {mat.tex_tiling_v}')
-            material.set('tex_scale', mat.tex_scale)
-            material.set('tex_rotate', mat.tex_rotate)
-            material.set('tex_translate', mat.tex_translate)
             material.set('tex_gen_mode', mat.tex_gen_mode)
+            # None mode bypasses the DS's texture matrix entirely, and scale/rotate/translate feed into that same one hardware matrix alongside the effect matrix below, so there's nothing meaningful to write in that mode. Keeps the file from carrying leftover values from whatever mode was last selected while they were editable.
+            if mat.tex_gen_mode != 'none':
+                material.set('tex_scale', mat.tex_scale)
+                material.set('tex_rotate', mat.tex_rotate)
+                material.set('tex_translate', mat.tex_translate)
             if mat.tex_gen_mode == 'nrm' or mat.tex_gen_mode == 'pos':
                 material.set('tex_gen_st_src', mat.tex_gen_st_src)
+            # Texcoord mode also multiplies coordinates by the texture matrix on real hardware, only None skips it entirely, so this needs to be exported for Texcoord mode too, not just Normal/Vertex.
+            if mat.tex_gen_mode in ('nrm', 'pos', 'tex'):
                 material.set('tex_effect_mtx', mat.tex_effect_mtx)
 
 

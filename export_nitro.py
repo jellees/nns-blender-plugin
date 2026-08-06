@@ -36,7 +36,9 @@ def _serialize(root, pretty_print):
     if pretty_print:
         if hasattr(ET, 'indent'):
             ET.indent(root, space='   ')
-            return ET.tostring(root, encoding='unicode')
+            output = ET.tostring(root, encoding='unicode')
+            # ET always writes self-closing tags with a space before the slash ("<tag />"), unlike minidom's "<tag/>". IMD files are made almost entirely of leaf elements like <pos_xyz/> and <nrm/>, one or more per vertex, so this one byte per tag adds up to a measurable size difference on models with vertex counts even though it's pure whitespace, the parsed XML content is identical either way. Stripping it back out keeps the speed win from ET.indent() while keeping file size close to what the original plugin produced.
+            return output.replace(' />', '/>')
         else:
             # Fallback for very old Python versions only.
             from xml.dom import minidom

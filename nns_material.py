@@ -554,6 +554,18 @@ def generate_image_nodes(material):
         links.new(node_geo.outputs[1], node_vec_trans.inputs[0])
         links.new(node_vec_trans.outputs[0], node_mapping.inputs[0])
         node_srt = generate_srt_nodes(material, node_mapping)
+    elif material.nns_tex_gen_mode == "pos":
+        # Same idea as the "nrm" branch above, but from the vertex position instead of the normal, this was missing entirely and fell into the plain UV branch below, so "pos" mode looked identical to normal texturing in the render with no error or indication anything was off.
+        node_geo = nodes.new(type='ShaderNodeNewGeometry')
+        node_vec_trans = nodes.new(type='ShaderNodeVectorTransform')
+        node_vec_trans.convert_from = 'WORLD'
+        node_vec_trans.convert_to = 'CAMERA'
+        node_vec_trans.vector_type = 'POINT'
+        node_mapping = nodes.new(type='ShaderNodeMapping')
+        node_mapping.inputs[3].default_value = (0.5, 0.5, 0.5)
+        links.new(node_geo.outputs[0], node_vec_trans.inputs[0])
+        links.new(node_vec_trans.outputs[0], node_mapping.inputs[0])
+        node_srt = generate_srt_nodes(material, node_mapping)
     else:
         node_uvmap = nodes.new(type='ShaderNodeUVMap')
         node_uvmap.uv_map = "UVMap"
@@ -1500,11 +1512,30 @@ def migrate_legacy_textures(dummy=None):
     Materials saved with an older version of this plugin store their
     texture in nns_image; this version reads a material's texture
     entirely from the texture pattern list (nns_texframe_reference)
-    instead, so old files don't lose their textures. Also recomputes
-    nns_mat_type for every NNS material, since a fresh file predates the
-    color-type/light-driven computation this version relies on and
-    would otherwise keep whatever value was saved from the old direct
-    dropdown.
+    instead, so old files don't lose their textures.
+
+    Also backfills nns_color_type from whatever nns_mat_type the file
+    still has at this point (the legacy value, untouched so far, since
+    nothing else runs before this) before recomputing nns_mat_type.
+    nns_color_type is a brand new property with no equivalent in the
+    old direct dropdown, so on a file that predates it, it
+    starts out at its default ('solid'). Recomputing nns_mat_type from
+    that default without backfilling first would permanently convert
+    every vertex-color material (any legacy type containing "vc": vc,
+    vc_nr, tx_vc, tx_vc_nr) into a solid-color one on the very first
+    load with this version, changing the actual shading on export (an
+    unlit vertex-color material would start exporting normals
+    and skip vertex colors entirely), not just how it looks in Blender.
+
+    Also clears the light booleans for any legacy type that doesn't
+    contain "nr" (df, vc, tx_df, tx_vc). The old dropdown-driven system
+    couldn't combine vertex color with lighting at all, picking one of
+    these always meant fully unlit regardless of whatever the light
+    checkboxes said underneath, so leftover light state on a material
+    like that was always inert, it never actually did anything. Without
+    clearing it, that dead value comes alive under this version instead
+    (which can combine them), pulling lighting and normals into a
+    material that used to render, and export, as unlit vertex color.
     """
     for material in bpy.data.materials:
         if not getattr(material, 'is_nns', False):
@@ -1514,6 +1545,14 @@ def migrate_legacy_textures(dummy=None):
             ref = material.nns_texframe_reference.add()
             ref.image = material.nns_image
             material.nns_image = None
+
+        if 'vc' in material.nns_mat_type:
+            material.nns_color_type = 'vertex'
+        if 'nr' not in material.nns_mat_type:
+            material.nns_light0 = False
+            material.nns_light1 = False
+            material.nns_light2 = False
+            material.nns_light3 = False
 
         material.nns_mat_type = compute_mat_type(material)
         generate_nodes(material)
@@ -1663,7 +1702,7 @@ class NTR_PT_material_keyframe(bpy.types.Panel):
         elif "tx" in mat.nns_mat_type:
             layout = layout.box()
             title = layout.column()
-            title.box().label(text="NNS Material SRT")
+            title.box().label(text="NNS Material SRT (animated, keyframe for .ita)")
             layout.row(align=True).prop(mat, "nns_srt_scale")
             layout.prop(mat, "nns_srt_rotate")
             layout.row(align=True).prop(mat, "nns_srt_translate")
@@ -1704,6 +1743,11 @@ class SCENE_PT_NNS_Panel(bpy.types.Panel):
         # disclaimer
 
         layout.label(text="/!\\ These settings are only for preview purpose,\n they won't be exported")
+
+        # Toon vs Highlight is a single global hardware register (DISP3DCNT) the game sets at runtime, it decides how every material using Toon/highlight polygon mode renders for that whole frame. There's nothing in the model file itself that says which one it'll be.
+        box = layout.box()
+        box.label(text="Toon/highlight preview:")
+        box.prop(context.scene, "nns_toon_highlight_mode", text="")
 
         # Fog Only reads existing data here, never creates the "nns fog" node group from inside draw(). Blender doesn't allow creating/writing ID datablocks (node groups, nodes, ...) during panel drawing. doing that here used to crash this entire sidebar tab (including any other panel sharing it) the moment it was drawn in a file with no NNS material yet, since that's exactly when the group doesn't exist. The group gets created properly by generate_fog_material_nodes()/update_fog_group_nodes(), which only ever run from an actual operator or a property update callback, both valid contexts for creating data.
         fog_group = bpy.data.node_groups.get("nns fog")
@@ -1838,10 +1882,8 @@ class NTR_PT_material_options(bpy.types.Panel):
             row.prop(mat, "nns_light2", toggle=True)
             row.prop(mat, "nns_light3", toggle=True)
 
-            layout.prop(mat, "nns_use_srst")
             layout.prop(mat, "nns_fog")
             layout.prop(mat, "nns_wireframe")
-            layout.prop(mat, "nns_depth_test")
             layout.prop(mat, "nns_update_depth_buffer")
             layout.prop(mat, "nns_render_1_pixel")
             layout.prop(mat, "nns_far_clipping")
@@ -1850,16 +1892,34 @@ class NTR_PT_material_options(bpy.types.Panel):
             layout.prop(mat, "nns_display_face")
             layout.prop(mat, "nns_polygon_mode")
 
+            # Depth test and the specular table only apply to specific polygon modes on real hardware, so they only show up once that mode is actually selected instead of sitting there unused for every other mode.
+            if mat.nns_polygon_mode == "decal":
+                layout.prop(mat, "nns_depth_test")
+            elif mat.nns_polygon_mode == "toon_highlight":
+                layout.prop(mat, "nns_use_srst")
+                # Toon vs Highlight for this whole polygon mode is one global switch the game sets at runtime (DISP3DCNT), not anything per-material. The specular table only gets used on the Highlight. If the game is running Toon shading, this flag has no visible effect at all no matter what it's set to here.
+                box = layout.box()
+                box.label(
+                    text="Only visible if the game uses Highlight",
+                    icon='INFO')
+                box.label(
+                    text="shading, not Toon. See tooltip for details.")
+
             if "tx" in mat.nns_mat_type:
                 layout.prop(mat, "nns_tex_tiling_u")
                 layout.prop(mat, "nns_tex_tiling_v")
-                layout.row(align=True).prop(mat, "nns_tex_scale")
-                layout.prop(mat, "nns_tex_rotate")
-                layout.row(align=True).prop(mat, "nns_tex_translate")
                 layout.prop(mat, "nns_tex_gen_mode")
+
+                if mat.nns_tex_gen_mode != 'none':
+                    layout.row(align=True).prop(mat, "nns_tex_scale")
+                    layout.prop(mat, "nns_tex_rotate")
+                    layout.row(align=True).prop(mat, "nns_tex_translate")
 
             if mat.nns_tex_gen_mode == 'nrm' or mat.nns_tex_gen_mode == 'pos':
                 layout.prop(mat, "nns_tex_gen_st_src")
+
+            # Texcoord/Normal/Vertex tex gen modes all multiply their source coordinate by this same matrix, only "None" skips it entirely.
+            if mat.nns_tex_gen_mode in ('nrm', 'pos', 'tex'):
                 box = layout.box()
                 box.label(text="Texture effect matrix")
                 row = box.row(align=True)
@@ -1936,6 +1996,22 @@ def material_register():
                                                  update=update_light_toggle)
 
     # scene fog properties
+
+    toon_highlight_mode_items = [
+        ("toon", "Toon", '', 1),
+        ("highlight", "Highlight", '', 2),
+    ]
+    bpy.types.Scene.nns_toon_highlight_mode = EnumProperty(
+        name="Toon/highlight preview mode",
+        description=(
+            "Preview only, not exported. Toon/highlight polygon mode "
+            "renders as either Toon or Highlight shading depending on a "
+            "setting the game makes at runtime, not anything stored in "
+            "the model itself, pick whichever your game actually uses "
+            "to preview it correctly here"
+        ),
+        items=toon_highlight_mode_items,
+        default="toon")
 
     bpy.types.Scene.Fog_enable = BoolProperty(name="Fog_enable", default=False, update=update_fog_group_nodes)
     bpy.types.Scene.Fog_color = bpy.types.Scene.Light0_color = FloatVectorProperty(
@@ -2056,13 +2132,26 @@ def material_register():
     )
 
     bpy.types.Material.nns_use_srst = BoolProperty(
-        name="Use Specular Reflection Table", default=False)
+        name="Use specular reflection table",
+        description=(
+            "Only has an effect if the game is set to render Toon/"
+            "highlight mode as Highlight shading, not Toon, that choice "
+            "is made globally by the game itself at runtime, not per "
+            "material. If your game uses Toon shading (the far more "
+            "common choice), turning this on or off will look "
+            "identical in-game, that's expected, not a bug. Enables "
+            "the shininess table lookup that produces the specular "
+            "response in Highlight shading"
+        ),
+        default=False)
     bpy.types.Material.nns_fog = BoolProperty(
         name="Fog", default=False, update=update_material_fog)
     bpy.types.Material.nns_wireframe = BoolProperty(
         name="Wireframe", default=False)
     bpy.types.Material.nns_depth_test = BoolProperty(
-        name="Depth test for decal polygon", default=False)
+        name="Depth test for decal polygon",
+        description="Only used in Decal mode",
+        default=False)
     bpy.types.Material.nns_update_depth_buffer = BoolProperty(
         name="Translucent polygons update depth buffer", default=False)
     bpy.types.Material.nns_render_1_pixel = BoolProperty(
@@ -2070,7 +2159,12 @@ def material_register():
     bpy.types.Material.nns_far_clipping = BoolProperty(
         name="Far clipping", default=False)
     bpy.types.Material.nns_polygonid = IntProperty(
-        name="Polygon ID", default=0)
+        name="Polygon ID",
+        description=(
+            "Hardware field, 0-63. Used for edge marking and for "
+            "sorting/blending overlapping translucent polygons"
+        ),
+        default=0, min=0, max=63)
     bpy.types.Material.nns_priorityid = IntProperty(
         name="Priority ID", default=0)
     display_face_items = [
@@ -2097,22 +2191,61 @@ def material_register():
         ("pos", "Vertex", '', 4)
     ]
     bpy.types.Material.nns_tex_gen_mode = EnumProperty(
-        name="Tex gen mode", items=tex_gen_mode_items,
+        name="Tex gen mode",
+        description=(
+            "Where texture coordinates come from before the texture "
+            "effect matrix is applied. None: the mesh's authored UVs, "
+            "matrix skipped entirely. Texcoord: authored UVs, still "
+            "multiplied by the matrix. Normal: generated from the "
+            "surface normal, multiplied by the matrix (chrome/"
+            "reflection-style effects). Vertex: generated from the "
+            "vertex position instead. Normal and Vertex get previewed "
+            "here as an approximation, not a pixel-accurate match to "
+            "the DS's own math"
+        ),
+        items=tex_gen_mode_items,
         update=update_nodes_tex_gen)
     tex_gen_st_src_items = [
         ("polygon", "Polygon", '', 1),
         ("material", "Material", '', 2),
     ]
     bpy.types.Material.nns_tex_gen_st_src = EnumProperty(
-        name="Tex gen ST source", items=tex_gen_st_src_items)
+        name="Tex gen ST source",
+        description=(
+            "Polygon: texture coordinates come from the mesh's own UVs "
+            "as well as the generated ones. Material: skip authored UV "
+            "data entirely and rely only on the generated coordinates. "
+            "No visual difference in this Blender preview either way, "
+            "this only affects what gets written to the exported file"
+        ),
+        items=tex_gen_st_src_items)
     bpy.types.Material.nns_tex_effect_mtx_0 = FloatVectorProperty(
-        size=2, name='', default=(1, 0))
+        size=2, name='', default=(1, 0),
+        description=(
+            "Row of the DS's real texture transform matrix. Multiplied "
+            "against whatever Tex gen mode selected as the coordinate "
+            "source (authored UV for Texcoord, surface normal for "
+            "Normal, vertex position for Vertex). Export only, not "
+            "represented in this Blender preview"
+        ))
     bpy.types.Material.nns_tex_effect_mtx_1 = FloatVectorProperty(
-        size=2, name='', default=(0, 1))
+        size=2, name='', default=(0, 1),
+        description=(
+            "Row of the texture effect matrix. Export only, not "
+            "represented in this Blender preview"
+        ))
     bpy.types.Material.nns_tex_effect_mtx_2 = FloatVectorProperty(
-        size=2, name='')
+        size=2, name='',
+        description=(
+            "Row of the texture effect matrix. Export only, not "
+            "represented in this Blender preview"
+        ))
     bpy.types.Material.nns_tex_effect_mtx_3 = FloatVectorProperty(
-        size=2, name='')
+        size=2, name='',
+        description=(
+            "Row of the texture effect matrix. Export only, not "
+            "represented in this Blender preview"
+        ))
     tex_tiling_items = [
         ("repeat", "Repeat", '', 1),
         ("flip", "Flip", '', 2),
@@ -2125,17 +2258,52 @@ def material_register():
     bpy.types.Material.nns_alpha = IntProperty(
         name="Alpha", min=0, max=31, default=31, update=update_nodes_alpha)
     bpy.types.Material.nns_tex_scale = FloatVectorProperty(
-        size=2, name="Texture scale", default=(1, 1))
-    bpy.types.Material.nns_tex_rotate = FloatProperty(name="Texture rotation")
+        size=2, name="Texture scale", default=(1, 1),
+        description=(
+            "Static (non-animated) texture scale, applied on top of "
+            "Tex gen mode's coordinates. Export only, not represented "
+            "in this Blender preview. For an animated scale/rotate/"
+            "translate that exports to .ita, use the SRT fields in the "
+            "NNS Material Keyframes panel instead, keyframe those"
+        ))
+    bpy.types.Material.nns_tex_rotate = FloatProperty(
+        name="Texture rotation",
+        description=(
+            "Static (non-animated) texture rotation. Export only, not "
+            "represented in this Blender preview. For an animated "
+            "version that exports to .ita, keyframe the SRT fields in "
+            "the NNS Material Keyframes panel instead"
+        ))
     bpy.types.Material.nns_tex_translate = FloatVectorProperty(
-        size=2, name="Texture translation")
+        size=2, name="Texture translation",
+        description=(
+            "Static (non-animated) texture translation. Export only, "
+            "not represented in this Blender preview. For an animated "
+            "version that exports to .ita, keyframe the SRT fields in "
+            "the NNS Material Keyframes panel instead"
+        ))
 
     bpy.types.Material.nns_srt_translate = FloatVectorProperty(
-        size=2, name="Translate", update=update_nodes_srt_hook)
+        size=2, name="Translate", update=update_nodes_srt_hook,
+        description=(
+            "Animated texture translation, keyframe this to export a "
+            ".ita animation. Shown live in this Blender preview, "
+            "including during timeline playback"
+        ))
     bpy.types.Material.nns_srt_scale = FloatVectorProperty(
-        size=2, name="Scale", update=update_nodes_srt_hook, default=(1, 1))
+        size=2, name="Scale", update=update_nodes_srt_hook, default=(1, 1),
+        description=(
+            "Animated texture scale, keyframe this to export a .ita "
+            "animation. Shown live in this Blender preview, including "
+            "during timeline playback"
+        ))
     bpy.types.Material.nns_srt_rotate = FloatProperty(
-        name="Rotate", update=update_nodes_srt_hook, subtype='ANGLE')
+        name="Rotate", update=update_nodes_srt_hook, subtype='ANGLE',
+        description=(
+            "Animated texture rotation, keyframe this to export a "
+            ".ita animation. Shown live in this Blender preview, "
+            "including during timeline playback"
+        ))
 
     print("Register frame handler")
     bpy.app.handlers.frame_change_pre.append(frame_change_handler)

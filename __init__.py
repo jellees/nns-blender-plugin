@@ -62,6 +62,7 @@ class NTR_PT_export_imd(bpy.types.Panel):
         if operator.imd_triangulate_quads:
             layout.prop(operator, 'imd_quad_flatness_tolerance')
         layout.prop(operator, 'imd_max_pos_scale')
+        layout.prop(operator, 'imd_max_position')
 
 
 class NTR_PT_export_ita(bpy.types.Panel):
@@ -293,6 +294,20 @@ class ExportNitro(bpy.types.Operator, ExportHelper):
         default=8,
         min=0,
         max=31)
+    imd_max_position: FloatProperty(
+        name="Max model extent warning",
+        description=(
+            "g3dcvtr rejects a model outright once a vertex position "
+            "(after Magnification is applied) goes past this many "
+            "units on any axis, with a parameter out of bounds error. "
+            "Position scale can't help here, it only trades precision "
+            "for range, it doesn't raise this ceiling. You'll get a "
+            "warning before you hit the actual error in g3dcvtr. "
+            "Default matches the limit reported from real g3dcvtr "
+            "testing"
+        ),
+        default=4096.0,
+        min=0.0)
 
     ita_export: BoolProperty(name="Export .ita")
     ita_rotate_tolerance: FloatProperty(
