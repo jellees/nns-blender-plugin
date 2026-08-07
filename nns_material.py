@@ -1285,12 +1285,18 @@ def update_nodes_mat_type(self, context):
 def update_nodes_image(self, context):
     material = context.material
     if material.is_nns:
-        if material.nns_image != '':
+        if material.nns_texframe_reference:
             try:
                 node_image = material.node_tree.nodes.get('nns_node_image')
-                node_image.image = material.nns_image
+                node_image.image = material.nns_texframe_reference[material.nns_texframe_reference_index].image
             except Exception:
-                raise NameError("Cannot load image")
+                try:
+                    # In case it didn't generate the node due to lack of previous texture 
+                    # bazooka way, maybe it just needs the generate image node function
+                    # but this seems easier annd way more sure
+                    refresh_mat_type(material)
+                except Exception:
+                    raise NameError("Cannot load image")
 
 
 def _apply_alpha_to_nodes(material):
@@ -1590,7 +1596,8 @@ class CreateNNSMaterial(bpy.types.Operator):
 class NTRTexReference(bpy.types.PropertyGroup):
     image: PointerProperty(
         name='Texture',
-        type=Image)
+        type=Image,
+        update=update_nodes_image)
 
 
 class NewTexReference(bpy.types.Operator):
