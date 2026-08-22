@@ -81,7 +81,7 @@ class NitroTXP:
 
         for material in materials:
             bld_material = bpy.data.materials[material.blender_index]
-            if not bld_material.nns_texframe_reference:
+            if len(bld_material.nns_texframe_reference) < 2:
                 continue
 
             self.set_images(bld_material, model)
@@ -96,7 +96,6 @@ class NitroTXP:
                 self.info.set_frame_size(int(action.frame_range[1]))
                 self.set_data(action, bld_material, model)
             else:
-                # There are texture pattern entries but no animation driving nns_texframe_reference_index. Previously this crashed with an AttributeError (None has no attribute 'action') instead of exporting anything. Treat it as a single static frame using the first entry. Matches what NitroModelMaterial does for the base texture fallback (see nns_model.py) when there's no main-tab texture either.
                 self.set_static_data(bld_material, model)
 
     def set_static_data(self, material, model):
@@ -145,6 +144,10 @@ class NitroTXP:
                 acquire_from_fcurves(channelbag.fcurves)
         else:
             acquire_from_fcurves(action.fcurves)
+
+        if not material_frmPattern:
+            self.set_static_data(material, model)
+            return
 
         head = self.data.find_plt_img_frm(
             material_pltPattern, material_imgPattern, material_frmPattern)

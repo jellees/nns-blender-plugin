@@ -495,7 +495,7 @@ class NitroModelMtxPrim():
                 name = obj.vertex_groups[group].name
                 matrix = model.find_matrix_by_node_name(name)
 
-                # The DS geometry engine binds a vertex to a single matrix, there's no hardware blend-skinning. prim.groups[idx] already picked the highest-weighted group for this vertex (see Primitive.__init__ in primitive.py), so the export itself is correct either way, but a weight that isn't close to 0 or 1 means this vertex was actually meant to be blended between two or more bones in Blender, and that blending is lost on export: the vertex snaps to move fully with just the one bone in-game instead of following all of them, most noticeable right at a joint.                weight = prim.weights[idx]
+                weight = prim.weights[idx]
                 if abs(weight - round(weight)) > 0.001:
                     warning = (
                         f"Vertex on '{obj.name}' is weighted "
@@ -722,6 +722,7 @@ class NitroModelOutputInfo():
             self.quad_size += polygon.quad_size
 
 
+
 class NitroModel():
     def __init__(self, settings):
         self.info = NitroModelInfo()
@@ -823,6 +824,7 @@ class NitroModel():
             )
             logger.log(warning, debug_only=False)
             self.warnings.append(warning)
+
 
     def collect_none(self):
         root = self.find_node(self.root_name)
@@ -1322,7 +1324,14 @@ class NitroModel():
         return matrix
 
     def find_matrix_by_node_name(self, name):
-        node = self.find_node(name)
+        node = self._node_by_name.get(name)
+        if node is None:
+            raise ValueError(
+                f"'{name}' is used as a vertex group name but there's no "
+                "node with that name in the exported model. This usually "
+                "means a bone was deleted without also deleting or "
+                "renaming the vertex group that referenced it."
+            )
         matrix = self._matrix_by_node_idx.get(node.index)
         if matrix is not None:
             return matrix

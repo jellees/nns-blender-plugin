@@ -521,10 +521,9 @@ class Primitive():
             # Store position.
             self.positions.append(vecfx32)
 
-            # Store group. The hardware only ever binds a vertex rigidly to a single matrix, there's no blend-skinning, so if a vertex has more than one vertex group, the one with the highest weight is the one that actually matters. Picking any other one (or, as before, whichever one happened to be first in Blender's internal, not weight-sorted, list) would bind the vertex to the wrong bone. The weight itself is kept alongside it to warn about later in add_primitive(): a weight that isn't 0 or 1 means this vertex was meant to be blended between bones in Blender, which the hardware can't do, so exporting it as fully rigid to the highest-weighted bone is a visible approximation worth flagging.
             groups = obj.data.vertices[vertex_index].groups
-            if groups:
-                best = max(groups, key=lambda g: g.weight)
+            best = max(groups, key=lambda g: g.weight, default=None)
+            if best is not None and best.weight > 1e-6:
                 self.groups.append(best.group)
                 self.weights.append(best.weight)
             else:

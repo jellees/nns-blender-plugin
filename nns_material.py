@@ -1,4 +1,5 @@
 import bpy
+import os
 from bpy.props import (BoolProperty,
                        FloatProperty,
                        EnumProperty,
@@ -9,6 +10,7 @@ from bpy.props import (BoolProperty,
 from bpy.types import Image
 from bpy.app.handlers import persistent
 from .util import safe_register_class
+from . import nns_tga
 
 
 def generate_output_node(material, input):
@@ -1109,7 +1111,7 @@ def refresh_mat_type(material):
 
 
 def update_computed_mat_type(self, context):
-    refresh_mat_type(context.material)
+    refresh_mat_type(getattr(context, 'material', None))
 
 
 def update_light_toggle(self, context):
@@ -1119,7 +1121,7 @@ def update_light_toggle(self, context):
     other was already on), the lighting node graph already exists and
     only the per-light enabled values need refreshing, same as before.
     """
-    material = context.material
+    material = getattr(context, 'material', None)
     if material is None or not material.is_nns:
         return
 
@@ -1140,7 +1142,7 @@ def update_light_toggle(self, context):
 
 
 def generate_nodes(material):
-    if material.is_nns:
+    if material is not None and material.is_nns:
         nodes = material.node_tree.nodes
         nodes.clear()
         links = material.node_tree.links
@@ -1191,7 +1193,9 @@ def update_fog_group_nodes(self, context):
 
 
 def update_material_fog(self, context):
-    material = context.material
+    material = getattr(context, 'material', None)
+    if material is None:
+        return
     nodes = material.node_tree.nodes
     group = nodes.get("nns fog")
     if group is not None:
@@ -1273,30 +1277,27 @@ def update_light3(self, context):
 
 
 def update_nodes_mode(self, context):
-    material = context.material
+    material = getattr(context, 'material', None)
     generate_nodes(material)
 
 
 def update_nodes_mat_type(self, context):
-    material = context.material
+    material = getattr(context, 'material', None)
     generate_nodes(material)
 
 
 def update_nodes_image(self, context):
-    material = context.material
-    if material.is_nns:
+    material = getattr(context, 'material', None)
+    if material is not None and material.is_nns:
         if material.nns_texframe_reference:
-            try:
-                node_image = material.node_tree.nodes.get('nns_node_image')
-                node_image.image = material.nns_texframe_reference[material.nns_texframe_reference_index].image
-            except Exception:
+            node_image = material.node_tree.nodes.get('nns_node_image')
+            if node_image is not None:
                 try:
-                    # In case it didn't generate the node due to lack of previous texture 
-                    # bazooka way, maybe it just needs the generate image node function
-                    # but this seems easier annd way more sure
-                    refresh_mat_type(material)
+                    node_image.image = material.nns_texframe_reference[material.nns_texframe_reference_index].image
                 except Exception:
                     raise NameError("Cannot load image")
+            else:
+                refresh_mat_type(material)
 
 
 def _apply_alpha_to_nodes(material):
@@ -1324,7 +1325,9 @@ def _apply_alpha_to_nodes(material):
 
 
 def update_nodes_alpha(self, context):
-    _apply_alpha_to_nodes(context.material)
+    material = getattr(context, 'material', None)
+    if material is not None:
+        _apply_alpha_to_nodes(material)
 
 
 def _apply_diffuse_to_nodes(material):
@@ -1355,7 +1358,9 @@ def _apply_diffuse_to_nodes(material):
 
 
 def update_nodes_diffuse(self, context):
-    _apply_diffuse_to_nodes(context.material)
+    material = getattr(context, 'material', None)
+    if material is not None:
+        _apply_diffuse_to_nodes(material)
 
 
 def _apply_emission_to_nodes(material):
@@ -1371,7 +1376,9 @@ def _apply_emission_to_nodes(material):
 
 
 def update_nodes_emission(self, context):
-    _apply_emission_to_nodes(context.material)
+    material = getattr(context, 'material', None)
+    if material is not None:
+        _apply_emission_to_nodes(material)
 
 
 def _apply_ambient_to_nodes(material):
@@ -1387,7 +1394,9 @@ def _apply_ambient_to_nodes(material):
 
 
 def update_nodes_ambient(self, context):
-    _apply_ambient_to_nodes(context.material)
+    material = getattr(context, 'material', None)
+    if material is not None:
+        _apply_ambient_to_nodes(material)
 
 
 def _apply_specular_to_nodes(material):
@@ -1403,10 +1412,14 @@ def _apply_specular_to_nodes(material):
 
 
 def update_nodes_specular(self, context):
-    _apply_specular_to_nodes(context.material)
+    material = getattr(context, 'material', None)
+    if material is not None:
+        _apply_specular_to_nodes(material)
 
 
 def update_nodes_use_only_diffuse(material):
+    if material is None:
+        return
     mask_node = material.node_tree.nodes.get("UseOnlyDiffuse?")
     use_only_diffuse = True
     lights = (material.nns_light0, material.nns_light1, material.nns_light2, material.nns_light3)
@@ -1417,48 +1430,48 @@ def update_nodes_use_only_diffuse(material):
 
 
 def update_nodes_light0(self, context):
-    material = context.material
+    material = getattr(context, 'material', None)
     update_nodes_use_only_diffuse(material)
-    if material.is_nns:
+    if material is not None and material.is_nns:
         if "nr" in material.nns_mat_type:
             node_light0 = material.node_tree.nodes.get("Light0 Enabled")
             node_light0.outputs[0].default_value = material.nns_light0
 
 
 def update_nodes_light1(self, context):
-    material = context.material
+    material = getattr(context, 'material', None)
     update_nodes_use_only_diffuse(material)
-    if material.is_nns:
+    if material is not None and material.is_nns:
         if "nr" in material.nns_mat_type:
             node_light1 = material.node_tree.nodes.get("Light1 Enabled")
             node_light1.outputs[0].default_value = material.nns_light1
 
 
 def update_nodes_light2(self, context):
-    material = context.material
+    material = getattr(context, 'material', None)
     update_nodes_use_only_diffuse(material)
-    if material.is_nns:
+    if material is not None and material.is_nns:
         if "nr" in material.nns_mat_type:
             node_light2 = material.node_tree.nodes.get("Light2 Enabled")
             node_light2.outputs[0].default_value = material.nns_light2
 
 
 def update_nodes_light3(self, context):
-    material = context.material
+    material = getattr(context, 'material', None)
     update_nodes_use_only_diffuse(material)
-    if material.is_nns:
+    if material is not None and material.is_nns:
         if "nr" in material.nns_mat_type:
             node_light3 = material.node_tree.nodes.get("Light3 Enabled")
             node_light3.outputs[0].default_value = material.nns_light3
 
 
 def update_nodes_face(self, context):
-    material = context.material
+    material = getattr(context, 'material', None)
     generate_nodes(material)
 
 
 def update_nodes_tex_gen(self, context):
-    material = context.material
+    material = getattr(context, 'material', None)
     generate_nodes(material)
 
 
@@ -1818,6 +1831,118 @@ class SCENE_PT_NNS_Panel(bpy.types.Panel):
         col2.prop(context.scene, "Light3_vector", text="vector")
 
 
+def get_polygon_budget_cost(obj):
+    vertex_count = 0
+    polygon_count = 0
+    for polygon in obj.data.polygons:
+        n = len(polygon.vertices)
+        vertex_count += n
+        if n <= 4:
+            polygon_count += 1
+        else:
+            polygon_count += n - 2
+    return vertex_count, polygon_count
+
+
+def compute_geometry_budget(context):
+    total_vertices = 0
+    total_polygons = 0
+    for obj in context.view_layer.objects:
+        if obj.type != 'MESH' or obj.hide_render:
+            continue
+        v, p = get_polygon_budget_cost(obj)
+        total_vertices += v
+        total_polygons += p
+    return total_vertices, total_polygons
+
+
+def compute_texture_budget():
+    seen_paths = set()
+    total_bytes = 0
+    failed = []
+    for material in bpy.data.materials:
+        if not getattr(material, 'is_nns', False):
+            continue
+        for ref in material.nns_texframe_reference:
+            if ref.image is None:
+                continue
+            path = os.path.realpath(bpy.path.abspath(ref.image.filepath))
+            if path in seen_paths:
+                continue
+            seen_paths.add(path)
+            try:
+                tga = nns_tga.read_nitro_tga(path)
+            except Exception:
+                failed.append(path)
+                continue
+            size = nns_tga.get_bitmap_size(tga)
+            if tga['nitro_data']['tex_format'] != 'direct':
+                size += nns_tga.get_palette_size(tga)
+            if tga['nitro_data']['tex_format'] == 'tex4x4':
+                size += nns_tga.get_pltt_idx_size(tga)
+            total_bytes += size
+    return total_bytes, failed
+
+
+class NNS_OT_refresh_budget_stats(bpy.types.Operator):
+    bl_idname = "nns.refresh_budget_stats"
+    bl_label = "Refresh texture VRAM stats"
+
+    def execute(self, context):
+        total_bytes, failed = compute_texture_budget()
+        context.scene.nns_budget_texture_bytes_used = total_bytes
+        context.scene.nns_budget_texture_failed_count = len(failed)
+        return {'FINISHED'}
+
+
+class NNS_PT_budget_stats(bpy.types.Panel):
+    bl_label = "NNS Hardware Budget"
+    bl_space_type = 'VIEW_3D'
+    bl_region_type = 'UI'
+    bl_category = "NNS Scene"
+
+    def draw(self, context):
+        layout = self.layout
+        scene = context.scene
+
+        vertex_count, polygon_count = compute_geometry_budget(context)
+
+        box = layout.box()
+        row = box.row()
+        row.label(text=f"Vertices: {vertex_count} / {scene.nns_budget_vertex_limit}")
+        if vertex_count > scene.nns_budget_vertex_limit:
+            row.alert = True
+            row.label(text="OVER", icon='ERROR')
+        box.prop(scene, "nns_budget_vertex_limit")
+
+        box = layout.box()
+        row = box.row()
+        row.label(text=f"Polygons: {polygon_count} / {scene.nns_budget_polygon_limit}")
+        if polygon_count > scene.nns_budget_polygon_limit:
+            row.alert = True
+            row.label(text="OVER", icon='ERROR')
+        box.prop(scene, "nns_budget_polygon_limit")
+
+        box = layout.box()
+        used = scene.nns_budget_texture_bytes_used
+        limit = scene.nns_budget_texture_limit
+        row = box.row()
+        row.label(text=f"Texture VRAM: {used / 1024:.1f} KB / {limit / 1024:.1f} KB")
+        if used > limit:
+            row.alert = True
+            row.label(text="OVER", icon='ERROR')
+        box.prop(scene, "nns_budget_texture_limit")
+        if scene.nns_budget_texture_failed_count > 0:
+            box.label(
+                text=f"{scene.nns_budget_texture_failed_count} texture(s) could not be read",
+                icon='ERROR')
+        box.operator("nns.refresh_budget_stats", icon='FILE_REFRESH')
+
+        layout.label(text="Vertex/polygon counts are a live estimate from Blender's own mesh data, not the exact post-export count.")
+        layout.label(text="Texture VRAM is read directly from each Nitro TGA's real converted data, exact.")
+        layout.label(text="Vertex/polygon limits are the DS hardware's real per-frame maximum. Texture VRAM limit is a single 128KB bank by default, adjust it to match what your game actually reserves for textures.")
+
+
 class NTR_PT_material(bpy.types.Panel):
     bl_label = "NNS Material"
     bl_idname = "MATERIAL_PT_nns"
@@ -1917,10 +2042,9 @@ class NTR_PT_material_options(bpy.types.Panel):
                 layout.prop(mat, "nns_tex_tiling_v")
                 layout.prop(mat, "nns_tex_gen_mode")
 
-                if mat.nns_tex_gen_mode != 'none':
-                    layout.row(align=True).prop(mat, "nns_tex_scale")
-                    layout.prop(mat, "nns_tex_rotate")
-                    layout.row(align=True).prop(mat, "nns_tex_translate")
+                layout.row(align=True).prop(mat, "nns_tex_scale")
+                layout.prop(mat, "nns_tex_rotate")
+                layout.row(align=True).prop(mat, "nns_tex_translate")
 
             if mat.nns_tex_gen_mode == 'nrm' or mat.nns_tex_gen_mode == 'pos':
                 layout.prop(mat, "nns_tex_gen_st_src")
@@ -2019,6 +2143,15 @@ def material_register():
         ),
         items=toon_highlight_mode_items,
         default="toon")
+
+    bpy.types.Scene.nns_budget_vertex_limit = IntProperty(
+        name="Vertex budget", default=6144, min=1)
+    bpy.types.Scene.nns_budget_polygon_limit = IntProperty(
+        name="Polygon budget", default=2048, min=1)
+    bpy.types.Scene.nns_budget_texture_limit = IntProperty(
+        name="Texture VRAM budget (bytes)", default=131072, min=1)
+    bpy.types.Scene.nns_budget_texture_bytes_used = IntProperty(default=0)
+    bpy.types.Scene.nns_budget_texture_failed_count = IntProperty(default=0)
 
     bpy.types.Scene.Fog_enable = BoolProperty(name="Fog_enable", default=False, update=update_fog_group_nodes)
     bpy.types.Scene.Fog_color = bpy.types.Scene.Light0_color = FloatVectorProperty(
@@ -2200,15 +2333,12 @@ def material_register():
     bpy.types.Material.nns_tex_gen_mode = EnumProperty(
         name="Tex gen mode",
         description=(
-            "Where texture coordinates come from before the texture "
-            "effect matrix is applied. None: the mesh's authored UVs, "
-            "matrix skipped entirely. Texcoord: authored UVs, still "
-            "multiplied by the matrix. Normal: generated from the "
-            "surface normal, multiplied by the matrix (chrome/"
-            "reflection-style effects). Vertex: generated from the "
-            "vertex position instead. Normal and Vertex get previewed "
-            "here as an approximation, not a pixel-accurate match to "
-            "the DS's own math"
+            "Where texture coordinates come from. None and Texcoord "
+            "use the mesh's authored UVs. Normal generates them from "
+            "the surface normal (chrome/reflection-style effects), "
+            "Vertex from the vertex position. Normal and Vertex get "
+            "previewed here as an approximation, not a pixel-accurate "
+            "match to the DS's own math"
         ),
         items=tex_gen_mode_items,
         update=update_nodes_tex_gen)
@@ -2327,6 +2457,8 @@ def material_register():
     safe_register_class(NTR_PT_material_options)
     safe_register_class(NTR_PT_material_keyframe)
     safe_register_class(SCENE_PT_NNS_Panel)
+    safe_register_class(NNS_OT_refresh_budget_stats)
+    safe_register_class(NNS_PT_budget_stats)
 
 
 def material_unregister():
@@ -2347,3 +2479,5 @@ def material_unregister():
     bpy.utils.unregister_class(NTR_PT_material_options)
     bpy.utils.unregister_class(NTR_PT_material_keyframe)
     bpy.utils.unregister_class(SCENE_PT_NNS_Panel)
+    bpy.utils.unregister_class(NNS_OT_refresh_budget_stats)
+    bpy.utils.unregister_class(NNS_PT_budget_stats)
