@@ -253,7 +253,7 @@ class NitroBCA():
 def generate_anm_info(ica, info, model):
     node_anm_info = ET.SubElement(ica, 'node_anm_info')
     node_anm_info.set('frame_size', str(info.frame_size))
-    node_anm_info.set('scaling_rule', 'standard')
+    node_anm_info.set('scaling_rule', settings['imd_scaling_rule'])
     node_anm_info.set('magnify', str(settings['imd_magnification']))
     node_anm_info.set('tool_start_frame', '0')
     node_anm_info.set('tool_end_frame', str(info.frame_size))

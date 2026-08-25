@@ -104,7 +104,8 @@ def get_color_from_obj(obj, idx):
         if (len(obj.data.color_attributes.active_color.data) <= idx):
             return(0, 0, 0)
         else:
-            return(obj.data.color_attributes.active_color.data[idx].color)
+            entry = obj.data.color_attributes.active_color.data[idx]
+            return getattr(entry, 'color_srgb', entry.color)
     else:
         if len(obj.data.vertex_colors[0].data) <= idx:
             return(0, 0, 0)

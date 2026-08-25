@@ -13,7 +13,7 @@ settings = None
 def generate_model_info(imd, model):
     model_info = ET.SubElement(imd, 'model_info')
     model_info.set('pos_scale', str(model.info.pos_scale))
-    model_info.set('scaling_rule', 'standard')
+    model_info.set('scaling_rule', settings['imd_scaling_rule'])
     model_info.set('vertex_style', 'direct')
     magnification = str(round(settings['imd_magnification'], 6))
     model_info.set('magnify', magnification)

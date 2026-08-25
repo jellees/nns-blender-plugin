@@ -769,12 +769,109 @@ class NitroModel():
         for node in self.nodes:
             node.collect_statistics(self)
 
+        self._apply_material_order()
+
         # Optimise polygons.
         for polygon in self.polygons:
             polygon.optimize()
 
         self.output_info.collect(self)
         self._check_hardware_limits()
+
+    def _apply_material_order(self):
+        if not self.materials:
+            return
+
+        def sort_key(pair):
+            position, material = pair
+            forced = getattr(
+                bpy.data.materials[material.blender_index],
+                'nns_material_id', -1)
+            if forced is None or forced < 0:
+                return (1, position, position)
+            return (0, forced, position)
+
+        ordered = [m for _, m in sorted(enumerate(self.materials), key=sort_key)]
+        if all(m.index == i for i, m in enumerate(ordered)):
+            return
+
+        seen = {}
+        for material in ordered:
+            forced = getattr(
+                bpy.data.materials[material.blender_index],
+                'nns_material_id', -1)
+            if forced is not None and forced >= 0:
+                if forced in seen:
+                    warning = (
+                        "Materials '%s' and '%s' both use Material ID %d. "
+                        "Give them different IDs, otherwise which one comes "
+                        "first is left to Blender's own ordering."
+                        % (seen[forced], material.name, forced))
+                    logger.log(warning, debug_only=False)
+                    self.warnings.append(warning)
+                else:
+                    seen[forced] = material.name
+
+        remap = {}
+        for new_index, material in enumerate(ordered):
+            remap[material.index] = new_index
+            material.index = new_index
+        self.materials = ordered
+
+        for node in self.nodes:
+            for display in node.displays:
+                display.material = remap.get(display.material, display.material)
+
+        self._reorder_textures_and_palettes()
+
+    def _reorder_textures_and_palettes(self):
+        tex_order = []
+        for material in self.materials:
+            if material.image_idx >= 0 and material.image_idx not in tex_order:
+                tex_order.append(material.image_idx)
+        for i in range(len(self.textures)):
+            if i not in tex_order:
+                tex_order.append(i)
+
+        if tex_order != list(range(len(self.textures))):
+            tex_remap = {}
+            new_textures = []
+            for new_index, old_index in enumerate(tex_order):
+                texture = self.textures[old_index]
+                tex_remap[old_index] = new_index
+                texture.index = new_index
+                new_textures.append(texture)
+            self.textures = new_textures
+            for material in self.materials:
+                if material.image_idx >= 0:
+                    material.image_idx = tex_remap.get(
+                        material.image_idx, material.image_idx)
+
+        plt_order = []
+        for material in self.materials:
+            if material.palette_idx >= 0 and material.palette_idx not in plt_order:
+                plt_order.append(material.palette_idx)
+        for i in range(len(self.palettes)):
+            if i not in plt_order:
+                plt_order.append(i)
+
+        if plt_order != list(range(len(self.palettes))):
+            plt_remap = {}
+            new_palettes = []
+            for new_index, old_index in enumerate(plt_order):
+                palette = self.palettes[old_index]
+                plt_remap[old_index] = new_index
+                palette.index = new_index
+                new_palettes.append(palette)
+            self.palettes = new_palettes
+            for material in self.materials:
+                if material.palette_idx >= 0:
+                    material.palette_idx = plt_remap.get(
+                        material.palette_idx, material.palette_idx)
+            for texture in self.textures:
+                if getattr(texture, 'palette_idx', -1) >= 0:
+                    texture.palette_idx = plt_remap.get(
+                        texture.palette_idx, texture.palette_idx)
 
     def _check_hardware_limits(self):
         # The DS geometry engine keeps a 31-entry stack for position/vector matrices. Every distinct bone/node this model actually binds a vertex to needs a slot in that stack while it's being drawn. This model doesn't get the stack to itself either. whatever else the game loads that frame (other models, the camera, ...) shares it too, so going over (or getting close to) 31 distinct matrices is a real, well-documented hardware ceiling, not just a rule of thumb.

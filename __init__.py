@@ -61,6 +61,7 @@ class NTR_PT_export_imd(bpy.types.Panel):
         layout.prop(operator, 'imd_triangulate_quads')
         if operator.imd_triangulate_quads:
             layout.prop(operator, 'imd_quad_flatness_tolerance')
+        layout.prop(operator, 'imd_scaling_rule')
         layout.prop(operator, 'imd_max_pos_scale')
         layout.prop(operator, 'imd_max_position')
 
@@ -294,6 +295,24 @@ class ExportNitro(bpy.types.Operator, ExportHelper):
         default=8,
         min=0,
         max=31)
+    imd_scaling_rule: EnumProperty(
+        name="Scaling rule",
+        description=(
+            "How bone scale propagates down the skeleton. Standard lets a "
+            "parent's scale multiply into every child. Maya applies segment "
+            "scale compensation, so a child cancels out its parent's scale. "
+            "Every retail model checked so far uses Maya, and a game that "
+            "resizes a character by scaling its bones at runtime will "
+            "distort badly with Standard, limbs ending up far too large or "
+            "far too small while the root looks fine"
+        ),
+        items=[
+            ('maya', "Maya (matches retail)", ''),
+            ('standard', "Standard", ''),
+            ('si3d', "SI3D", ''),
+        ],
+        default='maya')
+
     imd_max_position: FloatProperty(
         name="Max model extent warning",
         description=(

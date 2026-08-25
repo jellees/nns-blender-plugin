@@ -1985,6 +1985,7 @@ class NTR_PT_material_options(bpy.types.Panel):
             title = layout.column()
             title.box().label(text="NNS Material Settings")
 
+            layout.prop(mat, "nns_material_id")
             layout.prop(mat, "nns_color_type")
 
             any_light_on = (mat.nns_light0 or mat.nns_light1
@@ -2024,10 +2025,8 @@ class NTR_PT_material_options(bpy.types.Panel):
             layout.prop(mat, "nns_display_face")
             layout.prop(mat, "nns_polygon_mode")
 
-            # Depth test and the specular table only apply to specific polygon modes on real hardware, so they only show up once that mode is actually selected instead of sitting there unused for every other mode.
-            if mat.nns_polygon_mode == "decal":
-                layout.prop(mat, "nns_depth_test")
-            elif mat.nns_polygon_mode == "toon_highlight":
+            layout.prop(mat, "nns_depth_test")
+            if mat.nns_polygon_mode == "toon_highlight":
                 layout.prop(mat, "nns_use_srst")
                 # Toon vs Highlight for this whole polygon mode is one global switch the game sets at runtime (DISP3DCNT), not anything per-material. The specular table only gets used on the Highlight. If the game is running Toon shading, this flag has no visible effect at all no matter what it's set to here.
                 box = layout.box()
@@ -2088,6 +2087,20 @@ def material_register():
     bpy.types.Material.nns_mat_type = EnumProperty(
         name="Material type", items=mat_type_items,
         update=update_nodes_mat_type)
+
+    bpy.types.Material.nns_material_id = IntProperty(
+        name="Material ID (-1 = automatic)",
+        description=(
+            "Force where this material lands in the exported material "
+            "list. Lower numbers go first; anything left at -1 keeps the "
+            "order materials happen to be reached in while walking the "
+            "scene and gets placed after all the numbered ones. Matters "
+            "when something outside the model addresses materials, "
+            "textures or palettes by index rather than by name, such as a "
+            "game swapping palettes at runtime"
+        ),
+        default=-1,
+        min=-1)
 
     color_type_items = [
         ("solid", "Solid color", '', 1),
@@ -2290,7 +2303,14 @@ def material_register():
         name="Wireframe", default=False)
     bpy.types.Material.nns_depth_test = BoolProperty(
         name="Depth test for decal polygon",
-        description="Only used in Decal mode",
+        description=(
+            "Switches the depth comparison from strictly-closer to "
+            "equal-or-closer, letting this polygon render cleanly on top "
+            "of another polygon sitting at the exact same depth, instead "
+            "of flickering against it. Turn this on for any polygon "
+            "meant to sit flush on another surface (a decal in that "
+            "sense), regardless of which polygon mode it uses"
+        ),
         default=False)
     bpy.types.Material.nns_update_depth_buffer = BoolProperty(
         name="Translucent polygons update depth buffer", default=False)
