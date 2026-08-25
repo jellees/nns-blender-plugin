@@ -1,6 +1,97 @@
 import bpy
+import os
+import contextlib
 from mathutils import Vector
 
+
+# Blender's context.mode strings (e.g. 'EDIT_MESH', 'PAINT_VERTEX') don't match what bpy.ops.object.mode_set(mode=...) expects (e.g. 'EDIT', 'VERTEX_PAINT'). this maps the ones that matter for restoring the user's mode after force_object_mode() is done.
+_RESTORE_MODE = {
+    'EDIT_MESH': 'EDIT',
+    'EDIT_CURVE': 'EDIT',
+    'EDIT_SURFACE': 'EDIT',
+    'EDIT_TEXT': 'EDIT',
+    'EDIT_ARMATURE': 'EDIT',
+    'EDIT_METABALL': 'EDIT',
+    'EDIT_LATTICE': 'EDIT',
+    'EDIT_CURVES': 'EDIT',
+    'EDIT_POINTCLOUD': 'EDIT',
+    'EDIT_GREASE_PENCIL': 'EDIT',
+    'POSE': 'POSE',
+    'SCULPT': 'SCULPT',
+    'SCULPT_CURVES': 'SCULPT_CURVES',
+    'PAINT_WEIGHT': 'WEIGHT_PAINT',
+    'PAINT_VERTEX': 'VERTEX_PAINT',
+    'PAINT_TEXTURE': 'TEXTURE_PAINT',
+    'PAINT_GPENCIL': 'PAINT_GPENCIL',
+    'PARTICLE_EDIT': 'PARTICLE_EDIT',
+}
+
+
+@contextlib.contextmanager
+def force_object_mode(context):
+    """Temporarily forces Object Mode for the duration of the with
+    block, then restores whatever mode was active before.
+
+    Blender doesn't write Edit Mode changes (vertex colors, UVs, custom
+    normals, edited bones, mesh topology, ...) back to the underlying
+    obj.data until the object actually leaves Edit Mode. Anything that
+    reads or writes obj.data directly, exporting, or the UV/position
+    bounds check and fix tools, gets stale or inconsistent data if it
+    runs while still in Edit Mode. This is the same fix originally
+    written for ExportNitro.execute(), pulled out here so every operator
+    that touches obj.data directly can share it instead of each having
+    its own copy of the same mode-juggling logic.
+    """
+    original_mode = context.mode
+    original_active = context.view_layer.objects.active
+    switched = False
+
+    if original_mode != 'OBJECT' and bpy.ops.object.mode_set.poll():
+        bpy.ops.object.mode_set(mode='OBJECT')
+        switched = True
+
+    try:
+        yield
+    finally:
+        if switched:
+            context.view_layer.objects.active = original_active
+            target_mode = _RESTORE_MODE.get(original_mode)
+            if target_mode and bpy.ops.object.mode_set.poll():
+                try:
+                    bpy.ops.object.mode_set(mode=target_mode)
+                except RuntimeError:
+                    # Restoring the mode is a nicety, not worth failing the whole operation over if it doesn't succeed for some reason.
+                    pass
+
+
+def safe_register_class(cls):
+    """Registers a class with Blender, recovering on its own if the
+    class is already registered.
+
+    If any register() call in this plugin ever raises partway through
+    (a bug, or Blender itself rejecting something), whatever classes it
+    already got through stay registered in Blender's internal registry
+    disabling the plugin or even it just failing to fully enable
+    doesn't automatically clean those up, only a full Blender restart
+    does. The next attempt to enable the addon then dies immediately on
+    "already registered" for the first of those classes, which is a
+    confusing error that has nothing to do with whatever the original
+    problem was. Recovering here (unregister the stale entry, then
+    register fresh) means a retry can actually get far enough to hit
+    the real error instead of masking it with this one.
+    """
+    try:
+        bpy.utils.register_class(cls)
+    except ValueError:
+        bpy.utils.unregister_class(cls)
+        bpy.utils.register_class(cls)
+
+
+def get_filepath_and_extension(image):
+    filepath = image.filepath
+    path = os.path.realpath(bpy.path.abspath(filepath))
+    _, extension = os.path.splitext(path)
+    return path, extension
 
 def get_color_from_obj(obj, idx):
     """
@@ -13,7 +104,8 @@ def get_color_from_obj(obj, idx):
         if (len(obj.data.color_attributes.active_color.data) <= idx):
             return(0, 0, 0)
         else:
-            return(obj.data.color_attributes.active_color.data[idx].color)
+            entry = obj.data.color_attributes.active_color.data[idx]
+            return getattr(entry, 'color_srgb', entry.color)
     else:
         if len(obj.data.vertex_colors[0].data) <= idx:
             return(0, 0, 0)
@@ -101,9 +193,11 @@ def lin2s(x):
     Le color correction function. From some guy on blender stackexchange.
     http://entropymine.com/imageworsener/srgbformula/
     """
+    # Values slightly outside [0, 1] can reach here (e.g. from color management, filtering, or float rounding), and the original code had no branch for x < 0 or x > 1, leaving `y` unassigned and raising an UnboundLocalError instead of just producing a valid color. Clamp first so every input has a defined, in-range output.
+    x = min(max(x, 0.0), 1.0)
     if x <= 0.0031308:
         y = x * 12.92
-    elif 0.0031308 < x <= 1:
+    else:
         y = 1.055 * x ** (1 / 2.4) - 0.055
     return y
 
@@ -153,6 +247,10 @@ class Vecfx10():
             and self.y == other.y
             and self.z == other.z
         )
+
+    def __hash__(self):
+        # Defining __eq__ makes Python 3 drop the default identity-based __hash__, silently making instances unusable as dict keys / set members (e.g. in a vertex-adjacency cache). Restore it explicitly.
+        return hash((self.x, self.y, self.z))
 
 
 class VecFx32(object):
@@ -247,3 +345,7 @@ class VecFx32(object):
             and self.y == other.y
             and self.z == other.z
         )
+
+    def __hash__(self):
+        # Defining __eq__ makes Python 3 drop the default identity-based __hash__, silently making VecFx32 unusable as a dict key / set member (needed for the hashed vertex-adjacency lookup used by the triangle/quad stripper). Restore it explicitly.
+        return hash((self.x, self.y, self.z))
