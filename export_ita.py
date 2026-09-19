@@ -3,6 +3,10 @@ from mathutils import Vector
 import xml.etree.ElementTree as ET
 import math
 
+# This is only imported to fix access to fcurves in the process_action function.
+if bpy.app.version >= (5, 0, 0):
+    from bpy_extras import anim_utils
+
 
 settings = None
 
@@ -37,26 +41,21 @@ class NitroSRTData():
         """
         head = len(self.data)
         if all(elem == data[0] for elem in data):
-            # This animation consists of one element.
-            # Try to find if the value already exist
-            # otherwise add it.
+            # This animation consists of one element. Try to find if the value already exist otherwise add it.
             try:
                 head = self.data.index(data[0])
             except ValueError:
                 self.data.append(data[0])
             return (head, 1)
         else:
-            # Try to find the pattern in the existing
-            # data first.
+            # Try to find the pattern in the existing data first.
             length = len(data)
             index = self.find_in_data(data)
             if index != -1:
                 # Found the pattern, index is now the head.
                 head = index
             else:
-                # Didn't find anything, try checking if the
-                # last inserted value is equal to the first
-                # value in the data.
+                # Didn't find anything, try checking if the last inserted value is equal to the first value in the data.
                 if self.data[-1] == data[0]:
                     data.pop(0)
                     head = head - 1
@@ -106,24 +105,38 @@ class NitroSRT():
                 self.process_action(mat.name, action)
 
     def process_action(self, material_name, action):
-        for curve in action.fcurves:
-            data = []
-            for i in range(int(action.frame_range[1]+1)):
-                data.append(round(curve.evaluate(i), 6))
-            self.info.set_frame_size(len(data))
-            animation = self.find_animation(material_name)
-            if curve.data_path == 'nns_srt_scale':
-                result = self.scale_data.add_data(data)
-                name = 'tex_scale_t' if curve.array_index else 'tex_scale_s'
-                animation.set_reference(name, result[0], result[1], 1)
-            elif curve.data_path == 'nns_srt_rotate':
-                data = [math.degrees(x) for x in data]
-                result = self.rotate_data.add_data(data)
-                animation.set_reference('tex_rotate', result[0], result[1], 1)
-            elif curve.data_path == 'nns_srt_translate':
-                result = self.translate_data.add_data(data)
-                name = 'tex_translate_t' if curve.array_index else 'tex_translate_s'
-                animation.set_reference(name, result[0], result[1], 1)
+        def acquire_from_fcurves(fcurves):
+            for curve in fcurves:
+
+                data = []
+                for i in range(int(action.frame_range[1]+1)):
+                    data.append(round(curve.evaluate(i), 6))
+
+                self.info.set_frame_size(len(data))
+                animation = self.find_animation(material_name)
+
+                if curve.data_path == 'nns_srt_scale':
+                    result = self.scale_data.add_data(data)
+                    name = 'tex_scale_t' if curve.array_index else 'tex_scale_s'
+                    animation.set_reference(name, result[0], result[1], 1)
+
+                elif curve.data_path == 'nns_srt_rotate':
+                    data = [math.degrees(x) for x in data]
+                    result = self.rotate_data.add_data(data)
+                    animation.set_reference('tex_rotate', result[0], result[1], 1)
+
+                elif curve.data_path == 'nns_srt_translate':
+                    result = self.translate_data.add_data(data)
+                    name = 'tex_translate_t' if curve.array_index else 'tex_translate_s'
+                    animation.set_reference(name, result[0], result[1], 1)
+
+        if bpy.app.version >= (5,0,0):
+            for slot in action.slots:
+                channelbag = anim_utils.action_get_channelbag_for_slot(action, slot)
+                acquire_from_fcurves(channelbag.fcurves)
+        else:
+            acquire_from_fcurves(action.fcurves)
+
 
     def find_animation(self, material_name):
         for animation in self.animations:

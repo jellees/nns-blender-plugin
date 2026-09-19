@@ -38,26 +38,21 @@ class NitroBCAData():
         """
         head = len(self.data)
         if all(elem == data[0] for elem in data):
-            # This animation consists of one element.
-            # Try to find if the value already exist
-            # otherwise add it.
+            # This animation consists of one element. Try to find if the value already exist otherwise add it.
             try:
                 head = self.data.index(data[0])
             except ValueError:
                 self.data.append(data[0])
             return (head, 1)
         else:
-            # Try to find the pattern in the existing
-            # data first.
+            # Try to find the pattern in the existing data first.
             length = len(data)
             index = self.find_in_data(data)
             if index != -1:
                 # Found the pattern, index is now the head.
                 head = index
             else:
-                # Didn't find anything, try checking if the
-                # last inserted value is equal to the first
-                # value in the data.
+                # Didn't find anything, try checking if the last inserted value is equal to the first value in the data.
                 if self.data[-1] == data[0]:
                     data.pop(0)
                     head = head - 1
@@ -120,17 +115,13 @@ class NitroBCA():
                 transforms = {}
                 for pose in obj.pose.bones:
                     transform = pose.matrix.copy()
-                    transform = obj.convert_space(
-                        pose_bone=pose, matrix=transform,
-                        from_space='POSE',
-                        to_space='LOCAL_WITH_PARENT')
+                    if pose.parent:
+                        inv = pose.parent.matrix.inverted()
+                        transform = inv @ transform
                     transforms[pose.bone.name] = transform
                 mtxs.append(transforms)
 
-                # Althought this was used in the sm64ds plugin, it doesn't
-                # work. You need to inverse multiply it with the parent
-                # logically.
-                # mtxs.append([b.matrix.copy() for b in obj.pose.bones])
+                # Althought this was used in the sm64ds plugin, it doesn't work. You need to inverse multiply it with the parent logically. mtxs.append([b.matrix.copy() for b in obj.pose.bones])
             scene.frame_set(frame_old)
 
             self.info.set_frame_size(len(mtxs))
@@ -262,7 +253,7 @@ class NitroBCA():
 def generate_anm_info(ica, info, model):
     node_anm_info = ET.SubElement(ica, 'node_anm_info')
     node_anm_info.set('frame_size', str(info.frame_size))
-    node_anm_info.set('scaling_rule', 'standard')
+    node_anm_info.set('scaling_rule', settings['imd_scaling_rule'])
     node_anm_info.set('magnify', str(settings['imd_magnification']))
     node_anm_info.set('tool_start_frame', '0')
     node_anm_info.set('tool_end_frame', str(info.frame_size))

@@ -13,7 +13,7 @@ settings = None
 def generate_model_info(imd, model):
     model_info = ET.SubElement(imd, 'model_info')
     model_info.set('pos_scale', str(model.info.pos_scale))
-    model_info.set('scaling_rule', 'standard')
+    model_info.set('scaling_rule', settings['imd_scaling_rule'])
     model_info.set('vertex_style', 'direct')
     magnification = str(round(settings['imd_magnification'], 6))
     model_info.set('magnify', magnification)
@@ -121,12 +121,13 @@ def generate_materials(imd, model):
         if mat.image_idx != -1:
             material.set('tex_tiling',
                          f'{mat.tex_tiling_u} {mat.tex_tiling_v}')
+            material.set('tex_gen_mode', mat.tex_gen_mode)
             material.set('tex_scale', mat.tex_scale)
             material.set('tex_rotate', mat.tex_rotate)
             material.set('tex_translate', mat.tex_translate)
-            material.set('tex_gen_mode', mat.tex_gen_mode)
             if mat.tex_gen_mode == 'nrm' or mat.tex_gen_mode == 'pos':
                 material.set('tex_gen_st_src', mat.tex_gen_st_src)
+            if mat.tex_gen_mode in ('nrm', 'pos', 'tex'):
                 material.set('tex_effect_mtx', mat.tex_effect_mtx)
 
 
